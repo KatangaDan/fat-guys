@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import finish from "../img/finish.jpg";
 import galaxy from '../img/galaxy.jpg';
+import { mod } from "three/webgpu";
 
 const fatGuyURL = new URL('../img/fatGuyModel.glb', import.meta.url);
 
@@ -33,7 +34,7 @@ const textureLoader = new THREE.TextureLoader();
 
 // Add background world
 
-/*const cubeTextureLoader = new THREE.CubeTextureLoader();
+const cubeTextureLoader = new THREE.CubeTextureLoader();
 scene.background = cubeTextureLoader.load([
     galaxy,
     galaxy,
@@ -41,7 +42,7 @@ scene.background = cubeTextureLoader.load([
     galaxy,
     galaxy,
     galaxy
-]);*/
+]);
 
 // Create ground
 const geometry = new THREE.PlaneGeometry(100, 300);
@@ -97,12 +98,12 @@ createFloatingPlatform(0, 0.25, -5,"danish","#ff0000");
 
 
 // Player Model
-const playerGeometry = new THREE.SphereGeometry(1, 32, 32);
+/*const playerGeometry = new THREE.SphereGeometry(1, 32, 32);
 const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff4500 });
 const player = new THREE.Mesh(playerGeometry, playerMaterial);
 player.position.set(0, 2, 150);
 player.castShadow = true;
-scene.add(player);
+scene.add(player);*/
 
 // Lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -114,7 +115,7 @@ directionalLight.castShadow = true;
 scene.add(directionalLight);
 
 // Finish Line
-const finishLineGeometry = new THREE.BoxGeometry(6, 0.1, 3);
+const finishLineGeometry = new THREE.BoxGeometry(6,0.1, 3);
 const finishLineMaterial = new THREE.MeshStandardMaterial({ map: textureLoader.load(finish)});
 const finishLine = new THREE.Mesh(finishLineGeometry, finishLineMaterial);
 finishLine.position.set(0, 0.1, -135);
@@ -123,18 +124,18 @@ finishLine.scale.z = 10;
 scene.add(finishLine);
 
 const assetLoader  = new GLTFLoader();
+let model = null; // Declare model globally but set it to null initially
 
 assetLoader.load(fatGuyURL.href, function (gltf) {
-   const model = gltf.scene;
-    // model.scale.set(0.1, 0.1, 0.1);
-    // model.position.set(0, 0, 0);
-    // model.rotation.y = Math.PI;
-    scene.add(model);
-    model.position.set(-12, 4, 10);
-
+    model = gltf.scene;  // Set the model only when it is loaded
+    model.position.set(0, 2, 150);  // Initial model position
+    model.scale.set(0.5, 0.5, 0.5);  // Initial model scale
+    model.rotation.y = Math.PI;  // Initial model rotation
+    scene.add(model);  // Add the model to the scene only after it’s fully loaded
 }, undefined, function (error) {
     console.error('Error loading player model:', error);
 });
+
 
 // Movement variables
 let moveForward = false;
@@ -191,10 +192,10 @@ window.addEventListener("keyup", handleKeyUp);
 
 // Update player movement
 function updateMovement() {
-  if (moveForward) player.position.z -= playerSpeed;
-  if (moveBackward) player.position.z += playerSpeed;
-  if (moveLeft) player.position.x -= playerSpeed;
-  if (moveRight) player.position.x += playerSpeed;
+  if (moveForward) model.position.z -= playerSpeed;
+  if (moveBackward) model.position.z += playerSpeed;
+  if (moveLeft) model.position.x -= playerSpeed;
+  if (moveRight) model.position.x += playerSpeed;
 }
 
 // Move obstacle
@@ -231,7 +232,7 @@ function movePlatform(id) {
 
 // Check for win condition
 function checkForWin() {
-  if (player.position.z < finishLine.position.z) {
+  if (model.position.z < finishLine.position.z) {
     alert("You've completed the level!");
     resetGame();
   }
@@ -239,7 +240,7 @@ function checkForWin() {
 
 // Reset game state
 function resetGame() {
-  player.position.set(0, 2, 150);
+  model.position.set(0, 2, 150);
 //   platform.position.set(0, 0.25, -5);// why?
 }
 
@@ -260,11 +261,11 @@ function animate() {
   checkForWin();
 
   camera.position.set(
-    player.position.x,
-    player.position.y + 5,
-    player.position.z + 10
+    model.position.x,
+    model.position.y + 5,
+    model.position.z + 10
   );
-  camera.lookAt(player.position);
+  camera.lookAt(model.position);
 
   renderer.render(scene, camera);
 }

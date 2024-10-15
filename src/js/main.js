@@ -1,8 +1,11 @@
 import * as THREE from "three";
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import finish from "../img/finish.jpg";
 import galaxy from '../img/galaxy.jpg';
+
+const fatGuyURL = new URL('../img/fatGuyModel.glb', import.meta.url);
 
 // Setup the scene
 const scene = new THREE.Scene();
@@ -30,7 +33,7 @@ const textureLoader = new THREE.TextureLoader();
 
 // Add background world
 
-const cubeTextureLoader = new THREE.CubeTextureLoader();
+/*const cubeTextureLoader = new THREE.CubeTextureLoader();
 scene.background = cubeTextureLoader.load([
     galaxy,
     galaxy,
@@ -38,7 +41,7 @@ scene.background = cubeTextureLoader.load([
     galaxy,
     galaxy,
     galaxy
-]);
+]);*/
 
 // Create ground
 const geometry = new THREE.PlaneGeometry(100, 300);
@@ -118,6 +121,20 @@ finishLine.position.set(0, 0.1, -135);
 finishLine.scale.x = 10;
 finishLine.scale.z = 10;
 scene.add(finishLine);
+
+const assetLoader  = new GLTFLoader();
+
+assetLoader.load(fatGuyURL.href, function (gltf) {
+   const model = gltf.scene;
+    // model.scale.set(0.1, 0.1, 0.1);
+    // model.position.set(0, 0, 0);
+    // model.rotation.y = Math.PI;
+    scene.add(model);
+    model.position.set(-12, 4, 10);
+
+}, undefined, function (error) {
+    console.error('Error loading player model:', error);
+});
 
 // Movement variables
 let moveForward = false;

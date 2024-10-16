@@ -6,7 +6,7 @@ import finish from "../img/finish.jpg";
 import galaxy from '../img/galaxy.jpg';
 import { mod } from "three/webgpu";
 
-const fatGuyURL = new URL('../img/fatGuyModel.glb', import.meta.url);
+const fatGuyURL = new URL('../assets/FatGuy.glb', import.meta.url);
 
 // Setup the scene
 const scene = new THREE.Scene();
@@ -34,7 +34,7 @@ const textureLoader = new THREE.TextureLoader();
 
 // Add background world
 
-const cubeTextureLoader = new THREE.CubeTextureLoader();
+/*const cubeTextureLoader = new THREE.CubeTextureLoader();
 scene.background = cubeTextureLoader.load([
     galaxy,
     galaxy,
@@ -42,7 +42,7 @@ scene.background = cubeTextureLoader.load([
     galaxy,
     galaxy,
     galaxy
-]);
+]);*/
 
 // Create ground
 const geometry = new THREE.PlaneGeometry(100, 300);
@@ -124,7 +124,11 @@ finishLine.scale.z = 10;
 scene.add(finishLine);
 
 const assetLoader  = new GLTFLoader();
-let model = null; // Declare model globally but set it to null initially
+let model; // Declare model globally but set it to null initially
+
+let mixer;
+
+let runningAction;
 
 assetLoader.load(fatGuyURL.href, function (gltf) {
     model = gltf.scene;  // Set the model only when it is loaded
@@ -132,6 +136,13 @@ assetLoader.load(fatGuyURL.href, function (gltf) {
     model.scale.set(0.5, 0.5, 0.5);  // Initial model scale
     model.rotation.y = Math.PI;  // Initial model rotation
     scene.add(model);  // Add the model to the scene only after it’s fully loaded
+
+    mixer = new THREE.AnimationMixer(model);
+    const clips = gltf.animations;
+    const clip = THREE.AnimationClip.findByName(clips, 'Running');
+    runningAction = mixer.clipAction(clip);
+    //action.play();
+
 }, undefined, function (error) {
     console.error('Error loading player model:', error);
 });
@@ -144,12 +155,17 @@ let moveLeft = false;
 let moveRight = false;
 const playerSpeed = 0.75;
 
-// Handle key events
+// Handle key events  
 function handleKeyDown(event) {
   switch (event.key) {
     case "w":
     case "ArrowUp":
       moveForward = true;
+      if (runningAction && !runningAction.isRunning()) {
+        runningAction.reset();  // Reset to the start of the animation
+        runningAction.setLoop(THREE.LoopRepeat);  // Ensure the animation loops
+        runningAction.play();   // Play the animation
+      }
       break;
     case "s":
     case "ArrowDown":
@@ -171,6 +187,10 @@ function handleKeyUp(event) {
     case "w":
     case "ArrowUp":
       moveForward = false;
+      if (runningAction) {
+        //runningAction.stop();  // Stop the animation when key is released
+        runningAction.fadeOut(0.5);  // Fade out the animation when key is released
+    }
       break;
     case "s":
     case "ArrowDown":
@@ -231,12 +251,14 @@ function movePlatform(id) {
 }
 
 // Check for win condition
-function checkForWin() {
-  if (model.position.z < finishLine.position.z) {
-    alert("You've completed the level!");
-    resetGame();
+
+  function checkForWin() {
+    if (model.position.z < finishLine.position.z) {
+      alert("You've completed the level!");
+      resetGame();
+    }
   }
-}
+
 
 // Reset game state
 function resetGame() {
@@ -244,11 +266,16 @@ function resetGame() {
 //   platform.position.set(0, 0.25, -5);// why?
 }
 
+const clock = new THREE.Clock();
+
 // Animate the scene
 function animate() {
   
-  requestAnimationFrame(animate);
+  if (mixer) {
+    mixer.update(clock.getDelta());
+  }
 
+  requestAnimationFrame(animate);
   updateMovement();
   movePlatform("danish");
   // moveObstacle("obs-1",0.45);

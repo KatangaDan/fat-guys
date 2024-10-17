@@ -130,6 +130,7 @@ let mixer;
 
 let runningAction;
 let backRunningAction;
+let jumpAction;
 let idleAction;
 let idleClip;
 
@@ -142,11 +143,17 @@ assetLoader.load(fatGuyURL.href, function (gltf) {
 
     mixer = new THREE.AnimationMixer(model);
     const clips = gltf.animations;
+
     const clip = THREE.AnimationClip.findByName(clips, 'Running');
-    const backClip = THREE.AnimationClip.findByName(clips, 'Running Backward');
-    idleClip = THREE.AnimationClip.findByName(clips, 'Idle');
     runningAction = mixer.clipAction(clip);
+
+    const backClip = THREE.AnimationClip.findByName(clips, 'Running Backward');  
     backRunningAction = mixer.clipAction(backClip);
+
+    const jumpClip = THREE.AnimationClip.findByName(clips, 'Jump');  
+    jumpAction = mixer.clipAction(jumpClip);
+
+    idleClip = THREE.AnimationClip.findByName(clips, 'Idle');
     idleAction = mixer.clipAction(idleClip);
     idleAction.setLoop(THREE.LoopRepeat);
     idleAction.play();
@@ -162,6 +169,10 @@ let moveForward = false;
 let moveBackward = false;
 let moveLeft = false;
 let moveRight = false;
+let jumping = false;
+let velocityY = 0;
+const gravity = -0.5;
+const groundLevel = 2; // Adjust this value based on your ground level
 const playerSpeed = 0.75;
 
 // function initIdleAction() {
@@ -212,10 +223,43 @@ function handleKeyDown(event) {
     case "a":
     case "ArrowLeft":
       moveLeft = true;
+      if (runningAction && !runningAction.isRunning()) {
+        runningAction.reset();  // Reset to the start of the animation
+        runningAction.setLoop(THREE.LoopRepeat);  // Ensure the animation loops
+        runningAction.play();   // Play the animation
+      }
+      if (idleAction && idleAction.isRunning()) {
+        idleAction.fadeOut(0.5); // Stop the idle animation
+        idleAction.stop();
+      }
       break;
     case "d":
     case "ArrowRight":
       moveRight = true;
+      if (runningAction && !runningAction.isRunning()) {
+        runningAction.reset();  // Reset to the start of the animation
+        runningAction.setLoop(THREE.LoopRepeat);  // Ensure the animation loops
+        runningAction.play();   // Play the animation
+      }
+      if (idleAction && idleAction.isRunning()) {
+        idleAction.fadeOut(0.5); // Stop the idle animation
+        idleAction.stop();
+      }
+      break;
+
+    case " ":
+      jumping = true;
+      velocityY = 2.8; // Initial jump velocity
+      console.log("jump");
+      if (jumpAction && !jumpAction.isRunning()) {
+        jumpAction.reset();  // Reset to the start of the animation
+        jumpAction.setLoop(THREE.LoopRepeat);  // Ensure the animation loops
+        jumpAction.play();   // Play the animation        
+      }
+      if (idleAction && idleAction.isRunning()) {
+        idleAction.fadeOut(0.5); // Stop the idle animation
+        idleAction.stop();
+      }
       break;
   }
 }
@@ -241,10 +285,26 @@ function handleKeyUp(event) {
     case "a":
     case "ArrowLeft":
       moveLeft = false;
+      if (runningAction) {
+        //runningAction.stop();  // Stop the animation when key is released
+        runningAction.fadeOut(0.5);  // Fade out the animation when key is released
+    }
       break;
     case "d":
     case "ArrowRight":
       moveRight = false;
+      if (runningAction) {
+        //runningAction.stop();  // Stop the animation when key is released
+        runningAction.fadeOut(0.5);  // Fade out the animation when key is released
+    }
+      break;
+
+    case " ":
+      jumping = false;
+      if (jumpAction) {
+        //runningAction.stop();  // Stop the animation when key is released
+        jumpAction.fadeOut(0.5);  // Fade out the animation when key is released
+    }
       break;
   }
   checkIdleState();
@@ -262,6 +322,18 @@ function updateMovement() {
   if (moveBackward) model.position.z += playerSpeed;
   if (moveLeft) model.position.x -= playerSpeed;
   if (moveRight) model.position.x += playerSpeed;
+
+  if (jumping) {
+    velocityY += gravity; // Apply gravity
+    model.position.y += velocityY; // Update character position
+
+    if (model.position.y <= groundLevel) {
+      model.position.y = groundLevel; // Ensure character doesn't fall below ground
+      velocityY = 0;
+      jumping = false;
+      console.log("land");
+    }
+  }
 }
 
 // Move obstacle

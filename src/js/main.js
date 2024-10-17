@@ -129,6 +129,7 @@ let model; // Declare model globally but set it to null initially
 let mixer;
 
 let runningAction;
+let backRunningAction;
 
 assetLoader.load(fatGuyURL.href, function (gltf) {
     model = gltf.scene;  // Set the model only when it is loaded
@@ -140,7 +141,9 @@ assetLoader.load(fatGuyURL.href, function (gltf) {
     mixer = new THREE.AnimationMixer(model);
     const clips = gltf.animations;
     const clip = THREE.AnimationClip.findByName(clips, 'Running');
+    const backClip = THREE.AnimationClip.findByName(clips, 'Running Backward');
     runningAction = mixer.clipAction(clip);
+    backRunningAction = mixer.clipAction(backClip);
     //action.play();
 
 }, undefined, function (error) {
@@ -170,6 +173,11 @@ function handleKeyDown(event) {
     case "s":
     case "ArrowDown":
       moveBackward = true;
+      if (backRunningAction && !backRunningAction.isRunning()) {
+        backRunningAction.reset();  // Reset to the start of the animation
+        backRunningAction.setLoop(THREE.LoopRepeat);  // Ensure the animation loops
+        backRunningAction.play();   // Play the animation
+      }
       break;
     case "a":
     case "ArrowLeft":
@@ -195,6 +203,10 @@ function handleKeyUp(event) {
     case "s":
     case "ArrowDown":
       moveBackward = false;
+      if (backRunningAction) {
+        //runningAction.stop();  // Stop the animation when key is released
+        backRunningAction.fadeOut(0.5);  // Fade out the animation when key is released
+    }
       break;
     case "a":
     case "ArrowLeft":

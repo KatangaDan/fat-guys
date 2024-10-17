@@ -130,6 +130,8 @@ let mixer;
 
 let runningAction;
 let backRunningAction;
+let idleAction;
+let idleClip;
 
 assetLoader.load(fatGuyURL.href, function (gltf) {
     model = gltf.scene;  // Set the model only when it is loaded
@@ -142,8 +144,12 @@ assetLoader.load(fatGuyURL.href, function (gltf) {
     const clips = gltf.animations;
     const clip = THREE.AnimationClip.findByName(clips, 'Running');
     const backClip = THREE.AnimationClip.findByName(clips, 'Running Backward');
+    idleClip = THREE.AnimationClip.findByName(clips, 'Idle');
     runningAction = mixer.clipAction(clip);
     backRunningAction = mixer.clipAction(backClip);
+    idleAction = mixer.clipAction(idleClip);
+    idleAction.setLoop(THREE.LoopRepeat);
+    idleAction.play();
     //action.play();
 
 }, undefined, function (error) {
@@ -158,6 +164,22 @@ let moveLeft = false;
 let moveRight = false;
 const playerSpeed = 0.75;
 
+// function initIdleAction() {
+//   idleAction = mixer.clipAction(idleClip); // Replace idleClip with your idle animation clip
+//   idleAction.setLoop(THREE.LoopRepeat);
+//   idleAction.play();
+// }
+
+function checkIdleState() {
+  if (!moveForward && !moveBackward && !moveRight && !moveLeft) {
+    console.log("idle");
+    if (idleAction && !idleAction.isRunning()) {
+      idleAction.setLoop(THREE.LoopRepeat);
+      idleAction.play(); // Play the idle animation
+    }
+  }
+}
+
 // Handle key events  
 function handleKeyDown(event) {
   switch (event.key) {
@@ -169,6 +191,10 @@ function handleKeyDown(event) {
         runningAction.setLoop(THREE.LoopRepeat);  // Ensure the animation loops
         runningAction.play();   // Play the animation
       }
+      if (idleAction && idleAction.isRunning()) {
+        idleAction.fadeOut(0.5); // Stop the idle animation
+        idleAction.stop();
+      }
       break;
     case "s":
     case "ArrowDown":
@@ -177,6 +203,10 @@ function handleKeyDown(event) {
         backRunningAction.reset();  // Reset to the start of the animation
         backRunningAction.setLoop(THREE.LoopRepeat);  // Ensure the animation loops
         backRunningAction.play();   // Play the animation
+      }
+      if (idleAction && idleAction.isRunning()) {
+        idleAction.fadeOut(0.5); // Stop the idle animation
+        idleAction.stop();
       }
       break;
     case "a":
@@ -217,10 +247,14 @@ function handleKeyUp(event) {
       moveRight = false;
       break;
   }
+  checkIdleState();
 }
 
 window.addEventListener("keydown", handleKeyDown);
 window.addEventListener("keyup", handleKeyUp);
+
+// Initialize the idle action
+//initIdleAction();
 
 // Update player movement
 function updateMovement() {

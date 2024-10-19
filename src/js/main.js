@@ -22,12 +22,26 @@ let scene,
   playerBody,
   modelCenterOffset;
 
+//Movement flags
+let moveForward = false,
+  moveBackward = false,
+  moveLeft = false,
+  moveRight = false;
+
+//Speed constants
+const PLAYER_SPEED = 20;
+const jumpForce = 1200;
+
+//Jumping flag
+let isJumping = false;
+
 function init() {
   initScene();
   initLighting();
   initPhysics();
   createGroundPiece(0, 0, 0, 100, 500);
   initPlayer();
+  initEventListeners();
 }
 
 function initScene() {
@@ -40,8 +54,7 @@ function initScene() {
   );
 
   //Set camera position
-  camera.position.set(0, 20, -70);
-  camera.lookAt(0, 0, 0);
+  camera.position.set(0, 10, -20);
 
   //Create a renderer
   renderer = new THREE.WebGLRenderer({ antialias: true }); // Add antialias for smoother edges
@@ -73,6 +86,7 @@ function initLighting() {
 
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
   directionalLight.position.set(0, 50, -20);
+  //Cover entire scene
   directionalLight.castShadow = true;
 
   scene.add(directionalLight);
@@ -133,17 +147,17 @@ function initPlayer() {
 
       // Create the player body using the Box shape
       playerBody = new CANNON.Body({
-        mass: 5, // Mass for the player
+        mass: 70, // Mass for the player
+        // Add linear damping to reduce floatiness
+        linearDamping: 0.9,
+        // Add angular damping to prevent unwanted rotation
+        angularDamping: 0.99,
+        fixedRotation: true, // This will prevent the body from rotating
         position: new CANNON.Vec3(center.x, center.y, center.z), // Start position of the player
       });
 
       // Add the Box shape to the body
       playerBody.addShape(playerShape);
-
-      // Set the initial quaternion (rotation) to avoid flipping
-      //   const q = new CANNON.Quaternion();
-      //   q.setFromEuler(0, 0, 0);
-      //   playerBody.quaternion.copy(q);
 
       // Add the body to the world
       world.addBody(playerBody);
@@ -151,6 +165,109 @@ function initPlayer() {
     undefined,
     (error) => console.error("Error loading player model:", error)
   );
+}
+
+// Set up movement event listeners
+function initEventListeners() {
+  window.addEventListener("keydown", handleKeyDown);
+  window.addEventListener("keyup", handleKeyUp);
+}
+
+//Movememnt functions that update the movement flags
+function handleKeyDown(event) {
+  switch (event.key) {
+    case "w":
+    case "ArrowUp":
+      moveForward = true;
+      //   if (runningAction && !runningAction.isRunning()) {
+      //     runningAction.reset();
+      //     runningAction.setLoop(THREE.LoopRepeat);
+      //     runningAction.play();
+      //   }
+      break;
+    case "s":
+    case "ArrowDown":
+      moveBackward = true;
+      break;
+    case "a":
+    case "ArrowLeft":
+      moveLeft = true;
+      break;
+    case "d":
+    case "ArrowRight":
+      moveRight = true;
+      break;
+    case " ":
+      // Jump when spacebar is pressed
+      if (!isJumping) {
+        jump();
+      }
+      break;
+  }
+}
+
+function handleKeyUp(event) {
+  switch (event.key) {
+    case "w":
+    case "ArrowUp":
+      moveForward = false;
+      //   if (runningAction) {
+      //     runningAction.fadeOut(0.5);
+      //   }
+      break;
+    case "s":
+    case "ArrowDown":
+      moveBackward = false;
+      break;
+    case "a":
+    case "ArrowLeft":
+      moveLeft = false;
+      break;
+    case "d":
+    case "ArrowRight":
+      moveRight = false;
+      break;
+  }
+}
+
+// Function to handle jumping
+function jump() {
+  console.log(
+    playerBody.position.y -
+      (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+      0.1
+  );
+  // Check if the player is grounded and if they are , allow them to jump
+  if (
+    playerBody.position.y -
+      (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+      0.1 <
+    0.1
+  ) {
+    isJumping = true;
+    playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
+  }
+}
+
+// Update player movement based on key presses
+function updateMovement(deltaTime) {
+  const translationStep = PLAYER_SPEED * deltaTime;
+
+  if (moveForward) playerBody.position.z += translationStep;
+  if (moveBackward) playerBody.position.z -= translationStep;
+  if (moveLeft) playerBody.position.x += translationStep;
+  if (moveRight) playerBody.position.x -= translationStep;
+
+  // Reset isJumping flag if the player has landed (velocity in the Y direction is near 0)
+  if (
+    playerBody.position.y -
+      (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+      0.1 <
+    0.1
+  ) {
+    isJumping = false;
+  }
+  playerBody.angularVelocity.set(0, 0, 0);
 }
 
 function createGroundPiece(x, y, z, width, length) {
@@ -174,19 +291,34 @@ function createGroundPiece(x, y, z, width, length) {
 }
 
 function animate() {
+  // Update the physics world on every frame
   const deltaTime = clock.getDelta();
-  world.step(1 / 60, deltaTime, 3);
+  world.step(1 / 60, deltaTime, 10);
 
   // make the model follow the physics body
   if (model && playerBody) {
     // Set the model's position to match the playerBody, adjusted by the center offset
     model.position.copy(playerBody.position).add(modelCenterOffset);
-    // model.quaternion.copy(playerBody.quaternion); // Uncomment if rotation is needed
+
+    //Update the movement of the player
+    updateMovement(deltaTime);
+
+    // //Set camera position
+    updateCamera();
   }
 
   cannonDebugger.update();
   renderer.render(scene, camera);
-  controls.update();
+  //   controls.update();
 }
 
+// Update the camera position to follow the player
+function updateCamera() {
+  camera.position.set(
+    model.position.x,
+    model.position.y + 6,
+    model.position.z - 12
+  );
+  camera.lookAt(model.position);
+}
 init();

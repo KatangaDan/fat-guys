@@ -20,23 +20,40 @@ let scene,
   clock,
   world,
   cannonDebugger,
+  initialYRotation,
   model,
+  mixer,
+  runningAction,
+  backRunningAction,
+  jumpAction,
+  idleAction,
+  idleClip,
   playerBody,
   modelCenterOffset,
   stats;
 
-//Movement flags
-let moveForward = false,
-  moveBackward = false,
-  moveLeft = false,
-  moveRight = false;
+// Movement variables
+let moveForward = false;
+let moveBackward = false;
+let moveLeft = false;
+let moveRight = false;
+let isJumping = false;
 
 //Speed constants
 const PLAYER_SPEED = 20;
 const jumpForce = 1750;
 
-//Jumping flag
-let isJumping = false;
+
+
+function checkIdleState() {
+  if (!moveForward && !moveBackward && !moveRight && !moveLeft) {
+    console.log("idle");
+    if (idleAction && !idleAction.isRunning()) {
+      idleAction.setLoop(THREE.LoopRepeat);
+      idleAction.play(); // Play the idle animation
+    }
+  }
+}
 
 function init() {
   initStats();
@@ -146,7 +163,7 @@ function initPhysics() {
 }
 
 function initPlayer() {
-  const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
+  const fatGuyURL = new URL("../assets/movement2.glb", import.meta.url);
   const assetLoader = new GLTFLoader();
 
   assetLoader.load(
@@ -154,7 +171,8 @@ function initPlayer() {
     (gltf) => {
       model = gltf.scene;
       model.position.set(0, 10, 10);
-      model.scale.set(0.3, 0.3, 0.3);
+      // model.scale.set(0.3, 0.3, 0.3);
+      model.rotation.y= Math.PI;
 
       // Enable shadows for all meshes in the model
       model.traverse((node) => {
@@ -167,10 +185,22 @@ function initPlayer() {
       scene.add(model);
 
       // Set up animation
-      //   mixer = new THREE.AnimationMixer(model);
-      //   const clips = gltf.animations;
-      //   const clip = THREE.AnimationClip.findByName(clips, "Running");
-      //   runningAction = mixer.clipAction(clip);
+        mixer = new THREE.AnimationMixer(model);
+        const clips = gltf.animations;
+
+        const clip = THREE.AnimationClip.findByName(clips, "Running");
+        runningAction = mixer.clipAction(clip);
+
+        const backClip = THREE.AnimationClip.findByName(clips, "Running Backwards");
+        backRunningAction = mixer.clipAction(backClip);
+
+        const jumpClip = THREE.AnimationClip.findByName(clips, "Jump 2");
+        jumpAction = mixer.clipAction(jumpClip);
+
+        idleClip = THREE.AnimationClip.findByName(clips, "Idle");
+        idleAction = mixer.clipAction(idleClip);
+        idleAction.setLoop(THREE.LoopRepeat);
+        idleAction.play();
 
       // Calculate the bounding box of the model
       const bbox = new THREE.Box3().setFromObject(model);
@@ -222,28 +252,69 @@ function handleKeyDown(event) {
     case "w":
     case "ArrowUp":
       moveForward = true;
-      //   if (runningAction && !runningAction.isRunning()) {
-      //     runningAction.reset();
-      //     runningAction.setLoop(THREE.LoopRepeat);
-      //     runningAction.play();
-      //   }
+        if (runningAction && !runningAction.isRunning()) {
+          runningAction.reset();
+          runningAction.setLoop(THREE.LoopRepeat);
+          runningAction.play();
+        }
+        if (idleAction && idleAction.isRunning()) {
+          idleAction.fadeOut(0.5); // Stop the idle animation
+          idleAction.stop();
+        }
       break;
     case "s":
     case "ArrowDown":
       moveBackward = true;
+      if (backRunningAction && !backRunningAction.isRunning()) {
+        backRunningAction.reset(); // Reset to the start of the animation
+        backRunningAction.setLoop(THREE.LoopRepeat); // Ensure the animation loops
+        backRunningAction.play(); // Play the animation
+      }
+      if (idleAction && idleAction.isRunning()) {
+        idleAction.fadeOut(0.5); // Stop the idle animation
+        idleAction.stop();
+      }
       break;
     case "a":
     case "ArrowLeft":
       moveLeft = true;
+      if (runningAction && !runningAction.isRunning()) {
+        runningAction.reset(); // Reset to the start of the animation
+        runningAction.setLoop(THREE.LoopRepeat); // Ensure the animation loops
+        runningAction.play(); // Play the animation
+      }
+      if (idleAction && idleAction.isRunning()) {
+        idleAction.fadeOut(0.5); // Stop the idle animation
+        idleAction.stop();
+      }
       break;
     case "d":
     case "ArrowRight":
       moveRight = true;
+      if (runningAction && !runningAction.isRunning()) {
+        runningAction.reset(); // Reset to the start of the animation
+        runningAction.setLoop(THREE.LoopRepeat); // Ensure the animation loops
+        runningAction.play(); // Play the animation
+      }
+      if (idleAction && idleAction.isRunning()) {
+        idleAction.fadeOut(0.5); // Stop the idle animation
+        idleAction.stop();
+      }
       break;
     case " ":
       // Jump when spacebar is pressed
-      if (!isJumping) {
+      isJumping = true;
+      console.log("jump");
+      if (jumpAction && !jumpAction.isRunning()) {
+        jumpAction.reset(); // Reset to the start of the animation
+        jumpAction.setLoop(THREE.LoopOnce); // Ensure the animation loops
+        jumpAction.play(); // Play the animation
+        // model.rotation.y += Math.PI; // Rotate the model by Math.PI in the y-axis
         jump();
+      }
+      if (idleAction && idleAction.isRunning()) {
+        idleAction.fadeOut(0.5); // Stop the idle animation
+        idleAction.stop();
       }
       break;
   }
@@ -254,21 +325,33 @@ function handleKeyUp(event) {
     case "w":
     case "ArrowUp":
       moveForward = false;
-      //   if (runningAction) {
-      //     runningAction.fadeOut(0.5);
-      //   }
+        if (runningAction) {
+          runningAction.fadeOut(0.5);
+        }
       break;
     case "s":
     case "ArrowDown":
       moveBackward = false;
+      if (backRunningAction) {
+        //runningAction.stop();  // Stop the animation when key is released
+        backRunningAction.fadeOut(0.5); // Fade out the animation when key is released
+      }
       break;
     case "a":
     case "ArrowLeft":
       moveLeft = false;
+      if (runningAction) {
+        //runningAction.stop();  // Stop the animation when key is released
+        runningAction.fadeOut(0.5); // Fade out the animation when key is released
+      }
       break;
     case "d":
     case "ArrowRight":
       moveRight = false;
+      if (runningAction) {
+        //runningAction.stop();  // Stop the animation when key is released
+        runningAction.fadeOut(0.5); // Fade out the animation when key is released
+      }
       break;
   }
 }
@@ -364,15 +447,23 @@ function animate() {
     // Set the model's position to match the playerBody, adjusted by the center offset
     model.position.copy(playerBody.position).add(modelCenterOffset);
 
-    // // //Set camera position
+    // Set camera position
     updateCamera();
   }
 
-  //   cannonDebugger.update();
-  renderer.render(scene, camera);
-  //   controls.update();
+  // Update the mixer for animations
+  if (mixer) {
+    mixer.update(deltaTime);
+  }
 
+  // Render the scene
+  renderer.render(scene, camera);
+
+  // Update stats
   stats.end();
+
+  // Request the next frame
+  requestAnimationFrame(animate);
 }
 
 init();

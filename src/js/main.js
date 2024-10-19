@@ -358,18 +358,13 @@ function handleKeyUp(event) {
 
 // Function to handle jumping
 function jump() {
-  console.log(
+  let startingY =
     playerBody.position.y -
-      (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
-      0.1
-  );
+    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+    0.1;
+
   // Check if the player is grounded and if they are , allow them to jump
-  if (
-    playerBody.position.y -
-      (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
-      0.1 <
-    0.1
-  ) {
+  if (startingY < 0.1) {
     isJumping = true;
     playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
   }

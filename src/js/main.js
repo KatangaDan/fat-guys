@@ -30,7 +30,7 @@ let moveForward = false,
 
 //Speed constants
 const PLAYER_SPEED = 20;
-const jumpForce = 1200;
+const jumpForce = 2000;
 
 //Jumping flag
 let isJumping = false;
@@ -54,7 +54,7 @@ function initScene() {
   );
 
   //Set camera position
-  camera.position.set(0, 10, -20);
+  camera.position.set(0, 30, -50);
 
   //Create a renderer
   renderer = new THREE.WebGLRenderer({ antialias: true }); // Add antialias for smoother edges
@@ -98,7 +98,7 @@ function initBackground() {
 
 function initPhysics() {
   world = new CANNON.World();
-  world.gravity.set(0, -9.82, 0); // Set gravity
+  world.gravity.set(0, -30, 0); // Set gravity
   cannonDebugger = new CannonDebugger(scene, world, { color: 0xff0000 });
 }
 
@@ -297,11 +297,11 @@ function animate() {
 
   // make the model follow the physics body
   if (model && playerBody) {
-    // Set the model's position to match the playerBody, adjusted by the center offset
-    model.position.copy(playerBody.position).add(modelCenterOffset);
-
     //Update the movement of the player
     updateMovement(deltaTime);
+
+    // Set the model's position to match the playerBody, adjusted by the center offset
+    model.position.copy(playerBody.position).add(modelCenterOffset);
 
     // //Set camera position
     updateCamera();

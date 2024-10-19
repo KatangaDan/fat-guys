@@ -5,10 +5,12 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as CANNON from "cannon-es";
 import CannonDebugger from "cannon-es-debugger";
 import Stats from "stats.js";
+import { createPillar } from "./obstacles";
 
 // Import assets
 import finish from "../img/finish.jpg";
 import galaxy from "../img/galaxy.jpg";
+import groundTexture from "../img/stoleItLol.jpg";
 
 //Global variables
 let scene,
@@ -20,7 +22,8 @@ let scene,
   cannonDebugger,
   model,
   playerBody,
-  modelCenterOffset;
+  modelCenterOffset,
+  stats;
 
 //Movement flags
 let moveForward = false,
@@ -30,22 +33,34 @@ let moveForward = false,
 
 //Speed constants
 const PLAYER_SPEED = 20;
-const jumpForce = 2000;
+const jumpForce = 1750;
 
 //Jumping flag
 let isJumping = false;
 
 function init() {
+  initStats();
   initScene();
   initLighting();
   initPhysics();
-  createGroundPiece(0, 0, 0, 100, 500);
   initPlayer();
   initEventListeners();
+
+  createGroundPiece(0, 0, 0, 100, 500);
+  createPillar(world, scene, 0, 0, 50, 7, 15, 7);
+  createPillar(world, scene, 46, 0, 50, 7, 15, 7);
+  createPillar(world, scene, -46, 0, 50, 7, 15, 7);
+}
+
+function initStats() {
+  stats = new Stats();
+  stats.showPanel(0); // 0: fps, 1: ms, 2: mb
+  document.body.appendChild(stats.dom);
 }
 
 function initScene() {
   scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x202020, 100, 500); // Add depth fog
   camera = new THREE.PerspectiveCamera(
     70, // Field of view (45-75)
     window.innerWidth / window.innerHeight,
@@ -60,6 +75,11 @@ function initScene() {
   renderer = new THREE.WebGLRenderer({ antialias: true }); // Add antialias for smoother edges
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
   renderer.setAnimationLoop(animate);
   renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Better shadow quality
   document.body.appendChild(renderer.domElement);
@@ -80,18 +100,41 @@ function initScene() {
 }
 
 function initLighting() {
-  // Add ambient and directional lights
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  // Scene-wide dim ambient light for base illumination
+  const ambientLight = new THREE.AmbientLight(0x404040, 0.6); // Reduced intensity
   scene.add(ambientLight);
 
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-  directionalLight.position.set(0, 50, -20);
-  //Cover entire scene
-  directionalLight.castShadow = true;
+  // Main directional light (sun-like)
+  const mainLight = new THREE.DirectionalLight(0xffffff, 1.0); // Reduced intensity
 
-  scene.add(directionalLight);
+  // Position light higher and further back for better coverage
+  mainLight.position.set(50, 100, 50); // Increased height and distance
+  mainLight.castShadow = true;
+
+  // Increase shadow map size for better quality
+  mainLight.shadow.mapSize.width = 4096;
+  mainLight.shadow.mapSize.height = 4096;
+
+  // Adjust shadow camera frustum for scene coverage
+  const shadowDistance = 300; // Increased shadow camera size
+  mainLight.shadow.camera.left = -shadowDistance;
+  mainLight.shadow.camera.right = shadowDistance;
+  mainLight.shadow.camera.top = shadowDistance;
+  mainLight.shadow.camera.bottom = -shadowDistance;
+  mainLight.shadow.camera.near = 1;
+  mainLight.shadow.camera.far = 5000;
+
+  // Optional: visualize shadow camera frustum
+  // const helper = new THREE.CameraHelper(mainLight.shadow.camera);
+  // scene.add(helper);
+
+  scene.add(mainLight);
+
+  // Secondary fill light (no shadows) for better coverage
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+  fillLight.position.set(-50, 50, -50);
+  scene.add(fillLight);
 }
-
 function initBackground() {
   //We have to do the background
 }
@@ -111,7 +154,7 @@ function initPlayer() {
     (gltf) => {
       model = gltf.scene;
       model.position.set(0, 10, 10);
-      model.scale.set(0.5, 0.5, 0.5);
+      model.scale.set(0.3, 0.3, 0.3);
 
       // Enable shadows for all meshes in the model
       model.traverse((node) => {
@@ -274,7 +317,7 @@ function createGroundPiece(x, y, z, width, length) {
   //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
   //Create a simple plane for the ground
   const groundGeometry = new THREE.PlaneGeometry(width, length);
-  const groundMaterial = new THREE.MeshStandardMaterial({ color: "grey" });
+  const groundMaterial = new THREE.MeshStandardMaterial();
   const ground = new THREE.Mesh(groundGeometry, groundMaterial);
   ground.position.set(x, y, z + length / 2);
   ground.rotation.x = -Math.PI / 2;
@@ -283,14 +326,32 @@ function createGroundPiece(x, y, z, width, length) {
 
   //Create a cannon.js body for the ground
   const groundShape = new CANNON.Box(
-    new CANNON.Vec3(width / 2, 0.1, length / 2)
+    new CANNON.Vec3(width / 2, 0.001, length / 2)
   );
   const groundBody = new CANNON.Body({ mass: 0, shape: groundShape });
   groundBody.position.set(x, y, z + length / 2);
   world.addBody(groundBody);
+
+  //add texture over the ground
+  const textureLoader = new THREE.TextureLoader();
+  const texture = textureLoader.load(groundTexture);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(10, 10);
+  groundMaterial.map = texture;
+}
+// Update the camera position to follow the player
+function updateCamera() {
+  camera.position.set(
+    model.position.x,
+    model.position.y + 6,
+    model.position.z - 12
+  );
+  camera.lookAt(model.position);
 }
 
 function animate() {
+  stats.begin();
   // Update the physics world on every frame
   const deltaTime = clock.getDelta();
   world.step(1 / 60, deltaTime, 10);
@@ -303,22 +364,15 @@ function animate() {
     // Set the model's position to match the playerBody, adjusted by the center offset
     model.position.copy(playerBody.position).add(modelCenterOffset);
 
-    // //Set camera position
+    // // //Set camera position
     updateCamera();
   }
 
-  cannonDebugger.update();
+  //   cannonDebugger.update();
   renderer.render(scene, camera);
   //   controls.update();
+
+  stats.end();
 }
 
-// Update the camera position to follow the player
-function updateCamera() {
-  camera.position.set(
-    model.position.x,
-    model.position.y + 6,
-    model.position.z - 12
-  );
-  camera.lookAt(model.position);
-}
 init();

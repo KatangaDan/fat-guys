@@ -1,306 +1,192 @@
+//Imports
 import * as THREE from "three";
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import * as CANNON from "cannon-es";
+import CannonDebugger from "cannon-es-debugger";
+import Stats from "stats.js";
 
+// Import assets
 import finish from "../img/finish.jpg";
-import galaxy from '../img/galaxy.jpg';
-import { mod } from "three/webgpu";
+import galaxy from "../img/galaxy.jpg";
 
-const fatGuyURL = new URL('../assets/FatGuy.glb', import.meta.url);
+//Global variables
+let scene,
+  camera,
+  renderer,
+  controls,
+  clock,
+  world,
+  cannonDebugger,
+  model,
+  playerBody,
+  modelCenterOffset;
 
-// Setup the scene
-const scene = new THREE.Scene();
-
-// Setup the camera (Third-Person Perspective)
-const camera = new THREE.PerspectiveCamera(
-  70,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
-camera.position.set(0, 5, 10);
-
-// Create the renderer
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-renderer.shadowMap.enabled = true;
-
-//enable orbit so you can rotate, pan etc
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.update();
-
-const textureLoader = new THREE.TextureLoader();
-
-// Add background world
-
-/*const cubeTextureLoader = new THREE.CubeTextureLoader();
-scene.background = cubeTextureLoader.load([
-    galaxy,
-    galaxy,
-    galaxy,
-    galaxy,
-    galaxy,
-    galaxy
-]);*/
-
-// Create ground
-const geometry = new THREE.PlaneGeometry(100, 300);
-const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x87ceeb });
-const ground = new THREE.Mesh(geometry, groundMaterial);
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
-scene.add(ground);
-
-// cylindrical obstacle
-function createCylindricalObstacle(x, y, z, id, color){
-
-    const obstacleGeometry = new THREE.CylinderGeometry(1, 1, 10, 32);
-    const obstacleMaterial = new THREE.MeshStandardMaterial({ color: color });
-    const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
-    obstacle.position.set(x, y, z);
-    obstacle.castShadow = true;
-    obstacle.name = id; // Set the object's id
-    scene.add(obstacle);
-
+function init() {
+  initScene();
+  initLighting();
+  initPhysics();
+  createGroundPiece(0, 0, 0, 100, 500);
+  initPlayer();
 }
 
-// initial positions are centred
-createCylindricalObstacle(5, 2.5, 130, "obs-1", "#ffffff");
-createCylindricalObstacle(15, 2.5, 115, "obs-2", "blue");
-createCylindricalObstacle(-5, 2.5, 125, "obs-3", "red");
-
-// initial positions centred left
-createCylindricalObstacle(-15, 2.5, 105, "obs-4", "#ffffff");
-createCylindricalObstacle(-35, 2.5, 110, "obs-5", "blue");
-createCylindricalObstacle(-25, 2.5, 120, "obs-6", "red");
-
-// initial positions centred right
-createCylindricalObstacle(25, 2.5, 135, "obs-7", "#ffffff");
-createCylindricalObstacle(40, 2.5, 135 , "obs-8", "blue");
-createCylindricalObstacle(35, 2.5, 120, "obs-9", "red");
-
-// create floating platforms
-
-function createFloatingPlatform(x, y, z, id, color){
-
-    const platformGeometry = new THREE.BoxGeometry(6, 0.5, 6);
-    const platformMaterial = new THREE.MeshStandardMaterial({ color: color });
-    const platform = new THREE.Mesh(platformGeometry, platformMaterial);
-    platform.position.set(x,y,z);;
-    platform.castShadow = true;
-    platform.name = id; // Set the object's id
-    scene.add(platform);
-
-}
-
-createFloatingPlatform(0, 0.25, -5,"danish","#ff0000");
-
-
-// Player Model
-/*const playerGeometry = new THREE.SphereGeometry(1, 32, 32);
-const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff4500 });
-const player = new THREE.Mesh(playerGeometry, playerMaterial);
-player.position.set(0, 2, 150);
-player.castShadow = true;
-scene.add(player);*/
-
-// Lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
-
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight.position.set(10, 10, 10);
-directionalLight.castShadow = true;
-scene.add(directionalLight);
-
-// Finish Line
-const finishLineGeometry = new THREE.BoxGeometry(6,0.1, 3);
-const finishLineMaterial = new THREE.MeshStandardMaterial({ map: textureLoader.load(finish)});
-const finishLine = new THREE.Mesh(finishLineGeometry, finishLineMaterial);
-finishLine.position.set(0, 0.1, -135);
-finishLine.scale.x = 10;
-finishLine.scale.z = 10;
-scene.add(finishLine);
-
-const assetLoader  = new GLTFLoader();
-let model; // Declare model globally but set it to null initially
-
-let mixer;
-
-let runningAction;
-
-assetLoader.load(fatGuyURL.href, function (gltf) {
-    model = gltf.scene;  // Set the model only when it is loaded
-    model.position.set(0, 2, 150);  // Initial model position
-    model.scale.set(0.5, 0.5, 0.5);  // Initial model scale
-    model.rotation.y = Math.PI;  // Initial model rotation
-    scene.add(model);  // Add the model to the scene only after it’s fully loaded
-
-    mixer = new THREE.AnimationMixer(model);
-    const clips = gltf.animations;
-    const clip = THREE.AnimationClip.findByName(clips, 'Running');
-    runningAction = mixer.clipAction(clip);
-    //action.play();
-
-}, undefined, function (error) {
-    console.error('Error loading player model:', error);
-});
-
-
-// Movement variables
-let moveForward = false;
-let moveBackward = false;
-let moveLeft = false;
-let moveRight = false;
-const playerSpeed = 0.75;
-
-// Handle key events  
-function handleKeyDown(event) {
-  switch (event.key) {
-    case "w":
-    case "ArrowUp":
-      moveForward = true;
-      if (runningAction && !runningAction.isRunning()) {
-        runningAction.reset();  // Reset to the start of the animation
-        runningAction.setLoop(THREE.LoopRepeat);  // Ensure the animation loops
-        runningAction.play();   // Play the animation
-      }
-      break;
-    case "s":
-    case "ArrowDown":
-      moveBackward = true;
-      break;
-    case "a":
-    case "ArrowLeft":
-      moveLeft = true;
-      break;
-    case "d":
-    case "ArrowRight":
-      moveRight = true;
-      break;
-  }
-}
-
-function handleKeyUp(event) {
-  switch (event.key) {
-    case "w":
-    case "ArrowUp":
-      moveForward = false;
-      if (runningAction) {
-        //runningAction.stop();  // Stop the animation when key is released
-        runningAction.fadeOut(0.5);  // Fade out the animation when key is released
-    }
-      break;
-    case "s":
-    case "ArrowDown":
-      moveBackward = false;
-      break;
-    case "a":
-    case "ArrowLeft":
-      moveLeft = false;
-      break;
-    case "d":
-    case "ArrowRight":
-      moveRight = false;
-      break;
-  }
-}
-
-window.addEventListener("keydown", handleKeyDown);
-window.addEventListener("keyup", handleKeyUp);
-
-// Update player movement
-function updateMovement() {
-  if (moveForward) model.position.z -= playerSpeed;
-  if (moveBackward) model.position.z += playerSpeed;
-  if (moveLeft) model.position.x -= playerSpeed;
-  if (moveRight) model.position.x += playerSpeed;
-}
-
-// Move obstacle
-let obstacleDirection = 1;
-
-function moveObstacle(id, speed) {
-
-    const obstacle = scene.getObjectByName(id);
-    
-    if (obstacle) {
-        obstacle.position.x += speed* obstacleDirection;
-        if (obstacle.position.x > 48 || obstacle.position.x < -48) {
-            obstacleDirection *= -1;
-        }
-    }
-}
-
-// Move platform
-let platformDirection = 1;
-
-function movePlatform(id) {    
-
-    const platform = scene.getObjectByName(id);
-    
-    if(platform){
-        platform.position.x += 0.25 * platformDirection;
-        if (platform.position.x > 48 || platform.position.x < -48) {
-            platformDirection *= -1;
-        }
-    }
-
-    
-}
-
-// Check for win condition
-
-  function checkForWin() {
-    if (model.position.z < finishLine.position.z) {
-      alert("You've completed the level!");
-      resetGame();
-    }
-  }
-
-
-// Reset game state
-function resetGame() {
-  model.position.set(0, 2, 150);
-//   platform.position.set(0, 0.25, -5);// why?
-}
-
-const clock = new THREE.Clock();
-
-// Animate the scene
-function animate() {
-  
-  if (mixer) {
-    mixer.update(clock.getDelta());
-  }
-
-  requestAnimationFrame(animate);
-  updateMovement();
-  movePlatform("danish");
-  // moveObstacle("obs-1",0.45);
-  // moveObstacle("obs-2",0.35);
-  // moveObstacle("obs-3",0.55);
-
-  // moveObstacle("obs-4",0.55);
-  // moveObstacle("obs-5",0.35);
-  // moveObstacle("obs-6",0.45);
-  checkForWin();
-
-  camera.position.set(
-    model.position.x,
-    model.position.y + 5,
-    model.position.z + 10
+function initScene() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(
+    70, // Field of view (45-75)
+    window.innerWidth / window.innerHeight,
+    0.1, // Min distance objects are rendered
+    1000 //Max distance objects are rendered
   );
-  camera.lookAt(model.position);
 
-  renderer.render(scene, camera);
+  //Set camera position
+  camera.position.set(0, 20, -70);
+  camera.lookAt(0, 0, 0);
+
+  //Create a renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true }); // Add antialias for smoother edges
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.setAnimationLoop(animate);
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Better shadow quality
+  document.body.appendChild(renderer.domElement);
+
+  //Create controls for testing
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; // Smooth motion
+  controls.enableZoom = true; // Allow zooming
+  controls.enablePan = true; // Allow panning
+  controls.maxPolarAngle = Math.PI / 2; // Restrict vertical rotation (optional)
+
+  //Create an axis
+  const axesHelper = new THREE.AxesHelper(1000); // Size of the axes
+  scene.add(axesHelper);
+
+  //Start clock
+  clock = new THREE.Clock();
 }
 
-animate();
+function initLighting() {
+  // Add ambient and directional lights
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  scene.add(ambientLight);
 
-window.addEventListener('resize', function() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  directionalLight.position.set(0, 50, -20);
+  directionalLight.castShadow = true;
+
+  scene.add(directionalLight);
+}
+
+function initBackground() {
+  //We have to do the background
+}
+
+function initPhysics() {
+  world = new CANNON.World();
+  world.gravity.set(0, -9.82, 0); // Set gravity
+  cannonDebugger = new CannonDebugger(scene, world, { color: 0xff0000 });
+}
+
+function initPlayer() {
+  const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
+  const assetLoader = new GLTFLoader();
+
+  assetLoader.load(
+    fatGuyURL.href,
+    (gltf) => {
+      model = gltf.scene;
+      model.position.set(0, 10, 10);
+      model.scale.set(0.5, 0.5, 0.5);
+
+      // Enable shadows for all meshes in the model
+      model.traverse((node) => {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+
+      scene.add(model);
+
+      // Set up animation
+      //   mixer = new THREE.AnimationMixer(model);
+      //   const clips = gltf.animations;
+      //   const clip = THREE.AnimationClip.findByName(clips, "Running");
+      //   runningAction = mixer.clipAction(clip);
+
+      // Calculate the bounding box of the model
+      const bbox = new THREE.Box3().setFromObject(model);
+      const size = bbox.getSize(new THREE.Vector3());
+      const center = bbox.getCenter(new THREE.Vector3());
+
+      // Store the model center offset to use it in animate
+      modelCenterOffset = new THREE.Vector3().subVectors(
+        model.position,
+        center
+      );
+
+      // Create a Cannon Box shape using the bounding box dimensions
+      const playerShape = new CANNON.Box(
+        new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)
+      );
+
+      // Create the player body using the Box shape
+      playerBody = new CANNON.Body({
+        mass: 5, // Mass for the player
+        position: new CANNON.Vec3(center.x, center.y, center.z), // Start position of the player
+      });
+
+      // Add the Box shape to the body
+      playerBody.addShape(playerShape);
+
+      // Set the initial quaternion (rotation) to avoid flipping
+      //   const q = new CANNON.Quaternion();
+      //   q.setFromEuler(0, 0, 0);
+      //   playerBody.quaternion.copy(q);
+
+      // Add the body to the world
+      world.addBody(playerBody);
+    },
+    undefined,
+    (error) => console.error("Error loading player model:", error)
+  );
+}
+
+function createGroundPiece(x, y, z, width, length) {
+  //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
+  //Create a simple plane for the ground
+  const groundGeometry = new THREE.PlaneGeometry(width, length);
+  const groundMaterial = new THREE.MeshStandardMaterial({ color: "grey" });
+  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+  ground.position.set(x, y, z + length / 2);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  //Create a cannon.js body for the ground
+  const groundShape = new CANNON.Box(
+    new CANNON.Vec3(width / 2, 0.1, length / 2)
+  );
+  const groundBody = new CANNON.Body({ mass: 0, shape: groundShape });
+  groundBody.position.set(x, y, z + length / 2);
+  world.addBody(groundBody);
+}
+
+function animate() {
+  const deltaTime = clock.getDelta();
+  world.step(1 / 60, deltaTime, 3);
+
+  // make the model follow the physics body
+  if (model && playerBody) {
+    // Set the model's position to match the playerBody, adjusted by the center offset
+    model.position.copy(playerBody.position).add(modelCenterOffset);
+    // model.quaternion.copy(playerBody.quaternion); // Uncomment if rotation is needed
+  }
+
+  cannonDebugger.update();
+  renderer.render(scene, camera);
+  controls.update();
+}
+
+init();

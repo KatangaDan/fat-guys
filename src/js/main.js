@@ -5,7 +5,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as CANNON from "cannon-es";
 import CannonDebugger from "cannon-es-debugger";
 import Stats from "stats.js";
-import { createPillar } from "./obstacles";
+import { createPillar, createGate } from "./obstacles";
 
 // Import assets
 import finish from "../img/finish.jpg";
@@ -45,11 +45,8 @@ function init() {
   initPhysics();
   initPlayer();
   initEventListeners();
-
-  createGroundPiece(0, 0, 0, 100, 500);
-  createPillar(world, scene, 0, 0, 50, 7, 15, 7);
-  createPillar(world, scene, 46, 0, 50, 7, 15, 7);
-  createPillar(world, scene, -46, 0, 50, 7, 15, 7);
+  createGroundPiece(0, 0, 0, 60, 500);
+  initGateObstacles();
 }
 
 function initStats() {
@@ -154,7 +151,7 @@ function initPlayer() {
     (gltf) => {
       model = gltf.scene;
       model.position.set(0, 10, 10);
-      model.scale.set(0.3, 0.3, 0.3);
+      model.scale.set(0.4, 0.4, 0.4);
 
       // Enable shadows for all meshes in the model
       model.traverse((node) => {
@@ -335,6 +332,49 @@ function createGroundPiece(x, y, z, width, length) {
   texture.repeat.set(10, 10);
   groundMaterial.map = texture;
 }
+
+function initGateObstacles() {
+  //pillars
+  let pillar1 = createPillar(world, scene, 28.5, 0, 50, 3, 8, 7);
+  let pillar2 = createPillar(world, scene, 9.5, 0, 50, 3, 8, 7);
+  let pillar3 = createPillar(world, scene, -9.5, 0, 50, 3, 8, 7);
+  let pillar4 = createPillar(world, scene, -28.5, 0, 50, 3, 8, 7);
+
+  // //moving gates between pillar 1 and 2
+  createGate(
+    scene,
+    pillar1.position.x,
+    0,
+    pillar1.position.z,
+    6,
+    2,
+    pillar1,
+    pillar2
+  );
+  //moving gates between pillar 2 and 3
+  createGate(
+    scene,
+    pillar2.position.x,
+    0,
+    pillar2.position.z,
+    6,
+    2,
+    pillar2,
+    pillar3
+  );
+  //moving gates between pillar 3 and 4
+  createGate(
+    scene,
+    pillar3.position.x,
+    0,
+    pillar3.position.z,
+    6,
+    2,
+    pillar3,
+    pillar4
+  );
+}
+
 // Update the camera position to follow the player
 function updateCamera() {
   camera.position.set(
@@ -363,9 +403,9 @@ function animate() {
     updateCamera();
   }
 
-  //   cannonDebugger.update();
+  cannonDebugger.update();
   renderer.render(scene, camera);
-  //   controls.update();
+  //controls.update();
 
   stats.end();
 }

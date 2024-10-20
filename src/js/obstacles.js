@@ -68,3 +68,23 @@ export function createGate(
 
   return gate;
 }
+
+export function createCylinder(scene, x, y, z, radius, height) {
+  //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
+  //Create a simple plane for the ground
+  const cylinderGeometry = new THREE.CylinderGeometry(
+    radius,
+    radius,
+    height,
+    32
+  );
+  const cylinderMaterial = new THREE.MeshStandardMaterial({ color: "red" });
+  const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+  cylinder.position.set(x, y + height / 2, z);
+  cylinder.castShadow = true;
+  cylinder.receiveShadow = true;
+  scene.add(cylinder);
+
+  //return the pillar position
+  return cylinder;
+}

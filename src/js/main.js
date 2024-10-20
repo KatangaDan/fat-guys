@@ -6,7 +6,7 @@ import * as CANNON from "cannon-es";
 import CannonDebugger from "cannon-es-debugger";
 import Stats from "stats.js";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
-import { createPillar, createGate } from "./obstacles";
+import { createPillar, createGate, createCylinder } from "./obstacles";
 
 // Import assets
 import finish from "../img/finish.jpg";
@@ -32,6 +32,8 @@ let playerHelper;
 
 let gates = [];
 let gateHelpers = [];
+let cylinders = [];
+let cylinderHelpers = [];
 
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
@@ -449,7 +451,7 @@ function createGroundPiece(x, y, z, width, length) {
 }
 
 function initGateObstacles() {
-  //pillars
+  //FIRST SET OF PILLARS AND GATES (4 pillars, 3 gates)
   let pillar1 = createPillar(world, scene, 28.5, 0, 50, 3, 8, 7);
   let pillar2 = createPillar(world, scene, 9.5, 0, 50, 3, 8, 7);
   let pillar3 = createPillar(world, scene, -9.5, 0, 50, 3, 8, 7);
@@ -473,7 +475,7 @@ function initGateObstacles() {
     createGate(
       scene,
       pillar2.position.x,
-      -4,
+      -8,
       pillar2.position.z,
       8,
       2,
@@ -495,7 +497,108 @@ function initGateObstacles() {
     )
   );
 
+  //SECOND SET OF PILLARS (5 pillars, 4 gates)
+
+  const secondSetZ = 100; // Z position for the second set of pillars
+  const leftmostX = 28.5; // Fixed x position for the leftmost pillar
+  const rightmostX = -28.5; // Fixed x position for the rightmost pillar
+
+  // Calculate equal spacing between the pillars
+  const totalDistance = leftmostX - rightmostX; // Distance between leftmost and rightmost
+  const pillarSpacing = totalDistance / 4; // We have 4 gaps for 5 pillars
+
+  // Create 5 pillars with equal spacing between them
+  let pillar5 = createPillar(world, scene, leftmostX, 0, secondSetZ, 3, 8, 7);
+  let pillar6 = createPillar(
+    world,
+    scene,
+    leftmostX - pillarSpacing,
+    0,
+    secondSetZ,
+    3,
+    8,
+    7
+  );
+  let pillar7 = createPillar(
+    world,
+    scene,
+    leftmostX - 2 * pillarSpacing,
+    0,
+    secondSetZ,
+    3,
+    8,
+    7
+  );
+  let pillar8 = createPillar(
+    world,
+    scene,
+    leftmostX - 3 * pillarSpacing,
+    0,
+    secondSetZ,
+    3,
+    8,
+    7
+  );
+  let pillar9 = createPillar(world, scene, rightmostX, 0, secondSetZ, 3, 8, 7);
+
+  //create cylinder obstacle
+  cylinders.push(createCylinder(scene, 29, 0, 98.5, 1, 6));
+
+  // Moving gates between pillar 5 and 6
+  gates.push(
+    createGate(
+      scene,
+      pillar5.position.x,
+      0,
+      pillar5.position.z,
+      8,
+      2,
+      pillar5,
+      pillar6
+    )
+  );
+  // Moving gates between pillar 6 and 7
+  gates.push(
+    createGate(
+      scene,
+      pillar6.position.x,
+      -8,
+      pillar6.position.z,
+      8,
+      2,
+      pillar6,
+      pillar7
+    )
+  );
+  // Moving gates between pillar 7 and 8
+  gates.push(
+    createGate(
+      scene,
+      pillar7.position.x,
+      0,
+      pillar7.position.z,
+      8,
+      2,
+      pillar7,
+      pillar8
+    )
+  );
+  // Moving gates between pillar 8 and 9
+  gates.push(
+    createGate(
+      scene,
+      pillar8.position.x,
+      -8,
+      pillar8.position.z,
+      8,
+      2,
+      pillar8,
+      pillar9
+    )
+  );
+
   AddVisualGateHelpers();
+  AddVisualCylinderHelpers();
 }
 
 function AddVisualGateHelpers() {
@@ -507,54 +610,93 @@ function AddVisualGateHelpers() {
   });
 }
 
+function AddVisualCylinderHelpers() {
+  // Add visual helpers for the cylinders
+  cylinders.forEach((cylinder) => {
+    const helper = new THREE.BoxHelper(cylinder, "blue");
+    cylinderHelpers.push(helper);
+    scene.add(helper);
+  });
+}
+
 function animateGates(deltaTime) {
   const moveSpeed = 20; // Movement speed
   const waitTime = 1; // Seconds to wait at each position
 
-  // Iterate over all gates
   gates.forEach((gate) => {
-    //console.log(gate);
     const pillar = gate.leftPillar;
     const maxY =
       pillar.position.y +
       pillar.geometry.parameters.height / 2 -
       gate.geometry.parameters.height / 2;
-    const minY = 0 - gate.geometry.parameters.height / 2;
+    const minY = 0 - gate.geometry.parameters.height / 2 - 1;
 
-    // Check if the gate has reached the max position
-    if (gate.position.y >= maxY) {
-      gate.moveDirection = -1; // Reverse the movement direction
+    // Initialize the gate direction if it doesn't exist
+    if (gate.moveDirection === undefined) {
+      gate.moveDirection = gate.position.y >= maxY ? -1 : 1;
     }
 
-    // Check if the gate has reached the min position
-    if (gate.position.y <= minY) {
-      gate.moveDirection = 1; // Reverse the movement direction
+    // Initialize waiting state and last wait time if not set
+    if (gate.waiting === undefined) {
+      gate.waiting = false;
+      gate.lastWaitTime = 0;
     }
 
-    gate.position.y += gate.moveDirection * moveSpeed * deltaTime;
+    // If gate is at max or min height, start waiting
+    if (!gate.waiting && (gate.position.y >= maxY || gate.position.y <= minY)) {
+      gate.waiting = true;
+      gate.lastWaitTime = clock.getElapsedTime(); // Record the time of the wait
+    }
 
-    // if (!gate.waiting) {
-    //   gate.position.y += gate.moveDirection * moveSpeed * deltaTime;
+    // Handle the waiting period
+    if (gate.waiting) {
+      // Check how long the gate has been waiting
+      if (clock.getElapsedTime() - gate.lastWaitTime >= waitTime) {
+        gate.waiting = false; // Stop waiting and reverse direction
+        gate.moveDirection *= -1;
+      }
+    }
 
-    //   // Check if the gate has reached the max position
-    //   if (gate.position.y >= maxY) {
-    //     gate.moveDirection = -1; // Reverse the movement direction
-    //     gate.waiting = true;
-    //     gate.lastWaitTime = clock.getElapsedTime(); // Record the time of the wait
-    //   }
+    // Move the gate if not waiting
+    if (!gate.waiting) {
+      gate.position.y += gate.moveDirection * moveSpeed * deltaTime;
 
-    //   // Check if the gate has reached the min position
-    //   if (gate.position.y <= minY) {
-    //     gate.moveDirection = 1; // Reverse the movement direction
-    //     gate.waiting = true;
-    //     gate.lastWaitTime = clock.getElapsedTime(); // Record the time of the wait
-    //   }
-    // } else {
-    //   // If the gate is waiting, check how long it's been waiting
-    //   if (clock.getElapsedTime() - gate.lastWaitTime >= waitTime) {
-    //     gate.waiting = false; // Resume movement
-    //   }
-    // }
+      // Clamp gate position to max/min bounds
+      if (gate.position.y > maxY) {
+        gate.position.y = maxY;
+      } else if (gate.position.y < minY) {
+        gate.position.y = minY;
+      }
+    }
+  });
+}
+
+function animateCylinders(deltaTime) {
+  //function to move cylinders right and left
+
+  const moveSpeed = 50; // Movement speed
+
+  cylinders.forEach((cylinder) => {
+    const maxX = 29;
+    const minX = -29;
+
+    // Initialize the cylinder direction if it doesn't exist
+    if (cylinder.moveDirection === undefined) {
+      cylinder.moveDirection = cylinder.position.x >= maxX ? -1 : 1;
+    }
+
+    // If cylinder is at max or min width, start waiting
+    if (cylinder.position.x >= maxX || cylinder.position.x <= minX) {
+      cylinder.moveDirection *= -1;
+    }
+    // Clamp cylinder position to max/min bounds
+    if (cylinder.position.x > maxX) {
+      cylinder.position.x = maxX;
+    } else if (cylinder.position.x < minX) {
+      cylinder.position.x = minX;
+    }
+
+    cylinder.position.x += cylinder.moveDirection * moveSpeed * deltaTime;
   });
 }
 
@@ -612,11 +754,24 @@ function animate() {
     model.position.copy(playerBody.position).add(worldOffset);
 
     /*Actual bounding boxes for the player and obstacles*/
+
+    //player bounding box
     const playerBoundingBox = new THREE.Box3().setFromObject(model);
+
+    //gates bounding boxes
     gates.forEach((gate) => {
       const gateBoundingBox = new THREE.Box3().setFromObject(gate);
 
       if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
+        alert("You lose!");
+      }
+    });
+
+    //cylinders bounding boxes
+    cylinders.forEach((cylinder) => {
+      const cylinderBoundingBox = new THREE.Box3().setFromObject(cylinder);
+
+      if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
         alert("You lose!");
       }
     });
@@ -632,6 +787,12 @@ function animate() {
     gateHelpers.forEach((helper) => {
       if (helper) helper.update();
     });
+
+    //Update cylinder helpers
+    cylinderHelpers.forEach((helper) => {
+      if (helper) helper.update();
+    });
+
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
 
     // Update camera
@@ -640,6 +801,7 @@ function animate() {
 
   //Animate the gates
   animateGates(deltaTime);
+  animateCylinders(deltaTime);
 
   // cannonDebugger.update();
   renderer.render(scene, camera);

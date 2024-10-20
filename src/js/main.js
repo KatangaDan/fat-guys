@@ -25,7 +25,11 @@ let scene,
   mixer,
   runningAction,
   backRunningAction,
+  runningLeftAction,
+  runningRightAction,
   jumpAction,
+  currentAction,
+  fadeDuration = 0.07,
   idleAction,
   idleClip,
   playerBody,
@@ -45,15 +49,17 @@ const jumpForce = 1750;
 
 
 
-function checkIdleState() {
-  if (!moveForward && !moveBackward && !moveRight && !moveLeft) {
-    console.log("idle");
-    if (idleAction && !idleAction.isRunning()) {
-      idleAction.setLoop(THREE.LoopRepeat);
-      idleAction.play(); // Play the idle animation
-    }
-  }
-}
+// function checkIdleState() {
+//   if (!moveForward && !moveBackward && !moveRight && !moveLeft) {
+//     console.log("idle");
+//     if (idleAction && !idleAction.isRunning()) {
+//       idleAction.setLoop(THREE.LoopRepeat);
+//       idleAction.play(); // Play the idle animation
+//     }
+//   }
+// }
+
+
 
 function init() {
   initStats();
@@ -163,16 +169,16 @@ function initPhysics() {
 }
 
 function initPlayer() {
-  const fatGuyURL = new URL("../assets/movement2.glb", import.meta.url);
+  const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
   const assetLoader = new GLTFLoader();
 
   assetLoader.load(
     fatGuyURL.href,
     (gltf) => {
       model = gltf.scene;
-      model.position.set(0, 10, 10);
-      // model.scale.set(0.3, 0.3, 0.3);
-      model.rotation.y= Math.PI;
+      model.position.set(0, 0, 10);
+      model.scale.set(0.8, 0.8, 0.8);
+      //model.rotation.y= Math.PI;
 
       // Enable shadows for all meshes in the model
       model.traverse((node) => {
@@ -191,16 +197,26 @@ function initPlayer() {
         const clip = THREE.AnimationClip.findByName(clips, "Running");
         runningAction = mixer.clipAction(clip);
 
-        const backClip = THREE.AnimationClip.findByName(clips, "Running Backwards");
+        const clipLeft = THREE.AnimationClip.findByName(clips, "Running");
+        runningLeftAction = mixer.clipAction(clipLeft);
+
+        const clipRight = THREE.AnimationClip.findByName(clips, "Running");
+        runningRightAction = mixer.clipAction(clipRight);
+        
+
+        const backClip = THREE.AnimationClip.findByName(clips, "Running Backward");
         backRunningAction = mixer.clipAction(backClip);
 
-        const jumpClip = THREE.AnimationClip.findByName(clips, "Jump 2");
-        jumpAction = mixer.clipAction(jumpClip);
+        /*const jumpClip = THREE.AnimationClip.findByName(clips, "Jump");
+        jumpAction = mixer.clipAction(jumpClip);*/
 
         idleClip = THREE.AnimationClip.findByName(clips, "Idle");
         idleAction = mixer.clipAction(idleClip);
+
         idleAction.setLoop(THREE.LoopRepeat);
         idleAction.play();
+
+        currentAction = idleAction;
 
       // Calculate the bounding box of the model
       const bbox = new THREE.Box3().setFromObject(model);
@@ -246,12 +262,29 @@ function initEventListeners() {
   window.addEventListener("keyup", handleKeyUp);
 }
 
+
+function checkIdleState() {
+  if (!moveForward && !moveBackward && !moveRight && !moveLeft) {
+    if (currentAction !== idleAction) {
+      console.log("Transitioning to idle");
+      idleAction.reset().fadeIn(fadeDuration);
+      idleAction.play();
+      idleAction.z = 90;
+      if (currentAction) {
+        currentAction.fadeOut(fadeDuration);
+      }
+      currentAction = idleAction;
+    }
+  }
+}
+
 //Movememnt functions that update the movement flags
 function handleKeyDown(event) {
   switch (event.key) {
     case "w":
     case "ArrowUp":
       moveForward = true;
+      currentAction = runningAction;
         if (runningAction && !runningAction.isRunning()) {
           runningAction.reset();
           runningAction.setLoop(THREE.LoopRepeat);
@@ -265,6 +298,7 @@ function handleKeyDown(event) {
     case "s":
     case "ArrowDown":
       moveBackward = true;
+      currentAction = backRunningAction;
       if (backRunningAction && !backRunningAction.isRunning()) {
         backRunningAction.reset(); // Reset to the start of the animation
         backRunningAction.setLoop(THREE.LoopRepeat); // Ensure the animation loops
@@ -278,10 +312,11 @@ function handleKeyDown(event) {
     case "a":
     case "ArrowLeft":
       moveLeft = true;
-      if (runningAction && !runningAction.isRunning()) {
-        runningAction.reset(); // Reset to the start of the animation
-        runningAction.setLoop(THREE.LoopRepeat); // Ensure the animation loops
-        runningAction.play(); // Play the animation
+      currentAction = runningLeftAction;
+      if (runningLeftAction && !runningLeftAction.isRunning()) {
+        runningLeftAction.reset(); // Reset to the start of the animation
+        runningLeftAction.setLoop(THREE.LoopRepeat); // Ensure the animation loops
+        runningLeftAction.play(); // Play the animation
       }
       if (idleAction && idleAction.isRunning()) {
         idleAction.fadeOut(0.5); // Stop the idle animation
@@ -291,10 +326,11 @@ function handleKeyDown(event) {
     case "d":
     case "ArrowRight":
       moveRight = true;
-      if (runningAction && !runningAction.isRunning()) {
-        runningAction.reset(); // Reset to the start of the animation
-        runningAction.setLoop(THREE.LoopRepeat); // Ensure the animation loops
-        runningAction.play(); // Play the animation
+      currentAction = runningRightAction;
+      if (runningRightAction && !runningRightAction.isRunning()) {
+        runningRightAction.reset(); // Reset to the start of the animation
+        runningRightAction.setLoop(THREE.LoopRepeat); // Ensure the animation loops
+        runningRightAction.play(); // Play the animation
       }
       if (idleAction && idleAction.isRunning()) {
         idleAction.fadeOut(0.5); // Stop the idle animation
@@ -305,7 +341,7 @@ function handleKeyDown(event) {
       // Jump when spacebar is pressed
       isJumping = true;
       console.log("jump");
-      if (jumpAction && !jumpAction.isRunning()) {
+      /*if (jumpAction && !jumpAction.isRunning()) {
         jumpAction.reset(); // Reset to the start of the animation
         jumpAction.setLoop(THREE.LoopOnce); // Ensure the animation loops
         jumpAction.play(); // Play the animation
@@ -315,7 +351,8 @@ function handleKeyDown(event) {
       if (idleAction && idleAction.isRunning()) {
         idleAction.fadeOut(0.5); // Stop the idle animation
         idleAction.stop();
-      }
+      }*/
+     jump();
       break;
   }
 }
@@ -340,17 +377,19 @@ function handleKeyUp(event) {
     case "a":
     case "ArrowLeft":
       moveLeft = false;
-      if (runningAction) {
+      if (runningLeftAction) {
         //runningAction.stop();  // Stop the animation when key is released
-        runningAction.fadeOut(0.5); // Fade out the animation when key is released
+        //runningAction.fadeOut(0.5); // Fade out the animation when key is released
+        idleAction.reset().fadeIn(fadeDuration);
       }
       break;
     case "d":
     case "ArrowRight":
       moveRight = false;
-      if (runningAction) {
+      if (runningRightAction) {
         //runningAction.stop();  // Stop the animation when key is released
-        runningAction.fadeOut(0.5); // Fade out the animation when key is released
+        //runningAction.fadeOut(0.5); // Fade out the animation when key is released
+        idleAction.reset().fadeIn(fadeDuration);
       }
       break;
   }
@@ -378,6 +417,30 @@ function updateMovement(deltaTime) {
   if (moveBackward) playerBody.position.z -= translationStep;
   if (moveLeft) playerBody.position.x += translationStep;
   if (moveRight) playerBody.position.x -= translationStep;
+
+
+  const isMoving = moveForward || moveBackward || moveLeft || moveRight;
+
+  if (isMoving) {
+    // Determine which movement animation to play
+    let targetAction = runningAction;
+    if (moveBackward && !moveForward && !moveLeft && !moveRight) {
+      targetAction = backRunningAction;
+    }
+
+    // Crossfade to the appropriate movement animation
+    if (currentAction !== targetAction) {
+      targetAction.reset().fadeIn(fadeDuration);
+      if (currentAction) {
+        currentAction.fadeOut(fadeDuration);
+      }
+      currentAction = targetAction;
+    }
+  } else {
+    // Check for idle state if not moving
+    checkIdleState();
+  }
+
 
   // Reset isJumping flag if the player has landed (velocity in the Y direction is near 0)
   if (

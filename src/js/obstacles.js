@@ -88,3 +88,45 @@ export function createCylinder(scene, x, y, z, radius, height) {
   //return the pillar position
   return cylinder;
 }
+
+export function createFan(scene, x, y, z, radius, lengthOfFans) {
+  const centerGeometry = new THREE.CylinderGeometry(radius, radius, 1.5, 32);
+  const centerMaterial = new THREE.MeshStandardMaterial({ color: "yellow" });
+  const center = new THREE.Mesh(centerGeometry, centerMaterial);
+
+  // Create the fan blades
+  const bladeGeometry = new THREE.CylinderGeometry(1, 1, lengthOfFans, 32);
+  const bladeMaterial = new THREE.MeshStandardMaterial({ color: "yellow" });
+
+  const fan = new THREE.Group();
+
+  //Create a single fan blade
+  const blade1 = new THREE.Mesh(bladeGeometry, bladeMaterial);
+  //Rotate the blade so it is horitzontal
+  blade1.rotation.z = Math.PI / 2;
+
+  const blade2 = new THREE.Mesh(bladeGeometry, bladeMaterial);
+  blade2.rotation.x = Math.PI / 2;
+
+  fan.add(center);
+  fan.add(blade1);
+  fan.add(blade2);
+
+  fan.position.set(x, y + radius / 2, z);
+  fan.castShadow = true;
+  fan.receiveShadow = true;
+  scene.add(fan);
+
+  //return the pillar position
+  return fan;
+}
+
+//  // Create a circular obstacle
+//  const radius = 5;
+//  const height = 2;
+//  const segments = 32;
+//  const geometry = new THREE.CylinderGeometry(radius, radius, height, segments);
+//  const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+//  const cylinder = new THREE.Mesh(geometry, material);
+//  cylinder.position.set(0, height / 2, 5);
+//  scene.add(cylinder);

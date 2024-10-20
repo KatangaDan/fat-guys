@@ -6,7 +6,12 @@ import * as CANNON from "cannon-es";
 import CannonDebugger from "cannon-es-debugger";
 import Stats from "stats.js";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
-import { createPillar, createGate, createCylinder } from "./obstacles";
+import {
+  createPillar,
+  createGate,
+  createCylinder,
+  createFan,
+} from "./obstacles";
 
 // Import assets
 import finish from "../img/finish.jpg";
@@ -34,6 +39,9 @@ let gates = [];
 let gateHelpers = [];
 let cylinders = [];
 let cylinderHelpers = [];
+
+let fans = [];
+let fanHelpers = [];
 
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
@@ -64,6 +72,7 @@ function init() {
   initEventListeners();
   createGroundPiece(0, 0, 0, 60, 500);
   initGateObstacles();
+  initFanObstacles();
 }
 
 function initStats() {
@@ -188,7 +197,7 @@ function initPlayer() {
     fatGuyURL.href,
     (gltf) => {
       model = gltf.scene;
-      model.position.set(0, 10, 10);
+      model.position.set(0, 10, 225);
       model.scale.set(0.4, 0.4, 0.4);
 
       // Enable shadows for all meshes in the model
@@ -804,6 +813,20 @@ function initGateObstacles() {
   AddVisualCylinderHelpers();
 }
 
+function initFanObstacles() {
+  let fan1 = createFan(scene, 15, 0, 250, 3, 30);
+  let fan2 = createFan(scene, -15, 0, 260, 3, 30);
+  let fan3 = createFan(scene, 15, 0, 290, 3, 30);
+  let fan4 = createFan(scene, -15, 0, 300, 3, 30);
+
+  fans.push(fan1);
+  fans.push(fan2);
+  fans.push(fan3);
+  fans.push(fan4);
+
+  console.log(fan1);
+}
+
 function AddVisualGateHelpers() {
   // Add visual helpers for the gates
   gates.forEach((gate) => {
@@ -871,6 +894,13 @@ function animateGates(deltaTime) {
         gate.position.y = minY;
       }
     }
+  });
+}
+
+function animateFans(deltaTime) {
+  const fanSpinSpeed = 2;
+  fans.forEach((fan) => {
+    fan.rotation.y += fanSpinSpeed * deltaTime;
   });
 }
 
@@ -1007,6 +1037,7 @@ function animate() {
   //Animate the gates
   animateGates(deltaTime);
   animateCylinders(deltaTime);
+  animateFans(deltaTime);
 
   // cannonDebugger.update();
   renderer.render(scene, camera);

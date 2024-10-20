@@ -1,0 +1,101 @@
+@font-face {
+    font-family: 'Titan One';
+    src: url('https://fonts.googleapis.com/css2?family=Titan+One&display=swap');
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Titan One', cursive;
+    background: linear-gradient(135deg, #1E3A8A, #3B82F6);
+    overflow: hidden;
+}
+
+.menu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #2563EB;
+    padding: 2rem;
+    border-radius: 20px;
+    text-align: center;
+    color: #fff;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 450px;
+}
+
+.menu h1 {
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+    text-shadow: 3px 3px 0px #1E40AF;
+    color: #FDF4FF;
+}
+
+.menu p {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    color: #fff;
+}
+
+.menu button {
+    background-color: #F472B6;
+    border: none;
+    color: #1E3A8A;
+    padding: 12px 24px;
+    text-align: center;
+    text-decoration: none;
+    display: block;
+    font-size: 1.2rem;
+    margin: 15px auto;
+    cursor: pointer;
+    border-radius: 50px;
+    transition: background-color 0.3s, transform 0.1s;
+    font-family: 'Titan One', cursive;
+    width: 80%;
+    max-width: 200px;
+    box-shadow: 0 4px 0 #DB2777;
+}
+
+.menu button:hover {
+    background-color: #F9A8D4;
+    transform: translateY(-2px);
+}
+
+.menu button:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #DB2777;
+}
+
+#winOverlay {
+    background-color: #1E90FF;
+}
+
+#winOverlay h1 {
+    font-size: 2.2rem;
+    margin-bottom: 0.5rem;
+}
+
+#winOverlay p {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    color: #fff;
+}
+
+#pauseOverlay {
+    background-color: rgba(255, 105, 180, 0.9);
+}
+
+#pauseOverlay h1 {
+    color: #fff;
+}
+
+#gameContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}

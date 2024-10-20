@@ -2,199 +2,67 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { TextureLoader } from 'three';
 import { Vector3 } from "three";
+import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import finish from "../img/finish.jpg";
 import galaxy from "../img/galaxy.jpg";
 import { mod } from "three/webgpu";
 
-import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
-
 const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
 
-let cameraGoal; // for camera goal
-
-// Setup the scene
+// Scene setup
 const scene = new THREE.Scene();
-
-// Setup the camera
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 5, 10);
 
-// Create the renderer
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
 renderer.shadowMap.enabled = true;
 
 const textureLoader = new THREE.TextureLoader();
 
-// Add background world
-/*const cubeTextureLoader = new THREE.CubeTextureLoader();
-scene.background = cubeTextureLoader.load([
-    galaxy,
-    galaxy,
-    galaxy,
-    galaxy,
-    galaxy,
-    galaxy
-]);*/
+// Game state variables
+let gameStarted = false;
+let isPaused = false;
+let isGameWon = false;
+let animationFrameId;
+let lastTime = 0;
 
-// Create ground
-const geometry = new THREE.PlaneGeometry(100, 300);
-const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x87ceeb });
-const ground = new THREE.Mesh(geometry, groundMaterial);
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
-scene.add(ground);
+// DOM elements
+let gameContainer;
+let menuElement;
+let startButton;
+let resumeButton;
+let restartButton;
 
-// cylindrical obstacle
-function createCylindricalObstacle(x, y, z, id, color) {
-  const obstacleGeometry = new THREE.CylinderGeometry(1, 1, 10, 32);
-  const obstacleMaterial = new THREE.MeshStandardMaterial({ color: color });
-  const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
-  obstacle.position.set(x, y, z);
-  obstacle.castShadow = true;
-  obstacle.name = id; // Set the object's id
-  scene.add(obstacle);
-}
+// Player model and animation variables
+let model;
+let mixer;
+let runningAction;
+let backRunningAction;
+let jumpAction;
+let idleAction;
+let currentAction = null;
+const fadeDuration = 0.07;
+const animationSpeed = 1.5;
 
-// initial positions are centred
-createCylindricalObstacle(5, 2.5, 130, "obs-1", "#ffffff");
-createCylindricalObstacle(15, 2.5, 115, "obs-2", "blue");
-createCylindricalObstacle(-5, 2.5, 125, "obs-3", "red");
-
-// initial positions centred left
-createCylindricalObstacle(-15, 2.5, 105, "obs-4", "#ffffff");
-createCylindricalObstacle(-35, 2.5, 110, "obs-5", "blue");
-createCylindricalObstacle(-25, 2.5, 120, "obs-6", "red");
-
-// initial positions centred right
-createCylindricalObstacle(25, 2.5, 135, "obs-7", "#ffffff");
-createCylindricalObstacle(40, 2.5, 135, "obs-8", "blue");
-createCylindricalObstacle(35, 2.5, 120, "obs-9", "red");
-
-// create floating platforms
-
-function createFloatingPlatform(x, y, z, id, color) {
-  const platformGeometry = new THREE.BoxGeometry(6, 0.5, 6);
-  const platformMaterial = new THREE.MeshStandardMaterial({ color: color });
-  const platform = new THREE.Mesh(platformGeometry, platformMaterial);
-  platform.position.set(x, y, z);
-  platform.castShadow = true;
-  platform.name = id; // Set the object's id
-  scene.add(platform);
-}
-
-createFloatingPlatform(0, 0.25, -5, "danish", "#ff0000");
-
-// Player Model
-/*const playerGeometry = new THREE.SphereGeometry(1, 32, 32);
-const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff4500 });
-const player = new THREE.Mesh(playerGeometry, playerMaterial);
-player.position.set(0, 2, 150);
-player.castShadow = true;
-scene.add(player);*/
-
-// Lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
-
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight.position.set(10, 10, 10);
-directionalLight.castShadow = true;
-scene.add(directionalLight);
-
-// Finish Line
-const finishLineGeometry = new THREE.BoxGeometry(6, 0.1, 3);
-const finishLineMaterial = new THREE.MeshStandardMaterial({
-  map: textureLoader.load(finish),
-});
-const finishLine = new THREE.Mesh(finishLineGeometry, finishLineMaterial);
-finishLine.position.set(0, 0.1, -135);
-finishLine.scale.x = 10;
-finishLine.scale.z = 10;
-scene.add(finishLine);
-
-const assetLoader = new GLTFLoader();
-let model; // Declare model globally but set it to null initially
-
-let mixer; // for animation mixer
-
-let runningAction; // for running animation
-let backRunningAction; // for backward running animation
-let jumpAction; // for jump animation
-let idleAction; // for idle animation
-
-// variables for camera control
-const cameraOffset = new THREE.Vector3(0, 8, 13); // Changed to position camera behind and above the model
+// Camera and controls variables
+let cameraGoal;
+const cameraOffset = new THREE.Vector3(0, 8, 13);
 const cameraLerpFactor = 0.1;
 let cameraRotation = new THREE.Euler(0, 0, 0, "YXZ");
-const mouseSensitivity = 0.002; // for mouse sensitivity
-
-let velocity = new THREE.Vector3();
-const maxSpeed = 0.3; // for speed
-const acceleration = 0.05; // for acceleration
-const deceleration = 0.1; // for deceleration
-const turnSpeed = 0.2; // for rotation
-
-let isFirstPerson = false; // for view toggle
-let controls; // for pointer lock controls
-
-// for smooth animation transitions and avoid ghosting
-let currentAction = null;
-const fadeDuration = 0.07; // Duration of crossfade between animations
-const animationSpeed = 1.5; // 1.0 is normal speed, 2.0 is double speed, etc.
-
-assetLoader.load(
-  fatGuyURL.href,
-  function (gltf) {
-    model = gltf.scene;
-    model.position.set(0, 2, 150);
-    model.scale.set(0.5, 0.5, 0.5);
-    model.rotation.y = Math.PI; // Face the model forward
-    scene.add(model);
-
-    // Create and add camera goal as a child of the model
-    cameraGoal = new THREE.Object3D();
-    cameraGoal.position.copy(cameraOffset);
-    model.add(cameraGoal);
-
-    mixer = new THREE.AnimationMixer(model);
-    const clips = gltf.animations;
-
-    const clip = THREE.AnimationClip.findByName(clips, "Running");
-    runningAction = mixer.clipAction(clip);
-    runningAction.timeScale = animationSpeed;
-
-    const backClip = THREE.AnimationClip.findByName(clips, "Running Backward");
-    backRunningAction = mixer.clipAction(backClip);
-    backRunningAction.timeScale = animationSpeed;
-
-    const jumpClip = THREE.AnimationClip.findByName(clips, "Jump");
-    jumpAction = mixer.clipAction(jumpClip);
-    jumpAction.timeScale = animationSpeed;
-
-    // Set idle animations
-    const idleClip = THREE.AnimationClip.findByName(clips, "Idle");
-    idleAction = mixer.clipAction(idleClip);
-    idleAction.timeScale = animationSpeed;
-    idleAction.setLoop(THREE.LoopRepeat);
-    idleAction.play(); // Play the initial idle animation
-
-    currentAction = idleAction; // Set the initial action
-  },
-  undefined,
-  function (error) {
-    console.error("Error loading player model:", error);
-  }
-);
+const mouseSensitivity = 0.002;
+let isFirstPerson = false;
+let finishLine;
+let controls;
 
 // Movement variables
+let velocity = new THREE.Vector3();
+const maxSpeed = 0.3;
+const acceleration = 0.05;
+const deceleration = 0.1;
+const turnSpeed = 0.2;
 let moveForward = false;
 let moveBackward = false;
 let moveLeft = false;
@@ -202,9 +70,113 @@ let moveRight = false;
 let jumping = false;
 let velocityY = 0;
 const gravity = -0.5;
-const groundLevel = 1; // Adjust this value based on ground level
+const groundLevel = 1;
 
-// function to check if the player is idle
+// Obstacle and platform variables
+let obstacleDirection = 1;
+let platformDirection = 1;
+
+// Function to create ground
+function createGround() {
+  const geometry = new THREE.PlaneGeometry(100, 300);
+  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x87ceeb });
+  const ground = new THREE.Mesh(geometry, groundMaterial);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+}
+
+// Function to create cylindrical obstacle
+function createCylindricalObstacle(x, y, z, id, color) {
+  const obstacleGeometry = new THREE.CylinderGeometry(1, 1, 10, 32);
+  const obstacleMaterial = new THREE.MeshStandardMaterial({ color: color });
+  const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
+  obstacle.position.set(x, y, z);
+  obstacle.castShadow = true;
+  obstacle.name = id;
+  scene.add(obstacle);
+}
+
+// Function to create floating platform
+function createFloatingPlatform(x, y, z, id, color) {
+  const platformGeometry = new THREE.BoxGeometry(6, 0.5, 6);
+  const platformMaterial = new THREE.MeshStandardMaterial({ color: color });
+  const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+  platform.position.set(x, y, z);
+  platform.castShadow = true;
+  platform.name = id;
+  scene.add(platform);
+}
+
+// Function to create lighting
+function createLighting() {
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  scene.add(ambientLight);
+
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+  directionalLight.position.set(10, 10, 10);
+  directionalLight.castShadow = true;
+  scene.add(directionalLight);
+}
+
+// Function to create finish line
+function createFinishLine() {
+  const finishLineGeometry = new THREE.BoxGeometry(6, 0.1, 3);
+  const finishLineMaterial = new THREE.MeshStandardMaterial({
+    map: textureLoader.load(finish),
+  });
+  const finishLine = new THREE.Mesh(finishLineGeometry, finishLineMaterial);
+  finishLine.position.set(0, 0.1, -135);
+  finishLine.scale.x = 10;
+  finishLine.scale.z = 10;
+  scene.add(finishLine);
+  return finishLine;
+}
+
+// Function to load player model
+function loadPlayerModel() {
+  const assetLoader = new GLTFLoader();
+  assetLoader.load(
+    fatGuyURL.href,
+    function (gltf) {
+      model = gltf.scene;
+      model.position.set(0, 2, 150);
+      model.scale.set(0.5, 0.5, 0.5);
+      model.rotation.y = Math.PI;
+      scene.add(model);
+
+    // Create and add camera goal as a child of the model
+    cameraGoal = new THREE.Object3D();
+    cameraGoal.position.copy(cameraOffset);
+    model.add(cameraGoal);
+
+      mixer = new THREE.AnimationMixer(model);
+      const clips = gltf.animations;
+
+      runningAction = mixer.clipAction(THREE.AnimationClip.findByName(clips, "Running"));
+      runningAction.timeScale = animationSpeed;
+
+      backRunningAction = mixer.clipAction(THREE.AnimationClip.findByName(clips, "Running Backward"));
+      backRunningAction.timeScale = animationSpeed;
+
+      jumpAction = mixer.clipAction(THREE.AnimationClip.findByName(clips, "Jump"));
+      jumpAction.timeScale = animationSpeed;
+
+      idleAction = mixer.clipAction(THREE.AnimationClip.findByName(clips, "Idle"));
+      idleAction.timeScale = animationSpeed;
+      idleAction.setLoop(THREE.LoopRepeat);
+      idleAction.play();
+
+      currentAction = idleAction;
+    },
+    undefined,
+    function (error) {
+      console.error("Error loading player model:", error);
+    }
+  );
+}
+
+// Function to check idle state
 function checkIdleState() {
   if (!moveForward && !moveBackward && !moveRight && !moveLeft && !jumping && velocity.length() < 0.01) {
     if (currentAction !== idleAction) {
@@ -219,7 +191,7 @@ function checkIdleState() {
   }
 }
 
-// Handle key events
+// Function to handle key down events
 function handleKeyDown(event) {
   switch (event.key) {
     case "w":
@@ -274,7 +246,6 @@ function handleKeyDown(event) {
         idleAction.stop();
       }
       break;
-
     case " ":
       jumping = true;
       velocityY = 2.8; // Initial jump velocity
@@ -292,7 +263,7 @@ function handleKeyDown(event) {
   }
 }
 
-// function to handle key up events
+// Function to handle key up events
 function handleKeyUp(event) {
   switch (event.key) {
     case "w":
@@ -317,25 +288,16 @@ function handleKeyUp(event) {
   }
 }
 
-window.addEventListener("keydown", handleKeyDown);
-window.addEventListener("keyup", handleKeyUp);
-
-// function to handle mouse movement
+// Function to handle mouse movement
 function onMouseMove(event) {
   if (controls.isLocked) {
     cameraRotation.y -= event.movementX * mouseSensitivity;
     cameraRotation.x -= event.movementY * mouseSensitivity;
-    cameraRotation.x = Math.max(
-      -Math.PI / 2,
-      Math.min(Math.PI / 2, cameraRotation.x)
-    );
+    cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraRotation.x));
   }
 }
 
-// event listeners for mouse control
-document.addEventListener("mousemove", onMouseMove, false);
-
-// function to toggle between first-person and third-person views
+// Function to toggle view
 function toggleView() {
   isFirstPerson = !isFirstPerson;
   if (isFirstPerson) {
@@ -347,16 +309,9 @@ function toggleView() {
   }
 }
 
-// event listener for the 'v' key to toggle views
-window.addEventListener("keydown", (event) => {
-  if (event.key === "v") {
-    toggleView();
-  }
-});
-
-// function to update movement
+// Function to update movement
 function updateMovement(delta) {
-  if (!model) return; // if model is not loaded, return
+  if (!model) return;
 
   const moveVector = new THREE.Vector3(0, 0, 0);
   if (moveForward) moveVector.z -= 1;
@@ -364,7 +319,6 @@ function updateMovement(delta) {
   if (moveLeft) moveVector.x -= 1;
   if (moveRight) moveVector.x += 1;
 
-  // Apply camera rotation to movement
   moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
 
   // Accelerate or decelerate
@@ -403,11 +357,7 @@ function updateMovement(delta) {
 
     // Rotate model based on movement direction
     const targetRotation = Math.atan2(velocity.x, velocity.z);
-    model.rotation.y = THREE.MathUtils.lerp(
-      model.rotation.y,
-      targetRotation,
-      turnSpeed
-    );
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotation, turnSpeed);
   } else {
     // Check for idle state if not moving
     checkIdleState();
@@ -427,9 +377,7 @@ function updateMovement(delta) {
   }
 }
 
-// Move obstacle
-let obstacleDirection = 1;
-
+// Function to move obstacle
 function moveObstacle(id, speed) {
   const obstacle = scene.getObjectByName(id);
 
@@ -441,9 +389,7 @@ function moveObstacle(id, speed) {
   }
 }
 
-// Move platform
-let platformDirection = 1;
-
+// Function to move platform
 function movePlatform(id) {
   const platform = scene.getObjectByName(id);
 
@@ -455,22 +401,107 @@ function movePlatform(id) {
   }
 }
 
-// Check for win condition
+// Function to show win overlay
+function showWinOverlay() {
+  isGameWon = true;
+  isPaused = true;
+  gameStarted = false;
+  controls.unlock();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'winOverlay';
+  overlay.className = 'menu';
+
+  const message = document.createElement('h1');
+  message.textContent = "Congratulations!";
+
+  const subMessage = document.createElement('p');
+  subMessage.textContent = "You've completed the level!";
+
+  const playAgainButton = document.createElement('button');
+  playAgainButton.textContent = 'Play Again';
+  playAgainButton.addEventListener('click', () => {
+    document.body.removeChild(overlay);
+    resetGame();
+    startGame();
+  });
+
+  const mainMenuButton = document.createElement('button');
+  mainMenuButton.textContent = 'Main Menu';
+  mainMenuButton.addEventListener('click', () => {
+    document.body.removeChild(overlay);
+    resetGame();
+    showMainMenu();
+  });
+
+  overlay.appendChild(message);
+  overlay.appendChild(subMessage);
+  overlay.appendChild(playAgainButton);
+  overlay.appendChild(mainMenuButton);
+
+  document.body.appendChild(overlay);
+  showCursor();
+}
+
+// Function to check for win
 function checkForWin() {
   if (model.position.z < finishLine.position.z) {
-    alert("You've completed the level!");
-    resetGame();
+    showWinOverlay();
+    isPaused = true; // Pause the game
+    controls.unlock(); // Unlock controls
   }
 }
 
-// Reset game state
+// Function to reset game
 function resetGame() {
-  model.position.set(0, 2, 150);
+  if (model) {
+    model.position.set(0, 2, 150); // Reset to starting position
+    model.rotation.y = Math.PI; // Reset rotation to face the correct direction
+    velocity.set(0, 0, 0);
+    moveForward = moveBackward = moveLeft = moveRight = jumping = false;
+    cameraRotation.set(0, 0, 0);
+    
+    if (currentAction) {
+      currentAction.stop();
+    }
+    idleAction.reset().play();
+    currentAction = idleAction;
+  }
+  
+  isPaused = false;
+  gameStarted = false;
+  isGameWon = false;
+
+  // Reset camera position relative to the model's starting position
+  camera.position.set(0, 7, 163);
+  camera.lookAt(0, 2, 150); // Look at the model's starting position
+
+  // Reset any moving obstacles or platforms
+  resetObstaclesAndPlatforms();
+
+  // Cancel any ongoing animation frame
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
 }
 
-const clock = new THREE.Clock();
+// New function to reset obstacles and platforms
+function resetObstaclesAndPlatforms() {
+  // Reset the position of the moving platform
+  const platform = scene.getObjectByName("danish");
+  if (platform) {
+    platform.position.set(0, 0.25, -5);
+  }
 
-// function to update camera position
+  // Reset the direction of obstacles and platforms
+  obstacleDirection = 1;
+  platformDirection = 1;
+
+  // If we have other moving obstacles, reset them here
+}
+
+// Function to update camera position
 function updateCameraPosition() {
   if (!model) return; // if model is not loaded, return
 
@@ -479,7 +510,6 @@ function updateCameraPosition() {
     camera.position.copy(headPosition); // set the camera position to the model's head position
     camera.rotation.copy(controls.getObject().rotation); // set the camera rotation to the model's rotation
   } else {
-    // Third-person view
     const cameraPosition = new THREE.Vector3(
       Math.sin(cameraRotation.y) * cameraOffset.z, // set the camera position based on the camera offset and rotation
       cameraOffset.y,
@@ -503,59 +533,226 @@ function updateCameraPosition() {
   }
 }
 
-// hide the cursor
+// Function to hide cursor
 function hideCursor() {
-  document.body.style.cursor = "none";
+  if (gameContainer) {
+    gameContainer.style.cursor = "none";
+  }
 }
-hideCursor();
 
-// Start the animation loop
+// Function to show cursor
+function showCursor() {
+  if (gameContainer) {
+    gameContainer.style.cursor = "auto";
+  }
+}
+
+// Function to show pause overlay
+function showPauseOverlay() {
+  const overlay = document.createElement('div');
+  overlay.id = 'pauseOverlay';
+  overlay.className = 'menu';
+
+  const message = document.createElement('h1');
+  message.textContent = "Game Paused";
+
+  const resumeButton = document.createElement('button');
+  resumeButton.textContent = 'Resume';
+  resumeButton.addEventListener('click', togglePause);
+
+  overlay.appendChild(message);
+  overlay.appendChild(resumeButton);
+  document.body.appendChild(overlay);
+
+  showCursor();
+}
+
+// Function to remove pause overlay
+function removePauseOverlay() {
+  const overlay = document.getElementById('pauseOverlay');
+  if (overlay) {
+    document.body.removeChild(overlay);
+  }
+  
+  hideCursor();
+}
+
+// Function to toggle pause
+function togglePause() {
+  if (isGameWon) return; // Don't toggle pause if the game is won
+
+  isPaused = !isPaused;
+  if (isPaused) {
+    controls.unlock();
+    showPauseMenu();
+  } else {
+    menuElement.style.display = 'none';
+    gameContainer.style.display = 'block';
+    lastTime = performance.now();
+    animate();
+    controls.lock();
+  }
+}
+
+// Function to show pause menu
+function showPauseMenu() {
+  menuElement.style.display = 'block';
+  gameContainer.style.display = 'none';
+  startButton.style.display = 'none';
+  resumeButton.style.display = 'block';
+  restartButton.style.display = 'block';
+  showCursor();
+}
+
+// Function to initialize menu
+function initializeMenu() {
+  gameContainer = document.getElementById('gameContainer');
+  menuElement = document.getElementById('gameMenu');
+  startButton = document.getElementById('startButton');
+  resumeButton = document.getElementById('resumeButton');
+  restartButton = document.getElementById('restartButton');
+
+  startButton.addEventListener('click', startGame);
+  resumeButton.addEventListener('click', resumeGame);
+  restartButton.addEventListener('click', restartGame);
+
+  showMainMenu(); // show the main menu on initialization
+}
+
+// Function to start game
+function startGame() {
+  gameStarted = true;
+  isPaused = false;
+  menuElement.style.display = 'none';
+  gameContainer.style.display = 'block';
+  gameContainer.appendChild(renderer.domElement);
+  hideCursor();
+  controls.lock();
+  lastTime = performance.now();
+  animate();
+
+  // Remove menu canvas if it exists
+  const menuCanvas = menuElement.querySelector('canvas');
+  if (menuCanvas) {
+    menuElement.removeChild(menuCanvas);
+  }
+}
+
+// Function to resume game
+function resumeGame() {
+  menuElement.style.display = 'none';
+  gameContainer.style.display = 'block';
+  togglePause();
+}
+
+// Function to restart game
+function restartGame() {
+  resetGame();
+  menuElement.style.display = 'none';
+  gameContainer.style.display = 'block';
+  if (isPaused) {
+    isPaused = false;
+  }
+  startGame(); // properly restart the game loop
+}
+
+// Function to show main menu
+function showMainMenu() {
+  menuElement.style.display = 'block';
+  gameContainer.style.display = 'none';
+  startButton.style.display = 'block';
+  resumeButton.style.display = 'none';
+  restartButton.style.display = 'none';
+  showCursor();
+  isPaused = true;
+}
+
+// Function to animate
 function animate() {
-  const delta = clock.getDelta();
+  if (!isPaused && gameStarted) {
+    animationFrameId = requestAnimationFrame(animate);
 
-  if (mixer) {
-    mixer.update(delta);
+    const currentTime = performance.now();
+    const delta = (currentTime - lastTime) / 1000;
+    lastTime = currentTime;
+
+    if (mixer) {
+      mixer.update(delta);
+    }
+
+    if (model) {
+      updateMovement(delta);
+      checkIdleState();
+      checkForWin();
+    }
+
+    movePlatform("danish");
+
+    updateCameraPosition();
+
+    renderer.render(scene, camera);
   }
-
-  requestAnimationFrame(animate);
-
-  if (model) {
-    updateMovement(delta);
-    checkIdleState(); // Add this line to check for idle state every frame
-    checkForWin();
-  }
-
-  movePlatform("danish");
-
-  updateCameraPosition();
-
-  renderer.render(scene, camera);
 }
 
-// Start the animation loop
-animate();
+// Function to setup controls
+function setupControls() {
+  controls = new PointerLockControls(camera, renderer.domElement);
 
+  document.addEventListener("click", () => {
+    if (gameStarted && !isPaused) {
+      controls.lock();
+    }
+  });
+
+  controls.addEventListener("lock", () => {
+    console.log("PointerLock activated");
+    hideCursor();
+  });
+
+  controls.addEventListener("unlock", () => {
+    console.log("PointerLock deactivated");
+    showCursor();
+  });
+}
+
+// Event listeners
+window.addEventListener('load', initializeMenu);
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && gameStarted && !isGameWon) {
+    event.preventDefault();
+    togglePause();
+  }
+});
 window.addEventListener("resize", function () {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+window.addEventListener("keydown", handleKeyDown);
+window.addEventListener("keyup", handleKeyUp);
+document.addEventListener("mousemove", onMouseMove, false);
+window.addEventListener("keydown", (event) => {
+  if (event.key === "v") {
+    toggleView();
+  }
+});
 
-// for pointer lock controls
-function setupControls() {
-  controls = new PointerLockControls(camera, renderer.domElement);
-
-  document.addEventListener("click", () => {
-    controls.lock();
-  });
-
-  controls.addEventListener("lock", () => {
-    console.log("PointerLock activated");
-  });
-
-  controls.addEventListener("unlock", () => {
-    console.log("PointerLock deactivated");
-  });
-}
-
+// Initialize the game
+createGround();
+createCylindricalObstacle(5, 2.5, 130, "obs-1", "#ffffff");
+createCylindricalObstacle(15, 2.5, 115, "obs-2", "blue");
+createCylindricalObstacle(-5, 2.5, 125, "obs-3", "red");
+createCylindricalObstacle(-15, 2.5, 105, "obs-4", "#ffffff");
+createCylindricalObstacle(-35, 2.5, 110, "obs-5", "blue");
+createCylindricalObstacle(-25, 2.5, 120, "obs-6", "red");
+createCylindricalObstacle(25, 2.5, 135, "obs-7", "#ffffff");
+createCylindricalObstacle(40, 2.5, 135, "obs-8", "blue");
+createCylindricalObstacle(35, 2.5, 120, "obs-9", "red");
+createFloatingPlatform(0, 0.25, -5, "danish", "#ff0000");
+createLighting();
+finishLine = createFinishLine();
+loadPlayerModel();
 setupControls();
+
+document.body.appendChild(renderer.domElement);
+

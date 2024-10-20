@@ -442,31 +442,53 @@ function initGateObstacles() {
 }
 
 function animateGates(deltaTime) {
-  const moveSpeed = 10; // Movement speed
+  const moveSpeed = 20; // Movement speed
   const waitTime = 1; // Seconds to wait at each position
 
   // Iterate over all gates
   gates.forEach((gate) => {
     //console.log(gate);
     const pillar = gate.leftPillar;
-    const maxY = pillar.position.y + pillar.geometry.parameters.height / 2 - gate.geometry.parameters.height / 2;
+    const maxY =
+      pillar.position.y +
+      pillar.geometry.parameters.height / 2 -
+      gate.geometry.parameters.height / 2;
     const minY = 0 - gate.geometry.parameters.height / 2;
 
-    if (!gate.waiting) {
-      gate.position.y += gate.moveDirection * moveSpeed * deltaTime;
-
-      // Check if the gate has reached the max or min position
-      if (gate.position.y > maxY || gate.position.y < minY) {
-        gate.moveDirection *= -1; // Reverse the movement direction
-        gate.waiting = true;
-        gate.lastWaitTime = clock.getElapsedTime(); // Record the time of the wait
-      }
-    } else {
-      // If the gate is waiting, check how long it's been waiting
-      if (clock.getElapsedTime() - gate.lastWaitTime >= waitTime) {
-        gate.waiting = false; // Resume movement
-      }
+    // Check if the gate has reached the max position
+    if (gate.position.y >= maxY) {
+      gate.moveDirection = -1; // Reverse the movement direction
     }
+
+    // Check if the gate has reached the min position
+    if (gate.position.y <= minY) {
+      gate.moveDirection = 1; // Reverse the movement direction
+    }
+
+    gate.position.y += gate.moveDirection * moveSpeed * deltaTime;
+
+    // if (!gate.waiting) {
+    //   gate.position.y += gate.moveDirection * moveSpeed * deltaTime;
+
+    //   // Check if the gate has reached the max position
+    //   if (gate.position.y >= maxY) {
+    //     gate.moveDirection = -1; // Reverse the movement direction
+    //     gate.waiting = true;
+    //     gate.lastWaitTime = clock.getElapsedTime(); // Record the time of the wait
+    //   }
+
+    //   // Check if the gate has reached the min position
+    //   if (gate.position.y <= minY) {
+    //     gate.moveDirection = 1; // Reverse the movement direction
+    //     gate.waiting = true;
+    //     gate.lastWaitTime = clock.getElapsedTime(); // Record the time of the wait
+    //   }
+    // } else {
+    //   // If the gate is waiting, check how long it's been waiting
+    //   if (clock.getElapsedTime() - gate.lastWaitTime >= waitTime) {
+    //     gate.waiting = false; // Resume movement
+    //   }
+    // }
   });
 }
 

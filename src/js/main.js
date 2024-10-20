@@ -135,14 +135,14 @@ function setupControls() {
 
 function initLighting() {
   // Scene-wide dim ambient light for base illumination
-  const ambientLight = new THREE.AmbientLight(0x404040, 0.6); // Reduced intensity
+  const ambientLight = new THREE.AmbientLight(0x404040, 1.0); // Reduced intensity
   scene.add(ambientLight);
 
   // Main directional light (sun-like)
-  const mainLight = new THREE.DirectionalLight(0xffffff, 1.0); // Reduced intensity
+  const mainLight = new THREE.DirectionalLight(0xffffff, 2.5); // Reduced intensity
 
   // Position light higher and further back for better coverage
-  mainLight.position.set(50, 100, 50); // Increased height and distance
+  mainLight.position.set(50, 100, -50); // Increased height and distance
   mainLight.castShadow = true;
 
   // Increase shadow map size for better quality
@@ -169,6 +169,7 @@ function initLighting() {
   fillLight.position.set(-50, 50, -50);
   scene.add(fillLight);
 }
+
 function initBackground() {
   //We have to do the background
 }
@@ -542,7 +543,7 @@ function initGateObstacles() {
   let pillar9 = createPillar(world, scene, rightmostX, 0, secondSetZ, 3, 8, 7);
 
   //create cylinder obstacle
-  cylinders.push(createCylinder(scene, 29, 0, 98.5, 1, 6));
+  cylinders.push(createCylinder(scene, -29, 0, 98.5, 1, 6));
 
   // Moving gates between pillar 5 and 6
   gates.push(
@@ -596,6 +597,208 @@ function initGateObstacles() {
       pillar9
     )
   );
+
+  //Third SET OF PILLARS, gates , and cylinders (5 pillars, 4 gates)
+  const thirdSetZ = 150; // Z position for the second set of pillars
+
+  // Create 5 pillars with equal spacing between them
+  let pillar10 = createPillar(world, scene, leftmostX, 0, thirdSetZ, 3, 8, 7);
+  let pillar11 = createPillar(
+    world,
+    scene,
+    leftmostX - pillarSpacing,
+    0,
+    thirdSetZ,
+    3,
+    8,
+    7
+  );
+  let pillar12 = createPillar(
+    world,
+    scene,
+    leftmostX - 2 * pillarSpacing,
+    0,
+    thirdSetZ,
+    3,
+    8,
+    7
+  );
+  let pillar13 = createPillar(
+    world,
+    scene,
+    leftmostX - 3 * pillarSpacing,
+    0,
+    thirdSetZ,
+    3,
+    8,
+    7
+  );
+  let pillar14 = createPillar(world, scene, rightmostX, 0, thirdSetZ, 3, 8, 7);
+
+  //create cylinder obstacle
+  cylinders.push(createCylinder(scene, 15, 0, 148.5, 1, 6));
+  //create cylinder obstacle
+  cylinders.push(createCylinder(scene, -15, 0, 158, 1, 6));
+
+  // Moving gates between pillar 5 and 6
+  gates.push(
+    createGate(
+      scene,
+      pillar10.position.x,
+      0,
+      pillar10.position.z,
+      8,
+      2,
+      pillar10,
+      pillar11
+    )
+  );
+  // Moving gates between pillar 6 and 7
+  gates.push(
+    createGate(
+      scene,
+      pillar11.position.x,
+      -8,
+      pillar11.position.z,
+      8,
+      2,
+      pillar11,
+      pillar12
+    )
+  );
+  // Moving gates between pillar 7 and 8
+  gates.push(
+    createGate(
+      scene,
+      pillar12.position.x,
+      0,
+      pillar12.position.z,
+      8,
+      2,
+      pillar12,
+      pillar13
+    )
+  );
+  // Moving gates between pillar 8 and 9
+  gates.push(
+    createGate(
+      scene,
+      pillar13.position.x,
+      -8,
+      pillar13.position.z,
+      8,
+      2,
+      pillar13,
+      pillar14
+    )
+  );
+
+  //Fourth SET OF PILLARS, gates , and cylinders (5 pillars, 4 gates)
+  const fourthSetZ = 200; // Z position for the second set of pillars
+
+  // Create 5 pillars with equal spacing between them
+  let pillar15 = createPillar(world, scene, leftmostX, 0, fourthSetZ, 3, 8, 7);
+
+  let pillar16 = createPillar(
+    world,
+    scene,
+    leftmostX - pillarSpacing,
+    0,
+    fourthSetZ,
+    3,
+    8,
+    7
+  );
+
+  let pillar17 = createPillar(
+    world,
+    scene,
+    leftmostX - 2 * pillarSpacing,
+    0,
+    fourthSetZ,
+    3,
+    8,
+    7
+  );
+
+  let pillar18 = createPillar(
+    world,
+    scene,
+    leftmostX - 3 * pillarSpacing,
+    0,
+    fourthSetZ,
+    3,
+    8,
+    7
+  );
+
+  let pillar19 = createPillar(world, scene, rightmostX, 0, fourthSetZ, 3, 8, 7);
+
+  // Moving gates between pillar 5 and 6
+  gates.push(
+    createGate(
+      scene,
+      pillar15.position.x,
+      0,
+      pillar15.position.z,
+      8,
+      2,
+      pillar15,
+      pillar16
+    )
+  );
+
+  // Moving gates between pillar 6 and 7
+  gates.push(
+    createGate(
+      scene,
+      pillar16.position.x,
+      -8,
+      pillar16.position.z,
+      8,
+      2,
+      pillar16,
+      pillar17
+    )
+  );
+
+  // Moving gates between pillar 7 and 8
+  gates.push(
+    createGate(
+      scene,
+      pillar17.position.x,
+      0,
+      pillar17.position.z,
+      8,
+      2,
+      pillar17,
+      pillar18
+    )
+  );
+
+  // Moving gates between pillar 8 and 9
+  gates.push(
+    createGate(
+      scene,
+      pillar18.position.x,
+      -8,
+      pillar18.position.z,
+      8,
+      2,
+      pillar18,
+      pillar19
+    )
+  );
+
+  //create cylinder obstacle
+  cylinders.push(createCylinder(scene, 29, 0, 198.5, 1, 6));
+  //create cylinder obstacle
+  cylinders.push(createCylinder(scene, -29, 0, 198.5, 1, 6));
+
+  //create cylinder obstacle
+  cylinders.push(createCylinder(scene, 12, 0, 208.5, 1, 6));
+  //create cylinder obstacle
+  cylinders.push(createCylinder(scene, -12, 0, 208.5, 1, 6));
 
   AddVisualGateHelpers();
   AddVisualCylinderHelpers();
@@ -763,7 +966,8 @@ function animate() {
       const gateBoundingBox = new THREE.Box3().setFromObject(gate);
 
       if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
-        alert("You lose!");
+        //Reset the players position
+        playerBody.position.set(0, 10, 10);
       }
     });
 
@@ -772,7 +976,8 @@ function animate() {
       const cylinderBoundingBox = new THREE.Box3().setFromObject(cylinder);
 
       if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
-        alert("You lose!");
+        //Reset the players position
+        playerBody.position.set(0, 10, 10);
       }
     });
 

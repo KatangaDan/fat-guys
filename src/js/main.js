@@ -5,6 +5,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as CANNON from "cannon-es";
 import CannonDebugger from "cannon-es-debugger";
 import Stats from "stats.js";
+import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 import { createPillar, createGate } from "./obstacles";
 
 // Import assets
@@ -23,7 +24,15 @@ let scene,
   model,
   playerBody,
   modelCenterOffset,
-  stats;
+  stats,
+  cameraGoal;
+
+// variables for camera control
+const cameraOffset = new THREE.Vector3(0, 8, 13); // Changed to position camera behind and above the model
+const cameraLerpFactor = 0.1;
+let cameraRotation = new THREE.Euler(0, 0, 0, "YXZ");
+const mouseSensitivity = 0.002; // for mouse sensitivity
+let isFirstPerson = false; // for view toggle
 
 //Movement flags
 let moveForward = false,
@@ -82,11 +91,11 @@ function initScene() {
   document.body.appendChild(renderer.domElement);
 
   //Create controls for testing
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true; // Smooth motion
-  controls.enableZoom = true; // Allow zooming
-  controls.enablePan = true; // Allow panning
-  controls.maxPolarAngle = Math.PI / 2; // Restrict vertical rotation (optional)
+  // controls = new OrbitControls(camera, renderer.domElement);
+  // controls.enableDamping = true; // Smooth motion
+  // controls.enableZoom = true; // Allow zooming
+  // controls.enablePan = true; // Allow panning
+  // controls.maxPolarAngle = Math.PI / 2; // Restrict vertical rotation (optional)
 
   //Create an axis
   const axesHelper = new THREE.AxesHelper(1000); // Size of the axes
@@ -94,6 +103,26 @@ function initScene() {
 
   //Start clock
   clock = new THREE.Clock();
+
+  //Setup controls
+  setupControls();
+}
+
+// for pointer lock controls
+function setupControls() {
+  controls = new PointerLockControls(camera, renderer.domElement);
+
+  document.addEventListener("click", () => {
+    controls.lock();
+  });
+
+  controls.addEventListener("lock", () => {
+    console.log("PointerLock activated");
+  });
+
+  controls.addEventListener("unlock", () => {
+    console.log("PointerLock deactivated");
+  });
 }
 
 function initLighting() {
@@ -163,6 +192,11 @@ function initPlayer() {
 
       scene.add(model);
 
+      // Create and add camera goal as a child of the model
+      cameraGoal = new THREE.Object3D();
+      cameraGoal.position.copy(cameraOffset);
+      model.add(cameraGoal);
+
       // Set up animation
       //   mixer = new THREE.AnimationMixer(model);
       //   const clips = gltf.animations;
@@ -211,6 +245,19 @@ function initPlayer() {
 function initEventListeners() {
   window.addEventListener("keydown", handleKeyDown);
   window.addEventListener("keyup", handleKeyUp);
+  // event listeners for mouse control
+  document.addEventListener("mousemove", onMouseMove, false);
+}
+// function to handle mouse movement
+function onMouseMove(event) {
+  if (controls.isLocked) {
+    cameraRotation.y -= event.movementX * mouseSensitivity;
+    cameraRotation.x -= event.movementY * mouseSensitivity;
+    cameraRotation.x = Math.max(
+      -Math.PI / 2,
+      Math.min(Math.PI / 2, cameraRotation.x)
+    );
+  }
 }
 
 //Movememnt functions that update the movement flags
@@ -377,12 +424,41 @@ function initGateObstacles() {
 
 // Update the camera position to follow the player
 function updateCamera() {
-  camera.position.set(
-    model.position.x,
-    model.position.y + 6,
-    model.position.z - 12
+  const cameraPosition = new THREE.Vector3(
+    Math.sin(cameraRotation.y) * cameraOffset.z, // set the camera position based on the camera offset and rotation
+    cameraOffset.y,
+    -(Math.cos(cameraRotation.y) * cameraOffset.z)
   );
-  camera.lookAt(model.position);
+  cameraPosition.add(model.position); // add the model's position to the camera position
+  camera.position.lerp(cameraPosition, cameraLerpFactor); // lerp the camera position to the camera goal position
+
+  // Calculate a look-at point slightly in front of and above the model
+  const lookAtPoint = model.position
+    .clone()
+    .add(
+      new THREE.Vector3(0, 2, -5).applyAxisAngle(
+        new THREE.Vector3(0, 1, 0),
+        cameraRotation.y
+      )
+    );
+
+  //Make the camera look at the point in front of the model
+  camera.lookAt(lookAtPoint);
+
+  // let cameraPosition = new THREE.Vector3(
+  //   model.position.x,
+  //   model.position.y + 6,
+  //   model.position.z - 12
+  // );
+
+  // camera.position.lerp(cameraPosition, cameraLerpFactor); // lerp the camera position to the camera goal position
+
+  // camera.position.set(
+  //   model.position.x,
+  //   model.position.y + 6,
+  //   model.position.z - 12
+  // );
+  // camera.lookAt(model.position);
 }
 
 function animate() {

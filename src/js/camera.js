@@ -24,7 +24,6 @@ function init() {
 
     // Add event listener for keyboard input
     document.addEventListener('keydown', onDocumentKeyDown, false);
-
     // Start rendering loop
     animate();
 }

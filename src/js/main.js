@@ -7,6 +7,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import finish from "../img/finish.jpg";
 import galaxy from "../img/galaxy.jpg";
+import s from "../sounds/sound2.mp3";
 import { mod } from "three/webgpu";
 
 const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
@@ -21,6 +22,10 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 
 const textureLoader = new THREE.TextureLoader();
+
+const listener = new THREE.AudioListener();
+camera.add(listener);
+const audioLoader = new THREE.AudioLoader();
 
 // Game state variables
 let gameStarted = false;
@@ -636,6 +641,13 @@ function startGame() {
   if (menuCanvas) {
     menuElement.removeChild(menuCanvas);
   }
+  const sound = new THREE.Audio(listener);
+  audioLoader.load(s, function(buffer) {
+    sound.setBuffer(buffer);
+    sound.setLoop(true);  // Set to true for background music
+    sound.setVolume(1); // Adjust the volume as needed
+    sound.play();
+  });
 }
 
 // Function to resume game

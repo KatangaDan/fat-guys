@@ -53,6 +53,23 @@ const keys = {
     d: false
 };
 
+//Background Sound
+// 1. Create an audio listener and add it to the camera
+const listener = new THREE.AudioListener();
+camera.add(listener);
+
+// 2. Create a global audio source (this will play the music)
+const sound = new THREE.Audio(listener);
+
+// 3. Load a sound and set it as the Audio object's buffer
+const audioLoader = new THREE.AudioLoader();
+audioLoader.load('../sounds/sound.mp3', function(buffer) {
+    sound.setBuffer(buffer);
+    sound.setLoop(true);  // Set to true for background music
+    sound.setVolume(1); // Adjust the volume as needed
+    sound.play();
+});
+
 document.addEventListener('keydown', (event) => {
     if (keys.hasOwnProperty(event.key)) {
         keys[event.key] = true;

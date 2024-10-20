@@ -30,10 +30,10 @@ let scene,
 let gates = [];
 
 // variables for camera control
-const cameraOffset = new THREE.Vector3(0, 8, 13); // Changed to position camera behind and above the model
-const cameraLerpFactor = 0.1;
+const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
+const cameraLerpFactor = 1.0;
 let cameraRotation = new THREE.Euler(0, 0, 0, "YXZ");
-const mouseSensitivity = 0.002; // for mouse sensitivity
+const mouseSensitivity = 0.0008; // for mouse sensitivity
 
 //Movement flags
 let moveForward = false,
@@ -251,14 +251,29 @@ function initEventListeners() {
   document.addEventListener("mousemove", onMouseMove, false);
 }
 // function to handle mouse movement
+// Update the onMouseMove function
 function onMouseMove(event) {
   if (controls.isLocked) {
+    // Update camera rotation
     cameraRotation.y -= event.movementX * mouseSensitivity;
-    cameraRotation.x -= event.movementY * mouseSensitivity;
-    cameraRotation.x = Math.max(
-      -Math.PI / 2,
-      Math.min(Math.PI / 2, cameraRotation.x)
-    );
+    // cameraRotation.y = Math.max(
+    //   -Math.PI / 2, // Limit looking up
+    //   Math.min(
+    //     Math.PI / 2, // Limit looking down
+    //     cameraRotation.y - event.movementX * mouseSensitivity
+    //   )
+    // );
+
+    // Rotate the player model to match camera direction
+    if (playerBody && model) {
+      // Set the quaternion of the physics body
+      playerBody.quaternion.setFromAxisAngle(
+        new CANNON.Vec3(0, 1, 0),
+        cameraRotation.y
+      );
+
+      // model.rotation.y = cameraRotation.y;
+    }
   }
 }
 
@@ -334,36 +349,47 @@ function jump() {
 }
 
 // Update player movement based on key presses
-function updateMovement(deltaTime) {
-  const translationStep = PLAYER_SPEED * deltaTime;
+// Update the updateMovement function to use camera direction
+function updateMovement(delta) {
+  const speed = PLAYER_SPEED * delta;
 
-  if (moveForward) playerBody.position.z += translationStep;
-  if (moveBackward) playerBody.position.z -= translationStep;
-  if (moveLeft) playerBody.position.x += translationStep;
-  if (moveRight) playerBody.position.x -= translationStep;
+  // Calculate forward and right vectors based on camera rotation
+  const forward = new THREE.Vector3(0, 0, 1);
+  const right = new THREE.Vector3(1, 0, 0);
 
-  // Apply camera rotation to movement
-  // moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
+  // Rotate vectors based on camera rotation
+  forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
+  right.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
 
-  // Rotate model based on movement direction
-  // const targetRotation = Math.atan2(velocity.x, velocity.z);
-  // model.rotation.y = THREE.MathUtils.lerp(
-  //   model.rotation.y,
-  //   targetRotation,
-  //   turnSpeed
-  // );
+  // Calculate movement direction
+  const moveDirection = new THREE.Vector3(0, 0, 0);
 
-  // Reset isJumping flag if the player has landed (velocity in the Y direction is near 0)
-  if (
+  if (moveForward) moveDirection.add(forward);
+  if (moveBackward) moveDirection.sub(forward);
+  if (moveLeft) moveDirection.add(right);
+  if (moveRight) moveDirection.sub(right);
+
+  // Normalize and apply movement
+  if (moveDirection.length() > 0) {
+    moveDirection.normalize();
+    playerBody.position.x += moveDirection.x * speed;
+    playerBody.position.z += moveDirection.z * speed;
+  }
+
+  // Reset angular velocity
+  playerBody.angularVelocity.set(0, 0, 0);
+
+  // Update jumping state
+  const height =
     playerBody.position.y -
-      (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
-      0.1 <
-    0.1
-  ) {
+    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+    0.1;
+  if (height < 0.1) {
     isJumping = false;
   }
-  playerBody.angularVelocity.set(0, 0, 0);
 }
+
+//
 
 function createGroundPiece(x, y, z, width, length) {
   //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
@@ -493,42 +519,29 @@ function animateGates(deltaTime) {
 }
 
 // Update the camera position to follow the player
+// Update the updateCamera function
 function updateCamera() {
+  if (!model) return;
+
+  // Calculate camera position based on offset and rotation
   const cameraPosition = new THREE.Vector3(
-    Math.sin(cameraRotation.y) * cameraOffset.z, // set the camera position based on the camera offset and rotation
+    Math.sin(cameraRotation.y) * cameraOffset.z,
     cameraOffset.y,
-    -(Math.cos(cameraRotation.y) * cameraOffset.z)
+    Math.cos(cameraRotation.y) * cameraOffset.z
   );
-  cameraPosition.add(model.position); // add the model's position to the camera position
-  camera.position.lerp(cameraPosition, cameraLerpFactor); // lerp the camera position to the camera goal position
 
-  // Calculate a look-at point slightly in front of and above the model
-  const lookAtPoint = model.position
-    .clone()
-    .add(
-      new THREE.Vector3(0, 2, -5).applyAxisAngle(
-        new THREE.Vector3(0, 1, 0),
-        cameraRotation.y
-      )
-    );
+  // Add player position to camera position
+  cameraPosition.add(model.position);
 
-  //Make the camera look at the point in front of the model
-  camera.lookAt(lookAtPoint);
+  // Update camera position with smooth lerp
+  camera.position.lerp(cameraPosition, cameraLerpFactor);
 
-  // let cameraPosition = new THREE.Vector3(
-  //   model.position.x,
-  //   model.position.y + 6,
-  //   model.position.z - 12
-  // );
+  // Calculate look target (slightly above player position)
+  const lookTarget = model.position.clone().add(new THREE.Vector3(0, 2, 0));
+  camera.lookAt(lookTarget);
 
-  // camera.position.lerp(cameraPosition, cameraLerpFactor); // lerp the camera position to the camera goal position
-
-  // camera.position.set(
-  //   model.position.x,
-  //   model.position.y + 6,
-  //   model.position.z - 12
-  // );
-  // camera.lookAt(model.position);
+  // Apply pitch rotation after looking at target
+  camera.rotateX(cameraRotation.x);
 }
 
 function animate() {
@@ -542,10 +555,21 @@ function animate() {
     //Update the movement of the player
     updateMovement(deltaTime);
 
-    // Set the model's position to match the playerBody, adjusted by the center offset
-    model.position.copy(playerBody.position).add(modelCenterOffset);
+    // First apply rotation
+    model.quaternion.set(
+      playerBody.quaternion.x,
+      playerBody.quaternion.y,
+      playerBody.quaternion.z,
+      playerBody.quaternion.w
+    );
 
-    // // //Set camera position
+    // Then update position with offset
+    const worldOffset = modelCenterOffset.clone();
+    worldOffset.applyQuaternion(playerBody.quaternion); // Transform offset by current rotation
+
+    model.position.copy(playerBody.position).add(worldOffset);
+
+    // Update camera
     updateCamera();
   }
 

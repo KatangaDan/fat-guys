@@ -27,12 +27,13 @@ let scene,
   stats,
   cameraGoal;
 
+let gates = [];
+
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 8, 13); // Changed to position camera behind and above the model
 const cameraLerpFactor = 0.1;
 let cameraRotation = new THREE.Euler(0, 0, 0, "YXZ");
 const mouseSensitivity = 0.002; // for mouse sensitivity
-let isFirstPerson = false; // for view toggle
 
 //Movement flags
 let moveForward = false,
@@ -43,6 +44,7 @@ let moveForward = false,
 //Speed constants
 const PLAYER_SPEED = 20;
 const jumpForce = 1750;
+const turnSpeed = 0.2; // for rotation
 
 //Jumping flag
 let isJumping = false;
@@ -75,7 +77,7 @@ function initScene() {
   );
 
   //Set camera position
-  camera.position.set(0, 30, -50);
+  camera.position.set(0, 0, 0);
 
   //Create a renderer
   renderer = new THREE.WebGLRenderer({ antialias: true }); // Add antialias for smoother edges
@@ -340,6 +342,17 @@ function updateMovement(deltaTime) {
   if (moveLeft) playerBody.position.x += translationStep;
   if (moveRight) playerBody.position.x -= translationStep;
 
+  // Apply camera rotation to movement
+  // moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
+
+  // Rotate model based on movement direction
+  // const targetRotation = Math.atan2(velocity.x, velocity.z);
+  // model.rotation.y = THREE.MathUtils.lerp(
+  //   model.rotation.y,
+  //   targetRotation,
+  //   turnSpeed
+  // );
+
   // Reset isJumping flag if the player has landed (velocity in the Y direction is near 0)
   if (
     playerBody.position.y -
@@ -388,38 +401,73 @@ function initGateObstacles() {
   let pillar4 = createPillar(world, scene, -28.5, 0, 50, 3, 8, 7);
 
   // //moving gates between pillar 1 and 2
-  createGate(
-    scene,
-    pillar1.position.x,
-    0,
-    pillar1.position.z,
-    6,
-    2,
-    pillar1,
-    pillar2
+  gates.push(
+    createGate(
+      scene,
+      pillar1.position.x,
+      0,
+      pillar1.position.z,
+      8,
+      2,
+      pillar1,
+      pillar2
+    )
   );
   //moving gates between pillar 2 and 3
-  createGate(
-    scene,
-    pillar2.position.x,
-    0,
-    pillar2.position.z,
-    6,
-    2,
-    pillar2,
-    pillar3
+  gates.push(
+    createGate(
+      scene,
+      pillar2.position.x,
+      -4,
+      pillar2.position.z,
+      8,
+      2,
+      pillar2,
+      pillar3
+    )
   );
   //moving gates between pillar 3 and 4
-  createGate(
-    scene,
-    pillar3.position.x,
-    0,
-    pillar3.position.z,
-    6,
-    2,
-    pillar3,
-    pillar4
+  gates.push(
+    createGate(
+      scene,
+      pillar3.position.x,
+      0,
+      pillar3.position.z,
+      8,
+      2,
+      pillar3,
+      pillar4
+    )
   );
+}
+
+function animateGates(deltaTime) {
+  const moveSpeed = 10; // Movement speed
+  const waitTime = 1; // Seconds to wait at each position
+
+  // Iterate over all gates
+  gates.forEach((gate) => {
+    //console.log(gate);
+    const pillar = gate.leftPillar;
+    const maxY = pillar.position.y + pillar.geometry.parameters.height / 2 - gate.geometry.parameters.height / 2;
+    const minY = 0 - gate.geometry.parameters.height / 2;
+
+    if (!gate.waiting) {
+      gate.position.y += gate.moveDirection * moveSpeed * deltaTime;
+
+      // Check if the gate has reached the max or min position
+      if (gate.position.y > maxY || gate.position.y < minY) {
+        gate.moveDirection *= -1; // Reverse the movement direction
+        gate.waiting = true;
+        gate.lastWaitTime = clock.getElapsedTime(); // Record the time of the wait
+      }
+    } else {
+      // If the gate is waiting, check how long it's been waiting
+      if (clock.getElapsedTime() - gate.lastWaitTime >= waitTime) {
+        gate.waiting = false; // Resume movement
+      }
+    }
+  });
 }
 
 // Update the camera position to follow the player
@@ -478,6 +526,9 @@ function animate() {
     // // //Set camera position
     updateCamera();
   }
+
+  //Animate the gates
+  animateGates(deltaTime);
 
   cannonDebugger.update();
   renderer.render(scene, camera);

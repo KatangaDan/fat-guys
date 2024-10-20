@@ -54,5 +54,17 @@ export function createGate(
   gate.position.set(newX, y + height / 2, z);
   gate.castShadow = true;
   gate.receiveShadow = true;
+
+  // Initialize gate movement properties
+  gate.moveDirection = 1; // Initial direction: 1 (up), -1 (down)
+  gate.waiting = false; // Not waiting initially
+  gate.lastWaitTime = 0; // Initialize the wait timer
+
+  // Attach reference to the left and right pillars
+  gate.leftPillar = leftPillar;
+  gate.rightPillar = rightPillar;
+
   scene.add(gate);
+
+  return gate;
 }

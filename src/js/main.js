@@ -27,13 +27,17 @@ let scene,
   stats,
   cameraGoal;
 
+//Helpers to visualize intersection boxes
+let playerHelper;
+
 let gates = [];
+let gateHelpers = [];
 
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
 const cameraLerpFactor = 1.0;
 let cameraRotation = new THREE.Euler(0, 0, 0, "YXZ");
-const mouseSensitivity = 0.0008; // for mouse sensitivity
+const mouseSensitivity = 0.0004; // for mouse sensitivity
 
 //Movement flags
 let moveForward = false,
@@ -237,6 +241,10 @@ function initPlayer() {
 
       // Add the body to the world
       world.addBody(playerBody);
+
+      // Create a helper to visualize the player's bounding box
+      playerHelper = new THREE.BoxHelper(model, "red"); // Red box around object1
+      scene.add(playerHelper);
     },
     undefined,
     (error) => console.error("Error loading player model:", error)
@@ -252,27 +260,48 @@ function initEventListeners() {
 }
 // function to handle mouse movement
 // Update the onMouseMove function
-function onMouseMove(event) {
-  if (controls.isLocked) {
-    // Update camera rotation
-    cameraRotation.y -= event.movementX * mouseSensitivity;
-    // cameraRotation.y = Math.max(
-    //   -Math.PI / 2, // Limit looking up
-    //   Math.min(
-    //     Math.PI / 2, // Limit looking down
-    //     cameraRotation.y - event.movementX * mouseSensitivity
-    //   )
-    // );
+// function onMouseMove(event) {
+//   if (controls.isLocked) {
+//     // Update camera rotation
+//     cameraRotation.y -= event.movementX * mouseSensitivity;
+//     // cameraRotation.y = Math.max(
+//     //   -Math.PI / 2, // Limit looking up
+//     //   Math.min(
+//     //     Math.PI / 2, // Limit looking down
+//     //     cameraRotation.y - event.movementX * mouseSensitivity
+//     //   )
+//     // );
 
-    // Rotate the player model to match camera direction
-    if (playerBody && model) {
-      // Set the quaternion of the physics body
+//     // Rotate the player model to match camera direction
+//     if (playerBody && model) {
+//       // Set the quaternion of the physics body
+//       playerBody.quaternion.setFromAxisAngle(
+//         new CANNON.Vec3(0, 1, 0),
+//         cameraRotation.y
+//       );
+
+//       // model.rotation.y = cameraRotation.y;
+//     }
+//   }
+// }
+
+let targetRotationY = 0; // Store target rotation
+const rotationDamping = 0.2; // Damping factor
+
+function onMouseMove(e) {
+  if (controls.isLocked) {
+    // Accumulate mouse movement
+    targetRotationY -= e.movementX * mouseSensitivity;
+
+    // Smoothly interpolate towards the target rotation
+    cameraRotation.y += (targetRotationY - cameraRotation.y) * rotationDamping;
+
+    // Update the player's body rotation
+    if (playerBody) {
       playerBody.quaternion.setFromAxisAngle(
         new CANNON.Vec3(0, 1, 0),
         cameraRotation.y
       );
-
-      // model.rotation.y = cameraRotation.y;
     }
   }
 }
@@ -465,6 +494,17 @@ function initGateObstacles() {
       pillar4
     )
   );
+
+  AddVisualGateHelpers();
+}
+
+function AddVisualGateHelpers() {
+  // Add visual helpers for the gates
+  gates.forEach((gate) => {
+    const helper = new THREE.BoxHelper(gate, "blue");
+    gateHelpers.push(helper);
+    scene.add(helper);
+  });
 }
 
 function animateGates(deltaTime) {
@@ -544,6 +584,8 @@ function updateCamera() {
   camera.rotateX(cameraRotation.x);
 }
 
+//Bounding boxes
+
 function animate() {
   stats.begin();
   // Update the physics world on every frame
@@ -569,6 +611,29 @@ function animate() {
 
     model.position.copy(playerBody.position).add(worldOffset);
 
+    /*Actual bounding boxes for the player and obstacles*/
+    const playerBoundingBox = new THREE.Box3().setFromObject(model);
+    gates.forEach((gate) => {
+      const gateBoundingBox = new THREE.Box3().setFromObject(gate);
+
+      if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
+        alert("You lose!");
+      }
+    });
+
+    /*Actual bounding boxes for the player and obstacles*/
+
+    /*HELPERS TO VISUALIZE BOUNDING BOXES */
+    if (playerHelper) {
+      playerHelper.update();
+    }
+
+    //Update gate helpers
+    gateHelpers.forEach((helper) => {
+      if (helper) helper.update();
+    });
+    /*HELPERS TO VISUALIZE BOUNDING BOXES */
+
     // Update camera
     updateCamera();
   }
@@ -576,7 +641,7 @@ function animate() {
   //Animate the gates
   animateGates(deltaTime);
 
-  cannonDebugger.update();
+  // cannonDebugger.update();
   renderer.render(scene, camera);
   //controls.update();
 

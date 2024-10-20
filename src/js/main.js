@@ -1,21 +1,24 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { TextureLoader } from 'three';
 import { Vector3 } from "three";
 
 import finish from "../img/finish.jpg";
 import galaxy from "../img/galaxy.jpg";
 import { mod } from "three/webgpu";
 
+import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+
 const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
 
-let cameraGoal;
+let cameraGoal; // for camera goal
 
 // Setup the scene
 const scene = new THREE.Scene();
 
-// Setup the camera (Third-Person Perspective)
+// Setup the camera
 const camera = new THREE.PerspectiveCamera(
-  70,
+  75,
   window.innerWidth / window.innerHeight,
   0.1,
   1000
@@ -31,7 +34,6 @@ renderer.shadowMap.enabled = true;
 const textureLoader = new THREE.TextureLoader();
 
 // Add background world
-
 /*const cubeTextureLoader = new THREE.CubeTextureLoader();
 scene.background = cubeTextureLoader.load([
     galaxy,
@@ -121,25 +123,32 @@ scene.add(finishLine);
 const assetLoader = new GLTFLoader();
 let model; // Declare model globally but set it to null initially
 
-let mixer;
+let mixer; // for animation mixer
 
-let runningAction;
-let backRunningAction;
-let jumpAction;
-let idleAction;
-let idleClip;
+let runningAction; // for running animation
+let backRunningAction; // for backward running animation
+let jumpAction; // for jump animation
+let idleAction; // for idle animation
 
-// Adjust these variables for camera control
+// variables for camera control
 const cameraOffset = new THREE.Vector3(0, 8, 13); // Changed to position camera behind and above the model
 const cameraLerpFactor = 0.1;
 let cameraRotation = new THREE.Euler(0, 0, 0, "YXZ");
-const mouseSensitivity = 0.002;
+const mouseSensitivity = 0.002; // for mouse sensitivity
 
 let velocity = new THREE.Vector3();
-const maxSpeed = 0.2;
-const acceleration = 0.05;
-const deceleration = 0.1;
-const turnSpeed = 0.2;
+const maxSpeed = 0.3; // for speed
+const acceleration = 0.05; // for acceleration
+const deceleration = 0.1; // for deceleration
+const turnSpeed = 0.2; // for rotation
+
+let isFirstPerson = false; // for view toggle
+let controls; // for pointer lock controls
+
+// for smooth animation transitions and avoid ghosting
+let currentAction = null;
+const fadeDuration = 0.07; // Duration of crossfade between animations
+const animationSpeed = 1.5; // 1.0 is normal speed, 2.0 is double speed, etc.
 
 assetLoader.load(
   fatGuyURL.href,
@@ -160,18 +169,24 @@ assetLoader.load(
 
     const clip = THREE.AnimationClip.findByName(clips, "Running");
     runningAction = mixer.clipAction(clip);
+    runningAction.timeScale = animationSpeed;
 
     const backClip = THREE.AnimationClip.findByName(clips, "Running Backward");
     backRunningAction = mixer.clipAction(backClip);
+    backRunningAction.timeScale = animationSpeed;
 
     const jumpClip = THREE.AnimationClip.findByName(clips, "Jump");
     jumpAction = mixer.clipAction(jumpClip);
+    jumpAction.timeScale = animationSpeed;
 
-    idleClip = THREE.AnimationClip.findByName(clips, "Idle");
+    // Set idle animations
+    const idleClip = THREE.AnimationClip.findByName(clips, "Idle");
     idleAction = mixer.clipAction(idleClip);
+    idleAction.timeScale = animationSpeed;
     idleAction.setLoop(THREE.LoopRepeat);
-    idleAction.play();
-    //action.play();
+    idleAction.play(); // Play the initial idle animation
+
+    currentAction = idleAction; // Set the initial action
   },
   undefined,
   function (error) {
@@ -187,21 +202,19 @@ let moveRight = false;
 let jumping = false;
 let velocityY = 0;
 const gravity = -0.5;
-const groundLevel = 2; // Adjust this value based on your ground level
-const playerSpeed = 0.3;
+const groundLevel = 1; // Adjust this value based on ground level
 
-// function initIdleAction() {
-//   idleAction = mixer.clipAction(idleClip); // Replace idleClip with your idle animation clip
-//   idleAction.setLoop(THREE.LoopRepeat);
-//   idleAction.play();
-// }
-
+// function to check if the player is idle
 function checkIdleState() {
-  if (!moveForward && !moveBackward && !moveRight && !moveLeft) {
-    console.log("idle");
-    if (idleAction && !idleAction.isRunning()) {
-      idleAction.setLoop(THREE.LoopRepeat);
-      idleAction.play(); // Play the idle animation
+  if (!moveForward && !moveBackward && !moveRight && !moveLeft && !jumping && velocity.length() < 0.01) {
+    if (currentAction !== idleAction) {
+      console.log("Transitioning to idle");
+      idleAction.reset().fadeIn(fadeDuration);
+      idleAction.play();
+      if (currentAction) {
+        currentAction.fadeOut(fadeDuration);
+      }
+      currentAction = idleAction;
     }
   }
 }
@@ -279,73 +292,71 @@ function handleKeyDown(event) {
   }
 }
 
+// function to handle key up events
 function handleKeyUp(event) {
   switch (event.key) {
     case "w":
     case "ArrowUp":
       moveForward = false;
-      if (runningAction) {
-        //runningAction.stop();  // Stop the animation when key is released
-        runningAction.fadeOut(0.5); // Fade out the animation when key is released
-      }
       break;
     case "s":
     case "ArrowDown":
       moveBackward = false;
-      if (backRunningAction) {
-        //runningAction.stop();  // Stop the animation when key is released
-        backRunningAction.fadeOut(0.5); // Fade out the animation when key is released
-      }
       break;
     case "a":
     case "ArrowLeft":
       moveLeft = false;
-      if (runningAction) {
-        //runningAction.stop();  // Stop the animation when key is released
-        runningAction.fadeOut(0.5); // Fade out the animation when key is released
-      }
       break;
     case "d":
     case "ArrowRight":
       moveRight = false;
-      if (runningAction) {
-        //runningAction.stop();  // Stop the animation when key is released
-        runningAction.fadeOut(0.5); // Fade out the animation when key is released
-      }
       break;
-
     case " ":
       jumping = false;
-      if (jumpAction) {
-        //runningAction.stop();  // Stop the animation when key is released
-        jumpAction.fadeOut(0.5); // Fade out the animation when key is released
-      }
       break;
   }
-  checkIdleState();
 }
 
 window.addEventListener("keydown", handleKeyDown);
 window.addEventListener("keyup", handleKeyUp);
 
-// Initialize the idle action
-//initIdleAction();
-
+// function to handle mouse movement
 function onMouseMove(event) {
-  cameraRotation.y -= event.movementX * mouseSensitivity;
-  cameraRotation.x -= event.movementY * mouseSensitivity;
-  cameraRotation.x = Math.max(
-    -Math.PI / 2,
-    Math.min(Math.PI / 2, cameraRotation.x)
-  );
+  if (controls.isLocked) {
+    cameraRotation.y -= event.movementX * mouseSensitivity;
+    cameraRotation.x -= event.movementY * mouseSensitivity;
+    cameraRotation.x = Math.max(
+      -Math.PI / 2,
+      Math.min(Math.PI / 2, cameraRotation.x)
+    );
+  }
 }
 
-// Add event listeners for mouse control
+// event listeners for mouse control
 document.addEventListener("mousemove", onMouseMove, false);
 
-// Update player movement
+// function to toggle between first-person and third-person views
+function toggleView() {
+  isFirstPerson = !isFirstPerson;
+  if (isFirstPerson) {
+    controls.connect();
+    model.visible = false; // Hide the model in first-person view
+  } else {
+    controls.disconnect();
+    model.visible = true; // Show the model in third-person view
+  }
+}
+
+// event listener for the 'v' key to toggle views
+window.addEventListener("keydown", (event) => {
+  if (event.key === "v") {
+    toggleView();
+  }
+});
+
+// function to update movement
 function updateMovement(delta) {
-  if (!model) return;
+  if (!model) return; // if model is not loaded, return
 
   const moveVector = new THREE.Vector3(0, 0, 0);
   if (moveForward) moveVector.z -= 1;
@@ -358,9 +369,9 @@ function updateMovement(delta) {
 
   // Accelerate or decelerate
   if (moveVector.length() > 0) {
-    velocity.add(moveVector.normalize().multiplyScalar(acceleration));
+    velocity.add(moveVector.normalize().multiplyScalar(acceleration)); // accelerate
   } else {
-    velocity.multiplyScalar(1 - deceleration);
+    velocity.multiplyScalar(1 - deceleration); // decelerate
   }
 
   // Limit speed
@@ -371,35 +382,38 @@ function updateMovement(delta) {
   // Apply movement
   model.position.add(velocity);
 
-  // Check if the player is moving
-  const isMoving = velocity.length() > 0.01;
+  // Check if the player is moving in any direction
+  const isMoving = moveForward || moveBackward || moveLeft || moveRight || jumping;
 
-  // Rotate model based on movement direction
   if (isMoving) {
+    // Determine which movement animation to play
+    let targetAction = runningAction;
+    if (moveBackward && !moveForward && !moveLeft && !moveRight) {
+      targetAction = backRunningAction;
+    }
+
+    // Crossfade to the appropriate movement animation
+    if (currentAction !== targetAction) {
+      targetAction.reset().fadeIn(fadeDuration);
+      if (currentAction) {
+        currentAction.fadeOut(fadeDuration);
+      }
+      currentAction = targetAction;
+    }
+
+    // Rotate model based on movement direction
     const targetRotation = Math.atan2(velocity.x, velocity.z);
     model.rotation.y = THREE.MathUtils.lerp(
       model.rotation.y,
       targetRotation,
       turnSpeed
     );
-
-    // Play running animation
-    if (runningAction && !runningAction.isRunning()) {
-      runningAction.reset().fadeIn(0.2).play();
-      if (idleAction && idleAction.isRunning()) {
-        idleAction.fadeOut(0.2);
-      }
-    }
   } else {
-    // Play idle animation
-    if (idleAction && !idleAction.isRunning()) {
-      idleAction.reset().fadeIn(0.2).play();
-      if (runningAction && runningAction.isRunning()) {
-        runningAction.fadeOut(0.2);
-      }
-    }
+    // Check for idle state if not moving
+    checkIdleState();
   }
 
+  // Handle jumping
   if (jumping) {
     velocityY += gravity; // Apply gravity
     model.position.y += velocityY; // Update character position
@@ -442,7 +456,6 @@ function movePlatform(id) {
 }
 
 // Check for win condition
-
 function checkForWin() {
   if (model.position.z < finishLine.position.z) {
     alert("You've completed the level!");
@@ -453,23 +466,27 @@ function checkForWin() {
 // Reset game state
 function resetGame() {
   model.position.set(0, 2, 150);
-  //   platform.position.set(0, 0.25, -5);// why?
 }
 
 const clock = new THREE.Clock();
 
+// function to update camera position
 function updateCameraPosition() {
-  if (model && cameraGoal) {
-    // Calculate camera position based on model position and camera rotation
+  if (!model) return; // if model is not loaded, return
+
+  if (isFirstPerson) {
+    const headPosition = model.position.clone().add(new THREE.Vector3(0, 2, 0)); // get the model's head position
+    camera.position.copy(headPosition); // set the camera position to the model's head position
+    camera.rotation.copy(controls.getObject().rotation); // set the camera rotation to the model's rotation
+  } else {
+    // Third-person view
     const cameraPosition = new THREE.Vector3(
-      Math.sin(cameraRotation.y) * cameraOffset.z,
+      Math.sin(cameraRotation.y) * cameraOffset.z, // set the camera position based on the camera offset and rotation
       cameraOffset.y,
       Math.cos(cameraRotation.y) * cameraOffset.z
     );
-    cameraPosition.add(model.position);
-
-    // Smoothly move the camera towards the calculated position
-    camera.position.lerp(cameraPosition, cameraLerpFactor);
+    cameraPosition.add(model.position); // add the model's position to the camera position
+    camera.position.lerp(cameraPosition, cameraLerpFactor); // lerp the camera position to the camera goal position
 
     // Calculate a look-at point slightly in front of and above the model
     const lookAtPoint = model.position
@@ -486,6 +503,12 @@ function updateCameraPosition() {
   }
 }
 
+// hide the cursor
+function hideCursor() {
+  document.body.style.cursor = "none";
+}
+hideCursor();
+
 // Start the animation loop
 function animate() {
   const delta = clock.getDelta();
@@ -498,12 +521,13 @@ function animate() {
 
   if (model) {
     updateMovement(delta);
+    checkIdleState(); // Add this line to check for idle state every frame
     checkForWin();
   }
 
   movePlatform("danish");
 
-  updateCameraPosition(); // Call the new camera update function
+  updateCameraPosition();
 
   renderer.render(scene, camera);
 }
@@ -516,3 +540,22 @@ window.addEventListener("resize", function () {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// for pointer lock controls
+function setupControls() {
+  controls = new PointerLockControls(camera, renderer.domElement);
+
+  document.addEventListener("click", () => {
+    controls.lock();
+  });
+
+  controls.addEventListener("lock", () => {
+    console.log("PointerLock activated");
+  });
+
+  controls.addEventListener("unlock", () => {
+    console.log("PointerLock deactivated");
+  });
+}
+
+setupControls();

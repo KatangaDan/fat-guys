@@ -458,7 +458,7 @@ function animate() {
   stats.end();
 
   // Request the next frame
-  requestAnimationFrame(animate);
+  //requestAnimationFrame(animate);
 }
 
 init();

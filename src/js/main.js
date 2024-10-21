@@ -8,7 +8,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import finish from "../img/finish.jpg";
 import galaxy from "../img/galaxy.jpg";
 import basicBg from "../img/sky.jpg";
-import godofWarSound from "../sounds/sound2.mp3";
+import godofWarSound from "../sounds/backGroundMusic.mp3";
+import Pjumpland from "../sounds/jumpland.wav";
+import PjumpSound2 from "../sounds/jumpSound2.wav";
 import { mod } from "three/webgpu";
 
 const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
@@ -27,6 +29,8 @@ const textureLoader = new THREE.TextureLoader();
 const listener = new THREE.AudioListener();
 camera.add(listener);
 const audioLoader = new THREE.AudioLoader();
+
+
 
 // Game state variables
 let gameStarted = false;
@@ -279,6 +283,13 @@ function handleKeyDown(event) {
       break;
     case " ":
       jumping = true;
+      const jumpSound2 = new THREE.Audio(listener);
+      audioLoader.load(PjumpSound2, function(buffer) {
+        jumpSound2.setBuffer(buffer);
+        jumpSound2.setLoop(false);
+        jumpSound2.setVolume(1);
+        jumpSound2.play();
+      });
       velocityY = 2.8; // Initial jump velocity
       console.log("jump");
       if (jumpAction && !jumpAction.isRunning()) {
@@ -286,6 +297,13 @@ function handleKeyDown(event) {
         jumpAction.setLoop(THREE.LoopRepeat); // Ensure the animation loops
         jumpAction.play(); // Play the animation
       }
+      const jumpland = new THREE.Audio(listener);
+      audioLoader.load(Pjumpland, function(buffer) {
+        jumpland.setBuffer(buffer);
+        jumpland.setLoop(false);
+        jumpland.setVolume(1);
+        jumpland.play();
+      });
       if (idleAction && idleAction.isRunning()) {
         idleAction.fadeOut(0.5); // Stop the idle animation
         idleAction.stop();

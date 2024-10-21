@@ -538,23 +538,16 @@ function updateMovement(delta) {
   const isMoving =
     moveForward || moveBackward || moveLeft || moveRight || isJumping;
 
-  /*if(idleAction && idleAction.isRunning()){
-      playerBody.position.y = 1.72;  
-    }
-    else{
-      playerBody.position.y = 2.3;
-    }*/
-
   if (isMoving) {
     // Determine which movement animation to play
     let targetAction = runningAction;
     if (moveBackward && !moveForward && !moveLeft && !moveRight) {
       targetAction = backRunningAction;
-    } else if (moveLeft && !moveForward && !moveBackward && !moveRight) {
+    }  if (moveLeft && !moveForward && !moveBackward && !moveRight) {
       targetAction = runningLeftAction;
-    } else if (moveRight && !moveForward && !moveBackward && !moveLeft) {
+    }  if (moveRight && !moveForward && !moveBackward && !moveLeft) {
       targetAction = runningRightAction;
-    } else if (
+    }  if (
       isJumping &&
       !moveForward &&
       !moveBackward &&
@@ -562,7 +555,7 @@ function updateMovement(delta) {
       !moveRight
     ) {
       targetAction = jumpAction;
-    } else if (
+    }  if (
       isJumping &&
       moveForward &&
       !moveBackward &&
@@ -570,27 +563,99 @@ function updateMovement(delta) {
       !moveRight
     ) {
       targetAction = jumpAction;
-    } else if (
+    }  if (
       isJumping &&
-      !moveForward &&
       moveBackward &&
+      !moveForward &&
       !moveLeft &&
       !moveRight
     ) {
       targetAction = jumpAction;
-    } else if (
+    }  if (
+      isJumping &&
+      moveLeft &&
+      !moveForward &&
+      !moveBackward &&
+      !moveRight
+    ) {
+      targetAction = jumpAction;
+    }  if (
       isJumping &&
       !moveForward &&
+      !moveBackward &&
+      !moveLeft &&
+      moveRight
+    ) {
+      targetAction = jumpAction;
+    }
+     if (
+      isJumping &&
+      moveForward &&
+      moveBackward &&
+      moveLeft &&
+      moveRight
+    ) {
+      targetAction = jumpAction;
+    }
+    if (
+      isJumping &&
+      !moveForward &&
+      !moveBackward &&
+      moveLeft &&
+      moveRight
+    ) {
+      targetAction = jumpAction;
+    }
+    if (
+      isJumping &&
+      !moveForward &&
+      moveBackward &&
+      moveLeft &&
+      moveRight
+    ) {
+      targetAction = jumpAction;
+    }
+    if (
+      isJumping &&
+      moveForward &&
+      !moveBackward &&
+      !moveLeft &&
+      moveRight
+    ) {
+      targetAction = jumpAction;
+    }
+    if (
+      isJumping &&
+      moveForward &&
       !moveBackward &&
       moveLeft &&
       !moveRight
     ) {
       targetAction = jumpAction;
-    } else if (
+    }
+    if (
       isJumping &&
       !moveForward &&
-      !moveBackward &&
+      moveBackward &&
+      moveLeft &&
+      !moveRight
+    ) {
+      targetAction = jumpAction;
+    }
+    if (
+      isJumping &&
+      !moveForward &&
+      moveBackward &&
       !moveLeft &&
+      moveRight
+    ) {
+      targetAction = jumpAction;
+    }
+    if (
+      isJumping &&
+      moveForward &&
+      !moveBackward &&
+      moveLeft &&
       moveRight
     ) {
       targetAction = jumpAction;
@@ -626,7 +691,7 @@ function updateMovement(delta) {
   }
 }
 
-//
+
 
 function createGroundPiece(x, y, z, width, length) {
   //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER

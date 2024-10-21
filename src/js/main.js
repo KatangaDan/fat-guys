@@ -49,7 +49,7 @@ let scene,
 let particleSystem;
 let positions;
 let velocities;
-let particleCount = 1200;
+let particleCount = 1500;
 let particleSpreadX = 200;
 let particleSpreadY = 60;
 let particleSpreadZ = 1000; //Based on how long our level is
@@ -237,7 +237,7 @@ function initScene() {
 function toggleView() {
   isFirstPerson = !isFirstPerson;
   if (isFirstPerson) {
-    //controls.connect();
+    controls.connect();
     model.visible = false; // Hide the model in first-person view
   } else {
     controls.disconnect();
@@ -629,61 +629,55 @@ function updateMovement(delta) {
   const isMoving =
     moveForward || moveBackward || moveLeft || moveRight || isJumping;
 
-  /*if(idleAction && idleAction.isRunning()){
-      playerBody.position.y = 1.72;  
-    }
-    else{
-      playerBody.position.y = 2.3;
-    }*/
-
   if (isMoving) {
     // Determine which movement animation to play
     let targetAction = runningAction;
     if (moveBackward && !moveForward && !moveLeft && !moveRight) {
       targetAction = backRunningAction;
-    } else if (moveLeft && !moveForward && !moveBackward && !moveRight) {
+    }
+    if (moveLeft && !moveForward && !moveBackward && !moveRight) {
       targetAction = runningLeftAction;
-    } else if (moveRight && !moveForward && !moveBackward && !moveLeft) {
+    }
+    if (moveRight && !moveForward && !moveBackward && !moveLeft) {
       targetAction = runningRightAction;
-    } else if (
-      isJumping &&
-      !moveForward &&
-      !moveBackward &&
-      !moveLeft &&
-      !moveRight
-    ) {
+    }
+    if (isJumping && !moveForward && !moveBackward && !moveLeft && !moveRight) {
       targetAction = jumpAction;
-    } else if (
-      isJumping &&
-      moveForward &&
-      !moveBackward &&
-      !moveLeft &&
-      !moveRight
-    ) {
+    }
+    if (isJumping && moveForward && !moveBackward && !moveLeft && !moveRight) {
       targetAction = jumpAction;
-    } else if (
-      isJumping &&
-      !moveForward &&
-      moveBackward &&
-      !moveLeft &&
-      !moveRight
-    ) {
+    }
+    if (isJumping && moveBackward && !moveForward && !moveLeft && !moveRight) {
       targetAction = jumpAction;
-    } else if (
-      isJumping &&
-      !moveForward &&
-      !moveBackward &&
-      moveLeft &&
-      !moveRight
-    ) {
+    }
+    if (isJumping && moveLeft && !moveForward && !moveBackward && !moveRight) {
       targetAction = jumpAction;
-    } else if (
-      isJumping &&
-      !moveForward &&
-      !moveBackward &&
-      !moveLeft &&
-      moveRight
-    ) {
+    }
+    if (isJumping && !moveForward && !moveBackward && !moveLeft && moveRight) {
+      targetAction = jumpAction;
+    }
+    if (isJumping && moveForward && moveBackward && moveLeft && moveRight) {
+      targetAction = jumpAction;
+    }
+    if (isJumping && !moveForward && !moveBackward && moveLeft && moveRight) {
+      targetAction = jumpAction;
+    }
+    if (isJumping && !moveForward && moveBackward && moveLeft && moveRight) {
+      targetAction = jumpAction;
+    }
+    if (isJumping && moveForward && !moveBackward && !moveLeft && moveRight) {
+      targetAction = jumpAction;
+    }
+    if (isJumping && moveForward && !moveBackward && moveLeft && !moveRight) {
+      targetAction = jumpAction;
+    }
+    if (isJumping && !moveForward && moveBackward && moveLeft && !moveRight) {
+      targetAction = jumpAction;
+    }
+    if (isJumping && !moveForward && moveBackward && !moveLeft && moveRight) {
+      targetAction = jumpAction;
+    }
+    if (isJumping && moveForward && !moveBackward && moveLeft && moveRight) {
       targetAction = jumpAction;
     }
 
@@ -692,6 +686,14 @@ function updateMovement(delta) {
       crossfadeAction(currentAction, targetAction, fadeDuration);
       currentAction = targetAction; // Update current action to the new one
     }
+
+    const targetRotation = Math.atan2(moveDirection.x, moveDirection.z);
+
+    // // Create a quaternion for the target rotation
+    playerBody.quaternion.setFromAxisAngle(
+      new CANNON.Vec3(0, 1, 0),
+      targetRotation
+    );
   } else {
     // Check if the player should transition to the idle animation
     checkIdleState();
@@ -716,8 +718,6 @@ function updateMovement(delta) {
     isJumping = false;
   }
 }
-
-//
 
 function createGroundPiece(x, y, z, width, length) {
   //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
@@ -1185,6 +1185,7 @@ function addVisualRodHelpers() {
 
 function animateRodsX(deltaTime) {
   //const moveSpeed = 20; // Movement speed
+  let waitTime = 0.5; // Seconds to wait at each position
 
   rods.forEach((rod) => {
     const maxX = rod.maxX;
@@ -1196,13 +1197,25 @@ function animateRodsX(deltaTime) {
       rod.moveDirection = rod.position.x >= maxX ? -1 : 1;
     }
 
+    if (rod.waitTimer === undefined) {
+      rod.waitTimer = 0; // Timer for waiting at bounds
+    }
+
+    // Check if the rod is waiting at the bounds
+    if (rod.waitTimer > 0) {
+      rod.waitTimer -= deltaTime; // Reduce the wait timer
+      return; // Skip the movement until wait time is over
+    }
+
     // Clamp rod position to max/min bounds
     if (rod.position.x > maxX) {
       rod.position.x = maxX;
       rod.moveDirection *= -1;
+      rod.waitTimer = waitTime; // Set wait timer before moving again
     } else if (rod.position.x < minX) {
       rod.position.x = minX;
       rod.moveDirection *= -1;
+      rod.waitTimer = waitTime; // Set wait timer before moving again
     }
 
     rod.position.x += rod.moveDirection * moveSpeed * deltaTime;
@@ -1211,6 +1224,8 @@ function animateRodsX(deltaTime) {
 
 function animateRodsZ(deltaTime) {
   //const moveSpeed = 20; // Movement speed
+
+  let waitTime = 0.5; // Seconds to wait at each position
 
   rodsZ.forEach((rod) => {
     const maxZ = rod.maxX;
@@ -1222,13 +1237,25 @@ function animateRodsZ(deltaTime) {
       rod.moveDirection = rod.position.z >= maxZ ? -1 : 1;
     }
 
+    if (rod.waitTimer === undefined) {
+      rod.waitTimer = 0; // Timer for waiting at bounds
+    }
+
+    // Check if the rod is waiting at the bounds
+    if (rod.waitTimer > 0) {
+      rod.waitTimer -= deltaTime; // Reduce the wait timer
+      return; // Skip the movement until wait time is over
+    }
+
     // Clamp rod position to max/min bounds
     if (rod.position.z > maxZ) {
       rod.position.z = maxZ;
       rod.moveDirection *= -1;
+      rod.waitTimer = waitTime; // Set wait timer before moving again
     } else if (rod.position.z < minZ) {
       rod.position.z = minZ;
       rod.moveDirection *= -1;
+      rod.waitTimer = waitTime; // Set wait timer before moving again
     }
 
     rod.position.z += rod.moveDirection * moveSpeed * deltaTime;

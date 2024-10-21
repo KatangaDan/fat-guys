@@ -44,6 +44,15 @@ let scene,
   stats,
   cameraGoal;
 
+//Global variables for the background particle system
+let particleSystem;
+let positions;
+let velocities;
+let particleCount = 1200;
+let particleSpreadX = 200;
+let particleSpreadY = 60;
+let particleSpreadZ = 1000; //Based on how long our level is
+
 //Helpers to visualize intersection boxes
 let playerHelper;
 
@@ -91,6 +100,9 @@ function init() {
   initEventListeners();
   createGroundPiece(0, 0, 0, 60, 260);
 
+  //Init particle background system
+  initBackgroundParticleSystem();
+
   //First set of obstacles
   initGateObstacles();
 
@@ -118,6 +130,51 @@ function init() {
   createGroundPiece(0, 0, 490, 60, 260);
 
   // initFanObstacles();
+}
+
+function die() {
+  if (playerBody.position.z < 260) {
+  }
+}
+
+function initBackgroundParticleSystem() {
+  const particles = new THREE.BufferGeometry();
+  positions = new Float32Array(particleCount * 3);
+  velocities = new Float32Array(particleCount * 3);
+
+  for (let i = 0; i < particleCount; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * particleSpreadX;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * particleSpreadY;
+    positions[i * 3 + 2] = Math.random() * particleSpreadZ;
+
+    velocities[i * 3] = (Math.random() - 0.5) * 0.1;
+    velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.05;
+    velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
+  }
+
+  particles.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+
+  const particleMaterial = new THREE.PointsMaterial({
+    color: "white",
+    size: 0.25,
+    transparent: true,
+    opacity: 0.25,
+
+    // Add blending for better transparency
+    blending: THREE.AdditiveBlending,
+
+    // Add depth test to avoid rendering overlapping particles
+    depthTest: true,
+
+    // Enable size attenuation for better visibility
+    sizeAttenuation: true,
+
+    // Enable fog for better depth perception
+    fog: true,
+  });
+
+  particleSystem = new THREE.Points(particles, particleMaterial);
+  scene.add(particleSystem);
 }
 
 function initStats() {
@@ -1417,6 +1474,31 @@ function animate() {
     });
 
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
+
+    //Particle system
+    if (particleSystem) {
+      // Remove rotation line
+      // particleSystem.rotation.y += 0.001; // Remove this line
+
+      let positionArray = particleSystem.geometry.attributes.position.array;
+      for (let i = 0; i < particleCount; i++) {
+        positionArray[3 * i] += velocities[3 * i];
+        positionArray[3 * i + 1] += velocities[3 * i + 1];
+        positionArray[3 * i + 2] += velocities[3 * i + 2];
+
+        // Reset position if it goes out of bounds
+        if (positionArray[3 * i] > 50 || positionArray[3 * i] < -50) {
+          velocities[3 * i] *= -1;
+        }
+        if (positionArray[3 * i + 1] > 50 || positionArray[3 * i + 1] < -50) {
+          velocities[3 * i + 1] *= -1;
+        }
+        if (positionArray[3 * i + 2] > 50 || positionArray[3 * i + 2] < -50) {
+          velocities[3 * i + 2] *= -1;
+        }
+      }
+      particleSystem.geometry.attributes.position.needsUpdate = true;
+    }
 
     // Update camera
     updateCamera();

@@ -49,7 +49,7 @@ let scene,
 let particleSystem;
 let positions;
 let velocities;
-let particleCount = 1200;
+let particleCount = 1500;
 let particleSpreadX = 200;
 let particleSpreadY = 60;
 let particleSpreadZ = 1000; //Based on how long our level is
@@ -336,7 +336,7 @@ function initPlayer() {
     fatGuyURL.href,
     (gltf) => {
       model = gltf.scene;
-      model.position.set(0, 10, 255);
+      model.position.set(0, 10, 5);
       model.scale.set(0.4, 0.4, 0.4);
 
       // Enable shadows for all meshes in the model
@@ -688,6 +688,7 @@ function updateMovement(delta) {
 
 function createGroundPiece(x, y, z, width, length) {
   //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
+  
   //Create a simple plane for the ground
   const groundGeometry = new THREE.PlaneGeometry(width, length);
   const groundMaterial = new THREE.MeshStandardMaterial();

@@ -8,7 +8,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import finish from "../img/finish.jpg";
 import beach from "../img/fall-guys-texture.jpg";
 import basicBg from "../img/sky.jpg";
-import godofWarSound from "../sounds/sound2.mp3";
+import godofWarSound from "../sounds/Bike Rides.mp3";
 import { mod } from "three/webgpu";
 
 const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);

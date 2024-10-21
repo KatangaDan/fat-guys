@@ -6,7 +6,7 @@ import { PointerLockControls } from "three/examples/jsm/controls/PointerLockCont
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import finish from "../img/finish.jpg";
-import galaxy from "../img/galaxy.jpg";
+import beach from "../img/fall-guys-texture.jpg";
 import basicBg from "../img/sky.jpg";
 import godofWarSound from "../sounds/sound2.mp3";
 import { mod } from "three/webgpu";
@@ -94,7 +94,7 @@ function createGround() {
 
 function initBackground() {
   //We have to do the background
-  const textureLoader = new THREE.TextureLoader();
+
   const skyboxTexture = textureLoader.load(basicBg, function(texture) {
     texture.wrapS = THREE.ClampToEdgeWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
@@ -119,8 +119,10 @@ initBackground();
 
 // Function to create cylindrical obstacle
 function createCylindricalObstacle(x, y, z, id, color) {
+  
   const obstacleGeometry = new THREE.CylinderGeometry(1, 1, 10, 32);
-  const obstacleMaterial = new THREE.MeshStandardMaterial({ color: color });
+  const beachTexture = textureLoader.load(beach);
+  const obstacleMaterial = new THREE.MeshStandardMaterial({ map: beachTexture });
   const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
   obstacle.position.set(x, y, z);
   obstacle.castShadow = true;

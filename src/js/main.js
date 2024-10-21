@@ -237,7 +237,7 @@ function initScene() {
 function toggleView() {
   isFirstPerson = !isFirstPerson;
   if (isFirstPerson) {
-    //controls.connect();
+    controls.connect();
     model.visible = false; // Hide the model in first-person view
   } else {
     controls.disconnect();

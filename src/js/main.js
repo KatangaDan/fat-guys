@@ -268,15 +268,15 @@ function initPlayer() {
       );
       //localstorage playerposition
       // Retrieve the player position string from localStorage
-      const playerPosition = localStorage.getItem("playerPosition");
+      // const playerPosition = localStorage.getItem("playerPosition");
 
       // Split the string by commas and map each value to a float
-      const [x, y, z] = playerPosition.split(",").map((pos) => parseFloat(pos));
+      //   const [x, y, z] = playerPosition.split(",").map((pos) => parseFloat(pos));
 
       // Now you have three separate variables: x, y, and z
-      console.log("x:", x);
-      console.log("y:", y);
-      console.log("z:", z);
+      // console.log("x:", x);
+      // console.log("y:", y);
+      // console.log("z:", z);
 
       // Create the player body using the Box shape
       playerBody = new CANNON.Body({
@@ -286,7 +286,7 @@ function initPlayer() {
         // Add angular damping to prevent unwanted rotation
         angularDamping: 0.99,
         fixedRotation: true, // This will prevent the body from rotating
-        position: new CANNON.Vec3(x, y, z), // Set the initial position of the player
+        position: new CANNON.Vec3(0, 2, 240), // Set the initial position of the player
       });
 
       // Add the Box shape to the body
@@ -856,9 +856,9 @@ function initGateObstacles() {
 
 function initRodObstacles() {
   //x, y, z, minX, maxX, radius, length
-  let rod1 = createRod(scene, -29, 0, 250, -15, 15, 0.75, 10);
-  let rod2 = createRod(scene, 0, 0, 250, -29, 29, 0.75, 10);
-  let rod3 = createRod(scene, 29, 0, 250, -29, 29, 0.75, 10);
+  let rod1 = createRod(scene, -29, 0, 280, -32, 32, 0.75, 15, 30);
+  let rod2 = createRod(scene, 20, 0, 305, -29, 29, 0.75, 30, 50);
+  //let rod3 = createRod(scene, 29, 0, 250, -29, 29, 0.75, 10);
 
   rods.push(rod1);
   rods.push(rod2);
@@ -917,11 +917,12 @@ function addVisualRodHelpers() {
 }
 
 function animateRods(deltaTime) {
-  const moveSpeed = 20; // Movement speed
+  //const moveSpeed = 20; // Movement speed
 
   rods.forEach((rod) => {
     const maxX = rod.maxX;
     const minX = rod.minX;
+    const moveSpeed = rod.speed; // Movement speed
 
     // Initialize the rod direction if it doesn't exist
     if (rod.moveDirection === undefined) {
@@ -1112,7 +1113,7 @@ function animate() {
 
     model.position.copy(playerBody.position).add(worldOffset);
 
-    localStorage.setItem("playerPosition", playerBody.position);
+    // localStorage.setItem("playerPosition", playerBody.position);
 
     /*Actual bounding boxes for the player and obstacles*/
 

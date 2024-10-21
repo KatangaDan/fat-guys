@@ -153,7 +153,8 @@ export function createRod(
   minX,
   maxX,
   radiusOfRod,
-  lengthOfRod
+  lengthOfRod,
+  speed
 ) {
   const rodGeometry = new THREE.CylinderGeometry(
     radiusOfRod,
@@ -168,6 +169,7 @@ export function createRod(
   rod.castShadow = true;
   rod.minX = minX;
   rod.maxX = maxX;
+  rod.speed = speed;
   rod.receiveShadow = true;
   scene.add(rod);
 

@@ -49,7 +49,7 @@ let scene,
 let particleSystem;
 let positions;
 let velocities;
-let particleCount = 1200;
+let particleCount = 1500;
 let particleSpreadX = 200;
 let particleSpreadY = 60;
 let particleSpreadZ = 1000; //Based on how long our level is

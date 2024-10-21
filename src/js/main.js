@@ -42,7 +42,17 @@ let scene,
   playerBody,
   modelCenterOffset,
   stats,
-  cameraGoal;
+  cameraGoal,
+  isFirstPerson = false;
+
+//Global variables for the background particle system
+let particleSystem;
+let positions;
+let velocities;
+let particleCount = 1200;
+let particleSpreadX = 200;
+let particleSpreadY = 60;
+let particleSpreadZ = 1000; //Based on how long our level is
 
 //Helpers to visualize intersection boxes
 let playerHelper;
@@ -91,6 +101,9 @@ function init() {
   initEventListeners();
   createGroundPiece(0, 0, 0, 60, 260);
 
+  //Init particle background system
+  initBackgroundParticleSystem();
+
   //First set of obstacles
   initGateObstacles();
 
@@ -118,6 +131,56 @@ function init() {
   createGroundPiece(0, 0, 490, 60, 260);
 
   // initFanObstacles();
+}
+
+function die() {
+  if (playerBody.position.z < 210) {
+    playerBody.position.set(0, 10, 10);
+  }
+
+  if (playerBody.position.z > 210) {
+    playerBody.position.set(0, 10, 230);
+  }
+}
+
+function initBackgroundParticleSystem() {
+  const particles = new THREE.BufferGeometry();
+  positions = new Float32Array(particleCount * 3);
+  velocities = new Float32Array(particleCount * 3);
+
+  for (let i = 0; i < particleCount; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * particleSpreadX;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * particleSpreadY;
+    positions[i * 3 + 2] = Math.random() * particleSpreadZ;
+
+    velocities[i * 3] = (Math.random() - 0.5) * 0.1;
+    velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.05;
+    velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
+  }
+
+  particles.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+
+  const particleMaterial = new THREE.PointsMaterial({
+    color: "white",
+    size: 0.25,
+    transparent: true,
+    opacity: 0.25,
+
+    // Add blending for better transparency
+    blending: THREE.AdditiveBlending,
+
+    // Add depth test to avoid rendering overlapping particles
+    depthTest: true,
+
+    // Enable size attenuation for better visibility
+    sizeAttenuation: true,
+
+    // Enable fog for better depth perception
+    fog: true,
+  });
+
+  particleSystem = new THREE.Points(particles, particleMaterial);
+  scene.add(particleSystem);
 }
 
 function initStats() {
@@ -168,6 +231,18 @@ function initScene() {
 
   //Setup controls
   setupControls();
+}
+
+// function to toggle between first-person and third-person views
+function toggleView() {
+  isFirstPerson = !isFirstPerson;
+  if (isFirstPerson) {
+    //controls.connect();
+    model.visible = false; // Hide the model in first-person view
+  } else {
+    controls.disconnect();
+    model.visible = true; // Show the model in third-person view
+  }
 }
 
 // for pointer lock controls
@@ -359,6 +434,12 @@ function initEventListeners() {
   window.addEventListener("keyup", handleKeyUp);
   // event listeners for mouse control
   document.addEventListener("mousemove", onMouseMove, false);
+  //switch between first and third person view
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "v") {
+      toggleView();
+    }
+  });
 }
 // function to handle mouse movement
 // Update the onMouseMove function
@@ -520,12 +601,22 @@ function updateMovement(delta) {
   const speed = PLAYER_SPEED * delta;
 
   // Calculate forward and right vectors based on camera rotation
-  const forward = new THREE.Vector3(0, 0, 1);
-  const right = new THREE.Vector3(1, 0, 0);
+  let forward;
+  let right;
 
-  // Rotate vectors based on camera rotation
-  forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
-  right.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
+  if (isFirstPerson) {
+    // In first-person, use camera's direction
+    forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    forward.y = 0; // Keep movement on the horizontal plane
+    right = new THREE.Vector3(forward.z, 0, -forward.x);
+  } else {
+    // In third-person, use existing logic
+    forward = new THREE.Vector3(0, 0, 1);
+    right = new THREE.Vector3(1, 0, 0);
+    forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
+    right.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
+  }
 
   // Calculate movement direction
   const moveDirection = new THREE.Vector3(0, 0, 0);
@@ -1078,13 +1169,13 @@ function initRodObstacles() {
   //x, y, z, minX, maxX, radius, length
   // let rod1 = createRod(scene, -29, 0, 280, -32, 32, 0.75, 15, 30);
   // let rod2 = createRod(scene, 20, 0, 305, -25, 29, 0.75, 30, 40);
-  let rod3 = createRod(scene, -29, 0, 333, -32, 32, 0.75, 15, 30);
-  let rod4 = createRod(scene, 20, 0, 355, 0, 32, 0.75, 15, 30);
-  let rod5 = createRod(scene, -10, 0, 355, -32, 0, 0.75, 15, 30);
-  let rod6 = createRod(scene, 20, 0, 390, -32, 32, 0.75, 22, 40);
-  let rod7 = createRod(scene, -20, 0, 415, -32, 0, 0.75, 20, 40);
+  let rod3 = createRod(scene, -29, 0, 333, -32, 32, 0.75, 15, 20);
+  let rod4 = createRod(scene, 20, 0, 355, 0, 32, 0.75, 15, 10);
+  let rod5 = createRod(scene, -10, 0, 355, -32, 0, 0.75, 15, 10);
+  let rod6 = createRod(scene, 20, 0, 390, -32, 32, 0.75, 22, 30);
+  let rod7 = createRod(scene, -20, 0, 415, -32, 0, 0.75, 20, 15);
   // z moving rod
-  let rod8 = createRod(scene, 15, 0, 450, 425, 485, 0.75, 30, 50);
+  let rod8 = createRod(scene, 15, 0, 450, 425, 485, 0.75, 30, 40);
   //rotate rod8 in the X axis
   rod8.rotation.z = Math.PI / 2;
   let rod9 = createRod(scene, -15, 0, 455, -32, 0, 0.75, 15, 30);
@@ -1331,25 +1422,31 @@ function animateCylinders(deltaTime) {
 function updateCamera() {
   if (!model) return;
 
-  // Calculate camera position based on offset and rotation
-  const cameraPosition = new THREE.Vector3(
-    Math.sin(cameraRotation.y) * cameraOffset.z,
-    cameraOffset.y,
-    Math.cos(cameraRotation.y) * cameraOffset.z
-  );
+  if (isFirstPerson) {
+    const headPosition = model.position.clone().add(new THREE.Vector3(0, 2, 0)); // get the model's head position
+    camera.position.copy(headPosition); // set the camera position to the model's head position
+    camera.rotation.copy(controls.getObject().rotation); // set the camera rotation to the model's rotation
+  } else {
+    // Calculate camera position based on offset and rotation
+    const cameraPosition = new THREE.Vector3(
+      Math.sin(cameraRotation.y) * cameraOffset.z,
+      cameraOffset.y,
+      Math.cos(cameraRotation.y) * cameraOffset.z
+    );
 
-  // Add player position to camera position
-  cameraPosition.add(model.position);
+    // Add player position to camera position
+    cameraPosition.add(model.position);
 
-  // Update camera position with smooth lerp
-  camera.position.lerp(cameraPosition, cameraLerpFactor);
+    // Update camera position with smooth lerp
+    camera.position.lerp(cameraPosition, cameraLerpFactor);
 
-  // Calculate look target (slightly above player position)
-  const lookTarget = model.position.clone().add(new THREE.Vector3(0, 2, 0));
-  camera.lookAt(lookTarget);
+    // Calculate look target (slightly above player position)
+    const lookTarget = model.position.clone().add(new THREE.Vector3(0, 2, 0));
+    camera.lookAt(lookTarget);
 
-  // Apply pitch rotation after looking at target
-  camera.rotateX(cameraRotation.x);
+    // Apply pitch rotation after looking at target
+    camera.rotateX(cameraRotation.x);
+  }
 }
 
 //Bounding boxes
@@ -1380,6 +1477,10 @@ function animate() {
       idleAction.stop();
     }
 
+    if (playerBody.position.y < -20) {
+      die();
+    }
+
     if (mixer) {
       mixer.update(deltaTime);
     }
@@ -1401,7 +1502,7 @@ function animate() {
 
       if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
         //Reset the players position
-        playerBody.position.set(0, 10, 10);
+        die();
       }
     });
 
@@ -1411,7 +1512,7 @@ function animate() {
 
       if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
         //Reset the players position
-        playerBody.position.set(0, 10, 10);
+        die();
       }
     });
 
@@ -1421,7 +1522,7 @@ function animate() {
 
       if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
         //Reset the players position
-        playerBody.position.set(0, 10, 10);
+        die();
       }
     });
 
@@ -1430,7 +1531,7 @@ function animate() {
 
       if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
         //Reset the players position
-        playerBody.position.set(0, 10, 10);
+        die();
       }
     });
 
@@ -1482,6 +1583,31 @@ function animate() {
     });
 
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
+
+    //Particle system
+    if (particleSystem) {
+      // Remove rotation line
+      // particleSystem.rotation.y += 0.001; // Remove this line
+
+      let positionArray = particleSystem.geometry.attributes.position.array;
+      for (let i = 0; i < particleCount; i++) {
+        positionArray[3 * i] += velocities[3 * i];
+        positionArray[3 * i + 1] += velocities[3 * i + 1];
+        positionArray[3 * i + 2] += velocities[3 * i + 2];
+
+        // Reset position if it goes out of bounds
+        if (positionArray[3 * i] > 50 || positionArray[3 * i] < -50) {
+          velocities[3 * i] *= -1;
+        }
+        if (positionArray[3 * i + 1] > 50 || positionArray[3 * i + 1] < -50) {
+          velocities[3 * i + 1] *= -1;
+        }
+        if (positionArray[3 * i + 2] > 50 || positionArray[3 * i + 2] < -50) {
+          velocities[3 * i + 2] *= -1;
+        }
+      }
+      particleSystem.geometry.attributes.position.needsUpdate = true;
+    }
 
     // Update camera
     updateCamera();

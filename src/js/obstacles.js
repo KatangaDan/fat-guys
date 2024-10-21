@@ -101,7 +101,12 @@ export function createFan(scene, x, y, z, radius, lengthOfFans) {
   scene.add(centerHelper);
 
   // Create the fan blades
-  const bladeGeometry = new THREE.CylinderGeometry(0.75, 0.75, lengthOfFans, 32);
+  const bladeGeometry = new THREE.CylinderGeometry(
+    0.75,
+    0.75,
+    lengthOfFans,
+    32
+  );
   const bladeMaterial = new THREE.MeshStandardMaterial({ color: "yellow" });
 
   // const fan = new THREE.Group();
@@ -138,6 +143,37 @@ export function createFan(scene, x, y, z, radius, lengthOfFans) {
   // scene.add(fan);
 
   return { center, blade1, blade2, blade1Helper, blade2Helper, centerHelper };
+}
+
+export function createRod(
+  scene,
+  x,
+  y,
+  z,
+  minX,
+  maxX,
+  radiusOfRod,
+  lengthOfRod,
+  speed
+) {
+  const rodGeometry = new THREE.CylinderGeometry(
+    radiusOfRod,
+    radiusOfRod,
+    lengthOfRod,
+    32
+  );
+  const rodMaterial = new THREE.MeshStandardMaterial({ color: "yellow" });
+  const rod = new THREE.Mesh(rodGeometry, rodMaterial);
+  rod.position.set(x, y + radiusOfRod, z);
+  rod.rotation.x = Math.PI / 2;
+  rod.castShadow = true;
+  rod.minX = minX;
+  rod.maxX = maxX;
+  rod.speed = speed;
+  rod.receiveShadow = true;
+  scene.add(rod);
+
+  return rod;
 }
 
 //  // Create a circular obstacle

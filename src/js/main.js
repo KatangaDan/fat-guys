@@ -1,22 +1,23 @@
-  //Imports
-  import * as THREE from "three";
-  import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-  import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-  import * as CANNON from "cannon-es";
-  import CannonDebugger from "cannon-es-debugger";
-  import Stats from "stats.js";
-  import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
-  import {
-    createPillar,
-    createGate,
-    createCylinder,
-    createFan,
-  } from "./obstacles";
+//Imports
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import * as CANNON from "cannon-es";
+import CannonDebugger from "cannon-es-debugger";
+import Stats from "stats.js";
+import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+import {
+  createPillar,
+  createGate,
+  createCylinder,
+  createFan,
+  createRod,
+} from "./obstacles";
 
-  // Import assets
-  import finish from "../img/finish.jpg";
-  import galaxy from "../img/galaxy.jpg";
-  import groundTexture from "../img/stoleItLol.jpg";
+// Import assets
+import finish from "../img/finish.jpg";
+import basicBg from "../img/sky.jpg";
+import groundTexture from "../img/stoleItLol.jpg";
 
   //Global variables
   let scene,
@@ -51,8 +52,11 @@
   let cylinders = [];
   let cylinderHelpers = [];
 
-  let fans = [];
-  let fanHelpers = [];
+let fans = [];
+let fanHelpers = [];
+
+let rods = [];
+let rodsHelpers = [];
 
   // variables for camera control
   const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
@@ -78,12 +82,39 @@
     initStats();
     initScene();
     initLighting();
+  initBackground();
     initPhysics();
     initPlayer();
     initEventListeners();
-    createGroundPiece(0, 0, 0, 60, 500);
+    createGroundPiece(0, 0, 0, 60, 260);
+
+  //First set of obstacles
     initGateObstacles();
-    initFanObstacles();
+  
+  //Ground pieces for second set of obstacles
+
+  createGroundPiece(0, 0, 290, 10, 10);
+  createGroundPiece(-29, 0, 275, 10, 10);
+  createGroundPiece(29, 0, 275, 10, 10);
+  createGroundPiece(20, 0, 300, 10, 10);
+  createGroundPiece(-18, 0, 305, 10, 10);
+  createGroundPiece(27, 0, 350, 10, 10);
+  createGroundPiece(5, 0, 330, 10, 10);
+  createGroundPiece(-15, 0, 350, 10, 10);
+  createGroundPiece(25, 0, 380, 10, 10);
+  createGroundPiece(0, 0, 390, 10, 10);
+  createGroundPiece(-20, 0, 387, 10, 10);
+  createGroundPiece(-10, 0, 410, 10, 10);
+  createGroundPiece(10, 0, 430, 10, 10);
+  createGroundPiece(-29, 0, 450, 10, 10);
+  createGroundPiece(20, 0, 460, 10, 10);
+
+  //Rod pieces for second set of obstacles
+  initRodObstacles();
+
+  createGroundPiece(0, 0, 490, 60, 260);
+
+  // initFanObstacles();
   }
 
   function initStats() {
@@ -190,9 +221,28 @@
     scene.add(fillLight);
   }
 
-  function initBackground() {
-    //We have to do the background
-  }
+function initBackground() {
+  //We have to do the background
+  const textureLoader = new THREE.TextureLoader();
+  const skyboxTexture = textureLoader.load(basicBg, function(texture) {
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.repeat.set(1, 1);
+    texture.offset.set(0, -0.3); // Move the image up by 0.3 units
+
+    // // Enable texture matrix transformation
+    // texture.center.set(0.5, 0.5); // Set the center of rotation to the center of the texture
+    // texture.rotation = Math.PI/2; // Rotate the texture by 45 degrees (π/4 radians)
+  });
+
+  const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);
+  const skyboxMaterial = new THREE.MeshBasicMaterial({
+    map: skyboxTexture,
+    side: THREE.BackSide,
+  });
+  const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+  scene.add(skybox);
+}
 
   function initPhysics() {
     world = new CANNON.World();
@@ -204,12 +254,12 @@
     const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
     const assetLoader = new GLTFLoader();
 
-    assetLoader.load(
-      fatGuyURL.href,
-      (gltf) => {
-        model = gltf.scene;
-        model.position.set(0, 10, 225);
-        model.scale.set(0.4, 0.4, 0.4);
+  assetLoader.load(
+    fatGuyURL.href,
+    (gltf) => {
+      model = gltf.scene;
+      model.position.set(0, 10, 5);
+      model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
         model.traverse((node) => {
@@ -922,9 +972,22 @@
     //create cylinder obstacle
     cylinders.push(createCylinder(scene, -12, 0, 208.5, 1, 6));
 
-    AddVisualGateHelpers();
-    AddVisualCylinderHelpers();
-  }
+  AddVisualGateHelpers();
+  AddVisualCylinderHelpers();
+}
+
+function initRodObstacles() {
+  //x, y, z, minX, maxX, radius, length
+  let rod1 = createRod(scene, -29, 0, 280, -32, 32, 0.75, 15, 30);
+  let rod2 = createRod(scene, 20, 0, 305, -29, 29, 0.75, 30, 50);
+  //let rod3 = createRod(scene, 29, 0, 250, -29, 29, 0.75, 10);
+
+  rods.push(rod1);
+  rods.push(rod2);
+  rods.push(rod3);
+
+  addVisualRodHelpers();
+}
 
   function initFanObstacles() {
     let fan1 = createFan(scene, 15, 0, 250, 3, 30);
@@ -964,8 +1027,42 @@
     fanHelpers.push(fan4.blade2Helper);
     fanHelpers.push(fan4.centerHelper);
 
-    console.log(fans);
-  }
+  console.log(fans);
+}
+
+function addVisualRodHelpers() {
+  rods.forEach((rod) => {
+    const helper = new THREE.BoxHelper(rod, "blue");
+    rodsHelpers.push(helper);
+    scene.add(helper);
+  });
+}
+
+function animateRods(deltaTime) {
+  //const moveSpeed = 20; // Movement speed
+
+  rods.forEach((rod) => {
+    const maxX = rod.maxX;
+    const minX = rod.minX;
+    const moveSpeed = rod.speed; // Movement speed
+
+    // Initialize the rod direction if it doesn't exist
+    if (rod.moveDirection === undefined) {
+      rod.moveDirection = rod.position.x >= maxX ? -1 : 1;
+    }
+
+    // Clamp rod position to max/min bounds
+    if (rod.position.x > maxX) {
+      rod.position.x = maxX;
+      rod.moveDirection *= -1;
+    } else if (rod.position.x < minX) {
+      rod.position.x = minX;
+      rod.moveDirection *= -1;
+    }
+
+    rod.position.x += rod.moveDirection * moveSpeed * deltaTime;
+  });
+}
 
   function AddVisualGateHelpers() {
     // Add visual helpers for the gates
@@ -1168,11 +1265,21 @@
       cylinders.forEach((cylinder) => {
         const cylinderBoundingBox = new THREE.Box3().setFromObject(cylinder);
 
-        if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
-          //Reset the players position
-          playerBody.position.set(0, 10, 10);
-        }
-      });
+      if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
+        //Reset the players position
+        playerBody.position.set(0, 10, 10);
+      }
+    });
+
+    //rods bounding boxes
+    rods.forEach((rod) => {
+      const rodBoundingBox = new THREE.Box3().setFromObject(rod);
+
+      if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
+        //Reset the players position
+        playerBody.position.set(0, 10, 10);
+      }
+    });
 
       // fans.forEach((fan) => {
       //   fan.children.forEach((child) => {
@@ -1207,10 +1314,15 @@
       //   if (helper) helper.update();
       // });
 
-      //Update cylinder helpers
-      cylinderHelpers.forEach((helper) => {
-        if (helper) helper.update();
-      });
+    //Update cylinder helpers
+    cylinderHelpers.forEach((helper) => {
+      if (helper) helper.update();
+    });
+
+    //Update rod helpers
+    rodsHelpers.forEach((helper) => {
+      if (helper) helper.update();
+    });
 
       /*HELPERS TO VISUALIZE BOUNDING BOXES */
 
@@ -1218,10 +1330,11 @@
       updateCamera();
     }
 
-    //Animate the gates
-    animateGates(deltaTime);
-    animateCylinders(deltaTime);
-    animateFans(deltaTime);
+  //Animate the gates
+  animateGates(deltaTime);
+  animateCylinders(deltaTime);
+  animateFans(deltaTime);
+  animateRods(deltaTime);
 
     // cannonDebugger.update();
     renderer.render(scene, camera);

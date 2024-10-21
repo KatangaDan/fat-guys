@@ -7,7 +7,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import finish from "../img/finish.jpg";
 import galaxy from "../img/galaxy.jpg";
-import s from "../sounds/sound2.mp3";
+import basicBg from "../img/sky.jpg";
+import godofWarSound from "../sounds/sound2.mp3";
 import { mod } from "three/webgpu";
 
 const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
@@ -90,6 +91,31 @@ function createGround() {
   ground.receiveShadow = true;
   scene.add(ground);
 }
+
+function initBackground() {
+  //We have to do the background
+  const textureLoader = new THREE.TextureLoader();
+  const skyboxTexture = textureLoader.load(basicBg, function(texture) {
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.repeat.set(1, 1);
+    texture.offset.set(0, -0.3); // Move the image up by 0.3 units
+
+    // // Enable texture matrix transformation
+    // texture.center.set(0.5, 0.5); // Set the center of rotation to the center of the texture
+    // texture.rotation = Math.PI/2; // Rotate the texture by 45 degrees (π/4 radians)
+  });
+
+  const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);
+  const skyboxMaterial = new THREE.MeshBasicMaterial({
+    map: skyboxTexture,
+    side: THREE.BackSide,
+  });
+  const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+  scene.add(skybox);
+}
+
+initBackground();
 
 // Function to create cylindrical obstacle
 function createCylindricalObstacle(x, y, z, id, color) {
@@ -642,10 +668,10 @@ function startGame() {
     menuElement.removeChild(menuCanvas);
   }
   const sound = new THREE.Audio(listener);
-  audioLoader.load(s, function(buffer) {
+  audioLoader.load(godofWarSound, function(buffer) {
     sound.setBuffer(buffer);
     sound.setLoop(true);  // Set to true for background music
-    sound.setVolume(1); // Adjust the volume as needed
+    sound.setVolume(0.4); // Adjust the volume as needed
     sound.play();
   });
 }

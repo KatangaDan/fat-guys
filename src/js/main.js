@@ -516,19 +516,19 @@ function jump() {
     playerBody.position.y -
     (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
     0.1;
-// Function to handle jumping
-function jump() {
-  let startingY =
-    playerBody.position.y -
-    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
-    0.1;
+  // Function to handle jumping
+  function jump() {
+    let startingY =
+      playerBody.position.y -
+      (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+      0.1;
 
-  // Check if the player is grounded and if they are , allow them to jump
-  if (startingY < 0.1) {
-    isJumping = true;
-    playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
+    // Check if the player is grounded and if they are , allow them to jump
+    if (startingY < 0.1) {
+      isJumping = true;
+      playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
+    }
   }
-}
   // Check if the player is grounded and if they are , allow them to jump
   if (startingY < 0.1) {
     isJumping = true;
@@ -567,50 +567,50 @@ function checkIdleState() {
     // Fade in the idle action
     idleAction.reset().fadeIn(fadeDuration);
     idleAction.play();
-function crossfadeAction(fromAction, toAction, duration) {
-  if (fromAction !== toAction) {
-    if (toAction == jumpAction) {
-      console.log("imhere");
-      jumpAction.setLoop(THREE.LoopOnce); // Make jumpAction play only once
-      jumpAction.clampWhenFinished = true; // Ensure the animation holds the last frame
-      jumpAction.enable = false; // Initially, disable it to prevent accidental play
+    function crossfadeAction(fromAction, toAction, duration) {
+      if (fromAction !== toAction) {
+        if (toAction == jumpAction) {
+          console.log("imhere");
+          jumpAction.setLoop(THREE.LoopOnce); // Make jumpAction play only once
+          jumpAction.clampWhenFinished = true; // Ensure the animation holds the last frame
+          jumpAction.enable = false; // Initially, disable it to prevent accidental play
+        }
+        if (playerBody.position.y < 0) {
+          toAction = fallingAction;
+        }
+        toAction.reset().fadeIn(duration).play(); // Fade in the new action
+        fromAction.fadeOut(duration); // Fade out the old action
+      }
     }
-    if (playerBody.position.y < 0) {
-      toAction = fallingAction;
-    }
-    toAction.reset().fadeIn(duration).play(); // Fade in the new action
-    fromAction.fadeOut(duration); // Fade out the old action
-  }
-}
-function checkIdleState() {
-  // If no movement keys are pressed and the current action isn't idle, switch to idle
-  if (
-    !moveForward &&
-    !moveBackward &&
-    !moveRight &&
-    !moveLeft &&
-    currentAction !== idleAction &&
-    !isJumping &&
-    playerBody.position.y > 0
-  ) {
-    console.log("Transitioning to idle");
+    function checkIdleState() {
+      // If no movement keys are pressed and the current action isn't idle, switch to idle
+      if (
+        !moveForward &&
+        !moveBackward &&
+        !moveRight &&
+        !moveLeft &&
+        currentAction !== idleAction &&
+        !isJumping &&
+        playerBody.position.y > 0
+      ) {
+        console.log("Transitioning to idle");
 
-    // Fade in the idle action
-    idleAction.reset().fadeIn(fadeDuration);
-    idleAction.play();
+        // Fade in the idle action
+        idleAction.reset().fadeIn(fadeDuration);
+        idleAction.play();
 
-    // Fade out the current action (if it's not already idle)
-    if (currentAction) {
-      currentAction.fadeOut(fadeDuration);
-    }
-    // Fade out the current action (if it's not already idle)
-    if (currentAction) {
-      currentAction.fadeOut(fadeDuration);
-    }
+        // Fade out the current action (if it's not already idle)
+        if (currentAction) {
+          currentAction.fadeOut(fadeDuration);
+        }
+        // Fade out the current action (if it's not already idle)
+        if (currentAction) {
+          currentAction.fadeOut(fadeDuration);
+        }
 
-    currentAction = idleAction; // Set the current action to idle
-  }
-}
+        currentAction = idleAction; // Set the current action to idle
+      }
+    }
     currentAction = idleAction; // Set the current action to idle
   }
 }
@@ -619,14 +619,7 @@ function checkIdleState() {
 // Update the updateMovement function to use camera direction
 function updateMovement(delta) {
   const speed = PLAYER_SPEED * delta;
-// Update player movement based on key presses
-// Update the updateMovement function to use camera direction
-function updateMovement(delta) {
-  const speed = PLAYER_SPEED * delta;
 
-  // Calculate forward and right vectors based on camera rotation
-  const forward = new THREE.Vector3(0, 0, 1);
-  const right = new THREE.Vector3(1, 0, 0);
   // Calculate forward and right vectors based on camera rotation
   const forward = new THREE.Vector3(0, 0, 1);
   const right = new THREE.Vector3(1, 0, 0);
@@ -640,8 +633,6 @@ function updateMovement(delta) {
 
   // Calculate movement direction
   const moveDirection = new THREE.Vector3(0, 0, 0);
-  // Calculate movement direction
-  const moveDirection = new THREE.Vector3(0, 0, 0);
 
   if (moveForward) moveDirection.add(forward);
   if (moveBackward) moveDirection.sub(forward);
@@ -652,8 +643,6 @@ function updateMovement(delta) {
   if (moveLeft) moveDirection.add(right);
   if (moveRight) moveDirection.sub(right);
 
-  const isMoving =
-    moveForward || moveBackward || moveLeft || moveRight || isJumping;
   const isMoving =
     moveForward || moveBackward || moveLeft || moveRight || isJumping;
 

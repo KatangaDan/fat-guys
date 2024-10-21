@@ -133,7 +133,12 @@ function init() {
 }
 
 function die() {
-  if (playerBody.position.z < 260) {
+  if (playerBody.position.z < 210) {
+    playerBody.position.set(0, 10, 10);
+  }
+
+  if (playerBody.position.z > 210) {
+    playerBody.position.set(0, 10, 230);
   }
 }
 
@@ -1070,13 +1075,13 @@ function initRodObstacles() {
   //x, y, z, minX, maxX, radius, length
   // let rod1 = createRod(scene, -29, 0, 280, -32, 32, 0.75, 15, 30);
   // let rod2 = createRod(scene, 20, 0, 305, -25, 29, 0.75, 30, 40);
-  let rod3 = createRod(scene, -29, 0, 333, -32, 32, 0.75, 15, 30);
-  let rod4 = createRod(scene, 20, 0, 355, 0, 32, 0.75, 15, 30);
-  let rod5 = createRod(scene, -10, 0, 355, -32, 0, 0.75, 15, 30);
-  let rod6 = createRod(scene, 20, 0, 390, -32, 32, 0.75, 22, 40);
-  let rod7 = createRod(scene, -20, 0, 415, -32, 0, 0.75, 20, 40);
+  let rod3 = createRod(scene, -29, 0, 333, -32, 32, 0.75, 15, 20);
+  let rod4 = createRod(scene, 20, 0, 355, 0, 32, 0.75, 15, 10);
+  let rod5 = createRod(scene, -10, 0, 355, -32, 0, 0.75, 15, 10);
+  let rod6 = createRod(scene, 20, 0, 390, -32, 32, 0.75, 22, 30);
+  let rod7 = createRod(scene, -20, 0, 415, -32, 0, 0.75, 20, 15);
   // z moving rod
-  let rod8 = createRod(scene, 15, 0, 450, 425, 485, 0.75, 30, 50);
+  let rod8 = createRod(scene, 15, 0, 450, 425, 485, 0.75, 30, 40);
   //rotate rod8 in the X axis
   rod8.rotation.z = Math.PI / 2;
   let rod9 = createRod(scene, -15, 0, 455, -32, 0, 0.75, 15, 30);
@@ -1372,6 +1377,10 @@ function animate() {
       idleAction.stop();
     }
 
+    if (playerBody.position.y < -20) {
+      die();
+    }
+
     if (mixer) {
       mixer.update(deltaTime);
     }
@@ -1393,7 +1402,7 @@ function animate() {
 
       if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
         //Reset the players position
-        playerBody.position.set(0, 10, 10);
+        die();
       }
     });
 
@@ -1403,7 +1412,7 @@ function animate() {
 
       if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
         //Reset the players position
-        playerBody.position.set(0, 10, 10);
+        die();
       }
     });
 
@@ -1413,7 +1422,7 @@ function animate() {
 
       if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
         //Reset the players position
-        playerBody.position.set(0, 10, 10);
+        die();
       }
     });
 
@@ -1422,7 +1431,7 @@ function animate() {
 
       if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
         //Reset the players position
-        playerBody.position.set(0, 10, 10);
+        die();
       }
     });
 

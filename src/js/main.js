@@ -42,7 +42,8 @@ let scene,
   playerBody,
   modelCenterOffset,
   stats,
-  cameraGoal;
+  cameraGoal,
+  isFirstPerson = false;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -230,6 +231,18 @@ function initScene() {
 
   //Setup controls
   setupControls();
+}
+
+// function to toggle between first-person and third-person views
+function toggleView() {
+  isFirstPerson = !isFirstPerson;
+  if (isFirstPerson) {
+    //controls.connect();
+    model.visible = false; // Hide the model in first-person view
+  } else {
+    controls.disconnect();
+    model.visible = true; // Show the model in third-person view
+  }
 }
 
 // for pointer lock controls
@@ -421,6 +434,12 @@ function initEventListeners() {
   window.addEventListener("keyup", handleKeyUp);
   // event listeners for mouse control
   document.addEventListener("mousemove", onMouseMove, false);
+  //switch between first and third person view
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "v") {
+      toggleView();
+    }
+  });
 }
 // function to handle mouse movement
 // Update the onMouseMove function
@@ -582,12 +601,22 @@ function updateMovement(delta) {
   const speed = PLAYER_SPEED * delta;
 
   // Calculate forward and right vectors based on camera rotation
-  const forward = new THREE.Vector3(0, 0, 1);
-  const right = new THREE.Vector3(1, 0, 0);
+  let forward;
+  let right;
 
-  // Rotate vectors based on camera rotation
-  forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
-  right.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
+  if (isFirstPerson) {
+    // In first-person, use camera's direction
+    forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    forward.y = 0; // Keep movement on the horizontal plane
+    right = new THREE.Vector3(forward.z, 0, -forward.x);
+  } else {
+    // In third-person, use existing logic
+    forward = new THREE.Vector3(0, 0, 1);
+    right = new THREE.Vector3(1, 0, 0);
+    forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
+    right.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
+  }
 
   // Calculate movement direction
   const moveDirection = new THREE.Vector3(0, 0, 0);
@@ -1328,25 +1357,31 @@ function animateCylinders(deltaTime) {
 function updateCamera() {
   if (!model) return;
 
-  // Calculate camera position based on offset and rotation
-  const cameraPosition = new THREE.Vector3(
-    Math.sin(cameraRotation.y) * cameraOffset.z,
-    cameraOffset.y,
-    Math.cos(cameraRotation.y) * cameraOffset.z
-  );
+  if (isFirstPerson) {
+    const headPosition = model.position.clone().add(new THREE.Vector3(0, 2, 0)); // get the model's head position
+    camera.position.copy(headPosition); // set the camera position to the model's head position
+    camera.rotation.copy(controls.getObject().rotation); // set the camera rotation to the model's rotation
+  } else {
+    // Calculate camera position based on offset and rotation
+    const cameraPosition = new THREE.Vector3(
+      Math.sin(cameraRotation.y) * cameraOffset.z,
+      cameraOffset.y,
+      Math.cos(cameraRotation.y) * cameraOffset.z
+    );
 
-  // Add player position to camera position
-  cameraPosition.add(model.position);
+    // Add player position to camera position
+    cameraPosition.add(model.position);
 
-  // Update camera position with smooth lerp
-  camera.position.lerp(cameraPosition, cameraLerpFactor);
+    // Update camera position with smooth lerp
+    camera.position.lerp(cameraPosition, cameraLerpFactor);
 
-  // Calculate look target (slightly above player position)
-  const lookTarget = model.position.clone().add(new THREE.Vector3(0, 2, 0));
-  camera.lookAt(lookTarget);
+    // Calculate look target (slightly above player position)
+    const lookTarget = model.position.clone().add(new THREE.Vector3(0, 2, 0));
+    camera.lookAt(lookTarget);
 
-  // Apply pitch rotation after looking at target
-  camera.rotateX(cameraRotation.x);
+    // Apply pitch rotation after looking at target
+    camera.rotateX(cameraRotation.x);
+  }
 }
 
 //Bounding boxes

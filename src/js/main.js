@@ -11,6 +11,7 @@ import {
   createGate,
   createCylinder,
   createFan,
+  createRod,
 } from "./obstacles";
 
 // Import assets
@@ -42,6 +43,9 @@ let cylinderHelpers = [];
 
 let fans = [];
 let fanHelpers = [];
+
+let rods = [];
+let rodsHelpers = [];
 
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
@@ -77,11 +81,27 @@ function init() {
   initGateObstacles();
 
   //Ground pieces for second set of obstacles
+
   createGroundPiece(0, 0, 290, 10, 10);
   createGroundPiece(-29, 0, 275, 10, 10);
   createGroundPiece(29, 0, 275, 10, 10);
-  createGroundPiece(-29, 0, 305, 10, 10);
-  createGroundPiece(29, 0, 305, 10, 10);
+  createGroundPiece(20, 0, 300, 10, 10);
+  createGroundPiece(-18, 0, 305, 10, 10);
+  createGroundPiece(27, 0, 350, 10, 10);
+  createGroundPiece(5, 0, 330, 10, 10);
+  createGroundPiece(-15, 0, 350, 10, 10);
+  createGroundPiece(25, 0, 380, 10, 10);
+  createGroundPiece(0, 0, 390, 10, 10);
+  createGroundPiece(-20, 0, 387, 10, 10);
+  createGroundPiece(-10, 0, 410, 10, 10);
+  createGroundPiece(10, 0, 430, 10, 10);
+  createGroundPiece(-29, 0, 450, 10, 10);
+  createGroundPiece(20, 0, 460, 10, 10);
+
+  //Rod pieces for second set of obstacles
+  initRodObstacles();
+
+  createGroundPiece(0, 0, 490, 60, 260);
 
   // initFanObstacles();
 }
@@ -266,6 +286,17 @@ function initPlayer() {
       const playerShape = new CANNON.Box(
         new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)
       );
+      //localstorage playerposition
+      // Retrieve the player position string from localStorage
+      const playerPosition = localStorage.getItem("playerPosition");
+
+      // Split the string by commas and map each value to a float
+      const [x, y, z] = playerPosition.split(",").map((pos) => parseFloat(pos));
+
+      // Now you have three separate variables: x, y, and z
+      console.log("x:", x);
+      console.log("y:", y);
+      console.log("z:", z);
 
       // Create the player body using the Box shape
       playerBody = new CANNON.Body({
@@ -275,7 +306,7 @@ function initPlayer() {
         // Add angular damping to prevent unwanted rotation
         angularDamping: 0.99,
         fixedRotation: true, // This will prevent the body from rotating
-        position: new CANNON.Vec3(center.x, center.y, center.z), // Start position of the player
+        position: new CANNON.Vec3(x, y, z), // Set the initial position of the player
       });
 
       // Add the Box shape to the body
@@ -843,6 +874,19 @@ function initGateObstacles() {
   AddVisualCylinderHelpers();
 }
 
+function initRodObstacles() {
+  //x, y, z, minX, maxX, radius, length
+  let rod1 = createRod(scene, -29, 0, 250, -15, 15, 0.75, 10);
+  let rod2 = createRod(scene, 0, 0, 250, -29, 29, 0.75, 10);
+  let rod3 = createRod(scene, 29, 0, 250, -29, 29, 0.75, 10);
+
+  rods.push(rod1);
+  rods.push(rod2);
+  rods.push(rod3);
+
+  addVisualRodHelpers();
+}
+
 function initFanObstacles() {
   let fan1 = createFan(scene, 15, 0, 250, 3, 30);
   let fan2 = createFan(scene, -15, 0, 260, 3, 30);
@@ -882,6 +926,39 @@ function initFanObstacles() {
   fanHelpers.push(fan4.centerHelper);
 
   console.log(fans);
+}
+
+function addVisualRodHelpers() {
+  rods.forEach((rod) => {
+    const helper = new THREE.BoxHelper(rod, "blue");
+    rodsHelpers.push(helper);
+    scene.add(helper);
+  });
+}
+
+function animateRods(deltaTime) {
+  const moveSpeed = 20; // Movement speed
+
+  rods.forEach((rod) => {
+    const maxX = rod.maxX;
+    const minX = rod.minX;
+
+    // Initialize the rod direction if it doesn't exist
+    if (rod.moveDirection === undefined) {
+      rod.moveDirection = rod.position.x >= maxX ? -1 : 1;
+    }
+
+    // Clamp rod position to max/min bounds
+    if (rod.position.x > maxX) {
+      rod.position.x = maxX;
+      rod.moveDirection *= -1;
+    } else if (rod.position.x < minX) {
+      rod.position.x = minX;
+      rod.moveDirection *= -1;
+    }
+
+    rod.position.x += rod.moveDirection * moveSpeed * deltaTime;
+  });
 }
 
 function AddVisualGateHelpers() {
@@ -1055,6 +1132,8 @@ function animate() {
 
     model.position.copy(playerBody.position).add(worldOffset);
 
+    localStorage.setItem("playerPosition", playerBody.position);
+
     /*Actual bounding boxes for the player and obstacles*/
 
     //player bounding box
@@ -1075,6 +1154,16 @@ function animate() {
       const cylinderBoundingBox = new THREE.Box3().setFromObject(cylinder);
 
       if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
+        //Reset the players position
+        playerBody.position.set(0, 10, 10);
+      }
+    });
+
+    //rods bounding boxes
+    rods.forEach((rod) => {
+      const rodBoundingBox = new THREE.Box3().setFromObject(rod);
+
+      if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
         //Reset the players position
         playerBody.position.set(0, 10, 10);
       }
@@ -1118,6 +1207,11 @@ function animate() {
       if (helper) helper.update();
     });
 
+    //Update rod helpers
+    rodsHelpers.forEach((helper) => {
+      if (helper) helper.update();
+    });
+
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
 
     // Update camera
@@ -1128,6 +1222,7 @@ function animate() {
   animateGates(deltaTime);
   animateCylinders(deltaTime);
   animateFans(deltaTime);
+  animateRods(deltaTime);
 
   // cannonDebugger.update();
   renderer.render(scene, camera);

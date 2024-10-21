@@ -16,7 +16,7 @@ import {
 
 // Import assets
 import finish from "../img/finish.jpg";
-import galaxy from "../img/galaxy.jpg";
+import basicBg from "../img/sky.jpg";
 import groundTexture from "../img/stoleItLol.jpg";
 
 //Global variables
@@ -71,6 +71,7 @@ function init() {
   initStats();
   initScene();
   initLighting();
+  initBackground();
   initPhysics();
   initPlayer();
   initEventListeners();
@@ -211,6 +212,25 @@ function initLighting() {
 
 function initBackground() {
   //We have to do the background
+  const textureLoader = new THREE.TextureLoader();
+  const skyboxTexture = textureLoader.load(basicBg, function(texture) {
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.repeat.set(1, 1);
+    texture.offset.set(0, -0.3); // Move the image up by 0.3 units
+
+    // // Enable texture matrix transformation
+    // texture.center.set(0.5, 0.5); // Set the center of rotation to the center of the texture
+    // texture.rotation = Math.PI/2; // Rotate the texture by 45 degrees (π/4 radians)
+  });
+
+  const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);
+  const skyboxMaterial = new THREE.MeshBasicMaterial({
+    map: skyboxTexture,
+    side: THREE.BackSide,
+  });
+  const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+  scene.add(skybox);
 }
 
 function initPhysics() {
@@ -227,7 +247,7 @@ function initPlayer() {
     fatGuyURL.href,
     (gltf) => {
       model = gltf.scene;
-      model.position.set(0, 10, 225);
+      model.position.set(0, 10, 5);
       model.scale.set(0.4, 0.4, 0.4);
 
       // Enable shadows for all meshes in the model

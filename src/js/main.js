@@ -58,6 +58,9 @@ let fanHelpers = [];
 let rods = [];
 let rodsHelpers = [];
 
+let rodsZ = [];
+let rodsZHelpers = [];
+
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
 const cameraLerpFactor = 1.0;
@@ -309,7 +312,7 @@ function initPlayer() {
     fatGuyURL.href,
     (gltf) => {
       model = gltf.scene;
-      model.position.set(0, 10, 5);
+      model.position.set(0, 10, 255);
       model.scale.set(0.4, 0.4, 0.4);
 
       // Enable shadows for all meshes in the model
@@ -456,9 +459,6 @@ function onMouseMove(e) {
   }
 }
 
-// Add these variables at the top of your file, with the other control variables
-let turnLeft = false;
-let turnRight = false;
 //Movememnt functions that update the movement flags
 function handleKeyDown(event) {
   switch (event.key) {
@@ -473,12 +473,10 @@ function handleKeyDown(event) {
     case "a":
     case "ArrowLeft":
       moveLeft = true;
-      turnLeft = true;
       break;
     case "d":
     case "ArrowRight":
       moveRight = true;
-      turnRight = true;
       break;
     case " ":
       // Jump when spacebar is pressed
@@ -504,12 +502,10 @@ function handleKeyUp(event) {
     case "a":
     case "ArrowLeft":
       moveLeft = false;
-      turnLeft = false;
       break;
     case "d":
     case "ArrowRight":
       moveRight = false;
-      turnRight = false;
       break;
   }
 }
@@ -520,7 +516,19 @@ function jump() {
     playerBody.position.y -
     (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
     0.1;
+// Function to handle jumping
+function jump() {
+  let startingY =
+    playerBody.position.y -
+    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+    0.1;
 
+  // Check if the player is grounded and if they are , allow them to jump
+  if (startingY < 0.1) {
+    isJumping = true;
+    playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
+  }
+}
   // Check if the player is grounded and if they are , allow them to jump
   if (startingY < 0.1) {
     isJumping = true;
@@ -559,7 +567,42 @@ function checkIdleState() {
     // Fade in the idle action
     idleAction.reset().fadeIn(fadeDuration);
     idleAction.play();
+function crossfadeAction(fromAction, toAction, duration) {
+  if (fromAction !== toAction) {
+    if (toAction == jumpAction) {
+      console.log("imhere");
+      jumpAction.setLoop(THREE.LoopOnce); // Make jumpAction play only once
+      jumpAction.clampWhenFinished = true; // Ensure the animation holds the last frame
+      jumpAction.enable = false; // Initially, disable it to prevent accidental play
+    }
+    if (playerBody.position.y < 0) {
+      toAction = fallingAction;
+    }
+    toAction.reset().fadeIn(duration).play(); // Fade in the new action
+    fromAction.fadeOut(duration); // Fade out the old action
+  }
+}
+function checkIdleState() {
+  // If no movement keys are pressed and the current action isn't idle, switch to idle
+  if (
+    !moveForward &&
+    !moveBackward &&
+    !moveRight &&
+    !moveLeft &&
+    currentAction !== idleAction &&
+    !isJumping &&
+    playerBody.position.y > 0
+  ) {
+    console.log("Transitioning to idle");
 
+    // Fade in the idle action
+    idleAction.reset().fadeIn(fadeDuration);
+    idleAction.play();
+
+    // Fade out the current action (if it's not already idle)
+    if (currentAction) {
+      currentAction.fadeOut(fadeDuration);
+    }
     // Fade out the current action (if it's not already idle)
     if (currentAction) {
       currentAction.fadeOut(fadeDuration);
@@ -568,7 +611,14 @@ function checkIdleState() {
     currentAction = idleAction; // Set the current action to idle
   }
 }
+    currentAction = idleAction; // Set the current action to idle
+  }
+}
 
+// Update player movement based on key presses
+// Update the updateMovement function to use camera direction
+function updateMovement(delta) {
+  const speed = PLAYER_SPEED * delta;
 // Update player movement based on key presses
 // Update the updateMovement function to use camera direction
 function updateMovement(delta) {
@@ -577,11 +627,19 @@ function updateMovement(delta) {
   // Calculate forward and right vectors based on camera rotation
   const forward = new THREE.Vector3(0, 0, 1);
   const right = new THREE.Vector3(1, 0, 0);
+  // Calculate forward and right vectors based on camera rotation
+  const forward = new THREE.Vector3(0, 0, 1);
+  const right = new THREE.Vector3(1, 0, 0);
 
   // Rotate vectors based on camera rotation
   forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
   right.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
+  // Rotate vectors based on camera rotation
+  forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
+  right.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
 
+  // Calculate movement direction
+  const moveDirection = new THREE.Vector3(0, 0, 0);
   // Calculate movement direction
   const moveDirection = new THREE.Vector3(0, 0, 0);
 
@@ -589,10 +647,17 @@ function updateMovement(delta) {
   if (moveBackward) moveDirection.sub(forward);
   if (moveLeft) moveDirection.add(right);
   if (moveRight) moveDirection.sub(right);
+  if (moveForward) moveDirection.add(forward);
+  if (moveBackward) moveDirection.sub(forward);
+  if (moveLeft) moveDirection.add(right);
+  if (moveRight) moveDirection.sub(right);
 
   const isMoving =
     moveForward || moveBackward || moveLeft || moveRight || isJumping;
+  const isMoving =
+    moveForward || moveBackward || moveLeft || moveRight || isJumping;
 
+  /*if(idleAction && idleAction.isRunning()){
   /*if(idleAction && idleAction.isRunning()){
       playerBody.position.y = 1.72;  
     }
@@ -1066,13 +1131,29 @@ function initGateObstacles() {
 
 function initRodObstacles() {
   //x, y, z, minX, maxX, radius, length
-  let rod1 = createRod(scene, -29, 0, 280, -32, 32, 0.75, 15, 30);
-  let rod2 = createRod(scene, 20, 0, 305, -29, 29, 0.75, 30, 50);
-  // let rod3 = createRod(scene, 29, 0, 250, -29, 29, 0.75, 10);
+  // let rod1 = createRod(scene, -29, 0, 280, -32, 32, 0.75, 15, 30);
+  // let rod2 = createRod(scene, 20, 0, 305, -25, 29, 0.75, 30, 40);
+  let rod3 = createRod(scene, -29, 0, 333, -32, 32, 0.75, 15, 30);
+  let rod4 = createRod(scene, 20, 0, 355, 0, 32, 0.75, 15, 30);
+  let rod5 = createRod(scene, -10, 0, 355, -32, 0, 0.75, 15, 30);
+  let rod6 = createRod(scene, 20, 0, 390, -32, 32, 0.75, 22, 40);
+  let rod7 = createRod(scene, -20, 0, 415, -32, 0, 0.75, 20, 40);
+  // z moving rod
+  let rod8 = createRod(scene, 15, 0, 450, 425, 485, 0.75, 30, 50);
+  //rotate rod8 in the X axis
+  rod8.rotation.z = Math.PI / 2;
 
-  rods.push(rod1);
-  rods.push(rod2);
-  // rods.push(rod3);
+  let rod9 = createRod(scene, -15, 0, 455, -32, 0, 0.75, 15, 30);
+
+  // rods.push(rod1);
+  // rods.push(rod2);
+  rods.push(rod3);
+  rods.push(rod4);
+  rods.push(rod5);
+  rods.push(rod6);
+  rods.push(rod7);
+  rodsZ.push(rod8);
+  rods.push(rod9);
 
   addVisualRodHelpers();
 }
@@ -1124,9 +1205,14 @@ function addVisualRodHelpers() {
     rodsHelpers.push(helper);
     scene.add(helper);
   });
+  rodsZ.forEach((rod) => {
+    const helper = new THREE.BoxHelper(rod, "blue");
+    rodsZHelpers.push(helper);
+    scene.add(helper);
+  });
 }
 
-function animateRods(deltaTime) {
+function animateRodsX(deltaTime) {
   //const moveSpeed = 20; // Movement speed
 
   rods.forEach((rod) => {
@@ -1149,6 +1235,32 @@ function animateRods(deltaTime) {
     }
 
     rod.position.x += rod.moveDirection * moveSpeed * deltaTime;
+  });
+}
+
+function animateRodsZ(deltaTime) {
+  //const moveSpeed = 20; // Movement speed
+
+  rodsZ.forEach((rod) => {
+    const maxZ = rod.maxX;
+    const minZ = rod.minX;
+    const moveSpeed = rod.speed; // Movement speed
+
+    // Initialize the rod direction if it doesn't exist
+    if (rod.moveDirection === undefined) {
+      rod.moveDirection = rod.position.z >= maxZ ? -1 : 1;
+    }
+
+    // Clamp rod position to max/min bounds
+    if (rod.position.z > maxZ) {
+      rod.position.z = maxZ;
+      rod.moveDirection *= -1;
+    } else if (rod.position.z < minZ) {
+      rod.position.z = minZ;
+      rod.moveDirection *= -1;
+    }
+
+    rod.position.z += rod.moveDirection * moveSpeed * deltaTime;
   });
 }
 
@@ -1369,6 +1481,15 @@ function animate() {
       }
     });
 
+    rodsZ.forEach((rod) => {
+      const rodBoundingBox = new THREE.Box3().setFromObject(rod);
+
+      if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
+        //Reset the players position
+        playerBody.position.set(0, 10, 10);
+      }
+    });
+
     // fans.forEach((fan) => {
     //   fan.children.forEach((child) => {
     //     const fanBoundingBox = new THREE.Box3().setFromObject(child);
@@ -1412,6 +1533,10 @@ function animate() {
       if (helper) helper.update();
     });
 
+    rodsZHelpers.forEach((helper) => {
+      if (helper) helper.update();
+    });
+
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
 
     // Update camera
@@ -1422,28 +1547,8 @@ function animate() {
   animateGates(deltaTime);
   animateCylinders(deltaTime);
   animateFans(deltaTime);
-  animateRods(deltaTime);
-
-  if (particleSystem) {
-    // particleSystem.rotation.y += 0.001;
-    const positions = particleSystem.geometry.attributes.position.array;
-
-    for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] += velocities[i * 3];
-      positions[i * 3 + 1] += velocities[i * 3 + 1];
-      positions[i * 3 + 2] += velocities[i * 3 + 2];
-
-      // Reset position if out of bounds
-      if (positions[i * 3] > 50 || positions[i * 3] < -50)
-        velocities[i * 3] *= -1;
-      if (positions[i * 3 + 1] > 50 || positions[i * 3 + 1] < -50)
-        velocities[i * 3 + 1] *= -1;
-      if (positions[i * 3 + 2] > 50 || positions[i * 3 + 2] < -50)
-        velocities[i * 3 + 2] *= -1;
-    }
-
-    particleSystem.geometry.attributes.position.needsUpdate = true;
-  }
+  animateRodsX(deltaTime);
+  animateRodsZ(deltaTime);
 
   // cannonDebugger.update();
   renderer.render(scene, camera);

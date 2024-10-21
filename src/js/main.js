@@ -18,6 +18,9 @@ import {
 import finish from "../img/finish.jpg";
 import basicBg from "../img/sky.jpg";
 import groundTexture from "../img/stoleItLol.jpg";
+import PbackGroundMusic from "../sounds/backGroundMusic.mp3"
+import PjumpSound from "../sounds/jumpSound.wav"
+import Pjumpland from "../sounds/jumpland.wav"
 
 //Global variables
 let scene,
@@ -91,7 +94,18 @@ const turnSpeed = 0.2; // for rotation
 //Jumping flag
 let isJumping = false;
 
+//Audio Setup
+const listener = new THREE.AudioListener();
+const audioLoader = new THREE.AudioLoader();
+
 function init() {
+  const backGroundMusic = new THREE.Audio(listener);
+  audioLoader.load(PbackGroundMusic, function(buffer) {
+    backGroundMusic.setBuffer(buffer);
+    backGroundMusic.setLoop(true);
+    backGroundMusic.setVolume(0.4);
+    backGroundMusic.play();
+  });
   initStats();
   initScene();
   initLighting();
@@ -198,6 +212,7 @@ function initScene() {
     0.1, // Min distance objects are rendered
     1000 //Max distance objects are rendered
   );
+  camera.add(listener);
 
   //Set camera position
   camera.position.set(0, 0, 0);

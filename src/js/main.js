@@ -91,8 +91,6 @@ function init() {
   initEventListeners();
   createGroundPiece(0, 0, 0, 60, 260);
 
-  initBackgroundParticleSystem();
-
   //First set of obstacles
   initGateObstacles();
 
@@ -120,55 +118,6 @@ function init() {
   createGroundPiece(0, 0, 490, 60, 260);
 
   // initFanObstacles();
-}
-
-//Global variables for the background particle system
-let particleSystem;
-let positions;
-let velocities;
-let particleCount = 1200;
-let particleSpreadX = 200;
-let particleSpreadY = 60;
-let particleSpreadZ = 1000; //Based on how long our level is
-
-function initBackgroundParticleSystem() {
-  const particles = new THREE.BufferGeometry();
-  positions = new Float32Array(particleCount * 3);
-  velocities = new Float32Array(particleCount * 3);
-
-  for (let i = 0; i < particleCount; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * particleSpreadX;
-    positions[i * 3 + 1] = (Math.random() - 0.5) * particleSpreadY;
-    positions[i * 3 + 2] = Math.random() * particleSpreadZ;
-
-    velocities[i * 3] = (Math.random() - 0.5) * 0.1;
-    velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.05;
-    velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
-  }
-
-  particles.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-
-  const particleMaterial = new THREE.PointsMaterial({
-    color: "white",
-    size: 0.25,
-    transparent: true,
-    opacity: 0.25,
-
-    // Add blending for better transparency
-    blending: THREE.AdditiveBlending,
-
-    // Add depth test to avoid rendering overlapping particles
-    depthTest: true,
-
-    // Enable size attenuation for better visibility
-    sizeAttenuation: true,
-
-    // Enable fog for better depth perception
-    fog: true,
-  });
-
-  particleSystem = new THREE.Points(particles, particleMaterial);
-  scene.add(particleSystem);
 }
 
 function initStats() {
@@ -516,19 +465,7 @@ function jump() {
     playerBody.position.y -
     (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
     0.1;
-  // Function to handle jumping
-  function jump() {
-    let startingY =
-      playerBody.position.y -
-      (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
-      0.1;
 
-    // Check if the player is grounded and if they are , allow them to jump
-    if (startingY < 0.1) {
-      isJumping = true;
-      playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
-    }
-  }
   // Check if the player is grounded and if they are , allow them to jump
   if (startingY < 0.1) {
     isJumping = true;
@@ -567,50 +504,12 @@ function checkIdleState() {
     // Fade in the idle action
     idleAction.reset().fadeIn(fadeDuration);
     idleAction.play();
-    function crossfadeAction(fromAction, toAction, duration) {
-      if (fromAction !== toAction) {
-        if (toAction == jumpAction) {
-          console.log("imhere");
-          jumpAction.setLoop(THREE.LoopOnce); // Make jumpAction play only once
-          jumpAction.clampWhenFinished = true; // Ensure the animation holds the last frame
-          jumpAction.enable = false; // Initially, disable it to prevent accidental play
-        }
-        if (playerBody.position.y < 0) {
-          toAction = fallingAction;
-        }
-        toAction.reset().fadeIn(duration).play(); // Fade in the new action
-        fromAction.fadeOut(duration); // Fade out the old action
-      }
+
+    // Fade out the current action (if it's not already idle)
+    if (currentAction) {
+      currentAction.fadeOut(fadeDuration);
     }
-    function checkIdleState() {
-      // If no movement keys are pressed and the current action isn't idle, switch to idle
-      if (
-        !moveForward &&
-        !moveBackward &&
-        !moveRight &&
-        !moveLeft &&
-        currentAction !== idleAction &&
-        !isJumping &&
-        playerBody.position.y > 0
-      ) {
-        console.log("Transitioning to idle");
 
-        // Fade in the idle action
-        idleAction.reset().fadeIn(fadeDuration);
-        idleAction.play();
-
-        // Fade out the current action (if it's not already idle)
-        if (currentAction) {
-          currentAction.fadeOut(fadeDuration);
-        }
-        // Fade out the current action (if it's not already idle)
-        if (currentAction) {
-          currentAction.fadeOut(fadeDuration);
-        }
-
-        currentAction = idleAction; // Set the current action to idle
-      }
-    }
     currentAction = idleAction; // Set the current action to idle
   }
 }
@@ -627,9 +526,6 @@ function updateMovement(delta) {
   // Rotate vectors based on camera rotation
   forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
   right.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
-  // Rotate vectors based on camera rotation
-  forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
-  right.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraRotation.y);
 
   // Calculate movement direction
   const moveDirection = new THREE.Vector3(0, 0, 0);
@@ -638,15 +534,10 @@ function updateMovement(delta) {
   if (moveBackward) moveDirection.sub(forward);
   if (moveLeft) moveDirection.add(right);
   if (moveRight) moveDirection.sub(right);
-  if (moveForward) moveDirection.add(forward);
-  if (moveBackward) moveDirection.sub(forward);
-  if (moveLeft) moveDirection.add(right);
-  if (moveRight) moveDirection.sub(right);
 
   const isMoving =
     moveForward || moveBackward || moveLeft || moveRight || isJumping;
 
-  /*if(idleAction && idleAction.isRunning()){
   /*if(idleAction && idleAction.isRunning()){
       playerBody.position.y = 1.72;  
     }
@@ -1131,7 +1022,6 @@ function initRodObstacles() {
   let rod8 = createRod(scene, 15, 0, 450, 425, 485, 0.75, 30, 50);
   //rotate rod8 in the X axis
   rod8.rotation.z = Math.PI / 2;
-
   let rod9 = createRod(scene, -15, 0, 455, -32, 0, 0.75, 15, 30);
 
   // rods.push(rod1);

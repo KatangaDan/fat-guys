@@ -9,6 +9,8 @@ import { createPillar } from "./obstacles";
 
 // Import assets
 import finish from "../img/finish.jpg";
+import stars from "../img/stars.jpg";
+import treeBg from "../img/fall-guys tree.jpg";
 import galaxy from "../img/galaxy.jpg";
 import groundTexture from "../img/stoleItLol.jpg";
 
@@ -65,6 +67,7 @@ function init() {
   initStats();
   initScene();
   initLighting();
+  initBackground();
   initPhysics();
   initPlayer();
   initEventListeners();
@@ -160,6 +163,15 @@ function initLighting() {
 }
 function initBackground() {
   //We have to do the background
+  const textureLoader = new THREE.TextureLoader();
+  const skyboxTexture = textureLoader.load(treeBg);
+  const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);
+  const skyboxMaterial = new THREE.MeshBasicMaterial({
+    map: skyboxTexture,
+    side: THREE.BackSide,
+  });
+  const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+  scene.add(skybox);
 }
 
 function initPhysics() {

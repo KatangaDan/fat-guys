@@ -101,7 +101,7 @@ export function createFan(scene, x, y, z, radius, lengthOfFans) {
   scene.add(centerHelper);
 
   // Create the fan blades
-  const bladeGeometry = new THREE.CylinderGeometry(1, 1, lengthOfFans, 32);
+  const bladeGeometry = new THREE.CylinderGeometry(0.75, 0.75, lengthOfFans, 32);
   const bladeMaterial = new THREE.MeshStandardMaterial({ color: "yellow" });
 
   // const fan = new THREE.Group();

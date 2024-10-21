@@ -634,121 +634,50 @@ function updateMovement(delta) {
     let targetAction = runningAction;
     if (moveBackward && !moveForward && !moveLeft && !moveRight) {
       targetAction = backRunningAction;
-    }  if (moveLeft && !moveForward && !moveBackward && !moveRight) {
+    }
+    if (moveLeft && !moveForward && !moveBackward && !moveRight) {
       targetAction = runningLeftAction;
-    }  if (moveRight && !moveForward && !moveBackward && !moveLeft) {
+    }
+    if (moveRight && !moveForward && !moveBackward && !moveLeft) {
       targetAction = runningRightAction;
-    }  if (
-      isJumping &&
-      !moveForward &&
-      !moveBackward &&
-      !moveLeft &&
-      !moveRight
-    ) {
-      targetAction = jumpAction;
-    }  if (
-      isJumping &&
-      moveForward &&
-      !moveBackward &&
-      !moveLeft &&
-      !moveRight
-    ) {
-      targetAction = jumpAction;
-    }  if (
-      isJumping &&
-      moveBackward &&
-      !moveForward &&
-      !moveLeft &&
-      !moveRight
-    ) {
-      targetAction = jumpAction;
-    }  if (
-      isJumping &&
-      moveLeft &&
-      !moveForward &&
-      !moveBackward &&
-      !moveRight
-    ) {
-      targetAction = jumpAction;
-    }  if (
-      isJumping &&
-      !moveForward &&
-      !moveBackward &&
-      !moveLeft &&
-      moveRight
-    ) {
+    }
+    if (isJumping && !moveForward && !moveBackward && !moveLeft && !moveRight) {
       targetAction = jumpAction;
     }
-     if (
-      isJumping &&
-      moveForward &&
-      moveBackward &&
-      moveLeft &&
-      moveRight
-    ) {
+    if (isJumping && moveForward && !moveBackward && !moveLeft && !moveRight) {
       targetAction = jumpAction;
     }
-    if (
-      isJumping &&
-      !moveForward &&
-      !moveBackward &&
-      moveLeft &&
-      moveRight
-    ) {
+    if (isJumping && moveBackward && !moveForward && !moveLeft && !moveRight) {
       targetAction = jumpAction;
     }
-    if (
-      isJumping &&
-      !moveForward &&
-      moveBackward &&
-      moveLeft &&
-      moveRight
-    ) {
+    if (isJumping && moveLeft && !moveForward && !moveBackward && !moveRight) {
       targetAction = jumpAction;
     }
-    if (
-      isJumping &&
-      moveForward &&
-      !moveBackward &&
-      !moveLeft &&
-      moveRight
-    ) {
+    if (isJumping && !moveForward && !moveBackward && !moveLeft && moveRight) {
       targetAction = jumpAction;
     }
-    if (
-      isJumping &&
-      moveForward &&
-      !moveBackward &&
-      moveLeft &&
-      !moveRight
-    ) {
+    if (isJumping && moveForward && moveBackward && moveLeft && moveRight) {
       targetAction = jumpAction;
     }
-    if (
-      isJumping &&
-      !moveForward &&
-      moveBackward &&
-      moveLeft &&
-      !moveRight
-    ) {
+    if (isJumping && !moveForward && !moveBackward && moveLeft && moveRight) {
       targetAction = jumpAction;
     }
-    if (
-      isJumping &&
-      !moveForward &&
-      moveBackward &&
-      !moveLeft &&
-      moveRight
-    ) {
+    if (isJumping && !moveForward && moveBackward && moveLeft && moveRight) {
       targetAction = jumpAction;
     }
-    if (
-      isJumping &&
-      moveForward &&
-      !moveBackward &&
-      moveLeft &&
-      moveRight
-    ) {
+    if (isJumping && moveForward && !moveBackward && !moveLeft && moveRight) {
+      targetAction = jumpAction;
+    }
+    if (isJumping && moveForward && !moveBackward && moveLeft && !moveRight) {
+      targetAction = jumpAction;
+    }
+    if (isJumping && !moveForward && moveBackward && moveLeft && !moveRight) {
+      targetAction = jumpAction;
+    }
+    if (isJumping && !moveForward && moveBackward && !moveLeft && moveRight) {
+      targetAction = jumpAction;
+    }
+    if (isJumping && moveForward && !moveBackward && moveLeft && moveRight) {
       targetAction = jumpAction;
     }
 
@@ -781,8 +710,6 @@ function updateMovement(delta) {
     isJumping = false;
   }
 }
-
-
 
 function createGroundPiece(x, y, z, width, length) {
   //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
@@ -1249,6 +1176,7 @@ function addVisualRodHelpers() {
 
 function animateRodsX(deltaTime) {
   //const moveSpeed = 20; // Movement speed
+  let waitTime = 0.5; // Seconds to wait at each position
 
   rods.forEach((rod) => {
     const maxX = rod.maxX;
@@ -1260,13 +1188,25 @@ function animateRodsX(deltaTime) {
       rod.moveDirection = rod.position.x >= maxX ? -1 : 1;
     }
 
+    if (rod.waitTimer === undefined) {
+      rod.waitTimer = 0; // Timer for waiting at bounds
+    }
+
+    // Check if the rod is waiting at the bounds
+    if (rod.waitTimer > 0) {
+      rod.waitTimer -= deltaTime; // Reduce the wait timer
+      return; // Skip the movement until wait time is over
+    }
+
     // Clamp rod position to max/min bounds
     if (rod.position.x > maxX) {
       rod.position.x = maxX;
       rod.moveDirection *= -1;
+      rod.waitTimer = waitTime; // Set wait timer before moving again
     } else if (rod.position.x < minX) {
       rod.position.x = minX;
       rod.moveDirection *= -1;
+      rod.waitTimer = waitTime; // Set wait timer before moving again
     }
 
     rod.position.x += rod.moveDirection * moveSpeed * deltaTime;
@@ -1275,6 +1215,8 @@ function animateRodsX(deltaTime) {
 
 function animateRodsZ(deltaTime) {
   //const moveSpeed = 20; // Movement speed
+
+  let waitTime = 0.5; // Seconds to wait at each position
 
   rodsZ.forEach((rod) => {
     const maxZ = rod.maxX;
@@ -1286,13 +1228,25 @@ function animateRodsZ(deltaTime) {
       rod.moveDirection = rod.position.z >= maxZ ? -1 : 1;
     }
 
+    if (rod.waitTimer === undefined) {
+      rod.waitTimer = 0; // Timer for waiting at bounds
+    }
+
+    // Check if the rod is waiting at the bounds
+    if (rod.waitTimer > 0) {
+      rod.waitTimer -= deltaTime; // Reduce the wait timer
+      return; // Skip the movement until wait time is over
+    }
+
     // Clamp rod position to max/min bounds
     if (rod.position.z > maxZ) {
       rod.position.z = maxZ;
       rod.moveDirection *= -1;
+      rod.waitTimer = waitTime; // Set wait timer before moving again
     } else if (rod.position.z < minZ) {
       rod.position.z = minZ;
       rod.moveDirection *= -1;
+      rod.waitTimer = waitTime; // Set wait timer before moving again
     }
 
     rod.position.z += rod.moveDirection * moveSpeed * deltaTime;

@@ -1,11 +1,23 @@
 import * as THREE from "three";
 import * as CANNON from "cannon-es";
+import wall from "../textures/fall-guys-texture.jpg";
+import texture2 from "../textures/pink.jpg";
+import texture3 from "../textures/texture 3.jpg";
+import tile from "../textures/hexagon-tile.jpg";
+import stripes from "../textures/texture 4.png";
+
+
 
 export function createPillar(world, scene, x, y, z, width, height, length) {
   //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
+
+  // load the texture
+  const textureLoader = new THREE.TextureLoader();
+  const texture = textureLoader.load(wall);
+
   //Create a simple plane for the ground
   const pillarGeometry = new THREE.BoxGeometry(width, height, length);
-  const pillarMaterial = new THREE.MeshStandardMaterial({ color: "green" });
+  const pillarMaterial = new THREE.MeshStandardMaterial({ map: texture });
   const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
   pillar.position.set(x, y + height / 2, z + length / 2);
   pillar.castShadow = true;
@@ -37,6 +49,10 @@ export function createGate(
 ) {
   //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
 
+  // load the texture
+  const textureLoader = new THREE.TextureLoader();
+  const texture = textureLoader.load(stripes);
+
   // work out exact width of gate using the positions of the pillars
   let leftPillarPosition =
     leftPillar.position.x - leftPillar.geometry.parameters.width / 2;
@@ -49,7 +65,7 @@ export function createGate(
 
   //Create a simple plane for the ground
   const gateGeometry = new THREE.BoxGeometry(width, height, length);
-  const gateMaterial = new THREE.MeshStandardMaterial({ color: "blue" });
+  const gateMaterial = new THREE.MeshStandardMaterial({ map: texture });
   const gate = new THREE.Mesh(gateGeometry, gateMaterial);
   gate.position.set(newX, y + height / 2, z);
   gate.castShadow = true;
@@ -71,6 +87,10 @@ export function createGate(
 
 export function createCylinder(scene, x, y, z, radius, height) {
   //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
+
+  // load the texture
+  const textureLoader = new THREE.TextureLoader();
+  const texture = textureLoader.load(texture2);
   //Create a simple plane for the ground
   const cylinderGeometry = new THREE.CylinderGeometry(
     radius,
@@ -78,7 +98,7 @@ export function createCylinder(scene, x, y, z, radius, height) {
     height,
     32
   );
-  const cylinderMaterial = new THREE.MeshStandardMaterial({ color: "red" });
+  const cylinderMaterial = new THREE.MeshStandardMaterial({ map: texture });
   const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
   cylinder.position.set(x, y + height / 2, z);
   cylinder.castShadow = true;
@@ -156,13 +176,17 @@ export function createRod(
   lengthOfRod,
   speed
 ) {
+  // load the texture
+  const textureLoader = new THREE.TextureLoader();
+  const texture = textureLoader.load(texture3);
+
   const rodGeometry = new THREE.CylinderGeometry(
     radiusOfRod,
     radiusOfRod,
     lengthOfRod,
     32
   );
-  const rodMaterial = new THREE.MeshStandardMaterial({ color: "yellow" });
+  const rodMaterial = new THREE.MeshStandardMaterial({ map: texture });
   const rod = new THREE.Mesh(rodGeometry, rodMaterial);
   rod.position.set(x, y + radiusOfRod, z);
   rod.rotation.x = Math.PI / 2;

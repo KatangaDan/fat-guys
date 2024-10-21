@@ -70,9 +70,19 @@ function init() {
   initPhysics();
   initPlayer();
   initEventListeners();
-  createGroundPiece(0, 0, 0, 60, 500);
+  createGroundPiece(0, 0, 0, 60, 260);
+
+  //First set of obstacles
   initGateObstacles();
-  initFanObstacles();
+
+  //Ground pieces for second set of obstacles
+  createGroundPiece(0, 0, 290, 10, 10);
+  createGroundPiece(-29, 0, 275, 10, 10);
+  createGroundPiece(29, 0, 275, 10, 10);
+  createGroundPiece(-29, 0, 305, 10, 10);
+  createGroundPiece(29, 0, 305, 10, 10);
+
+  // initFanObstacles();
 }
 
 function initStats() {

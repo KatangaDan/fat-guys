@@ -219,8 +219,8 @@ function initPlayer() {
         const backClip = THREE.AnimationClip.findByName(clips, "Running Backward");
         backRunningAction = mixer.clipAction(backClip);
 
-        /*const jumpClip = THREE.AnimationClip.findByName(clips, "Jump");
-        jumpAction = mixer.clipAction(jumpClip);*/
+        const jumpClip = THREE.AnimationClip.findByName(clips, "Jump");
+        jumpAction = mixer.clipAction(jumpClip);
 
         idleClip = THREE.AnimationClip.findByName(clips, "Idle");
         idleAction = mixer.clipAction(idleClip);
@@ -280,7 +280,6 @@ function handleKeyDown(event) {
     case "w":
     case "ArrowUp":
       moveForward = true;
-      
       break;
     case "s":
     case "ArrowDown":
@@ -296,20 +295,10 @@ function handleKeyDown(event) {
       break;
     case " ":
       // Jump when spacebar is pressed
-      isJumping = true;
-      console.log("jump");
-      /*if (jumpAction && !jumpAction.isRunning()) {
-        jumpAction.reset(); // Reset to the start of the animation
-        jumpAction.setLoop(THREE.LoopOnce); // Ensure the animation loops
-        jumpAction.play(); // Play the animation
-        // model.rotation.y += Math.PI; // Rotate the model by Math.PI in the y-axis
+      console.log("Jumping");
+      if (!isJumping) {
         jump();
       }
-      if (idleAction && idleAction.isRunning()) {
-        idleAction.fadeOut(0.5); // Stop the idle animation
-        idleAction.stop();
-      }*/
-     jump();
       break;
   }
 }
@@ -389,7 +378,7 @@ function updateMovement(deltaTime) {
     playerBody.position.y = 1.72;  
   }
   else{
-    playerBody.position.y = +2.5;
+    playerBody.position.y = 2.3;
   }
   
   if (isMoving) {
@@ -404,6 +393,7 @@ function updateMovement(deltaTime) {
     else if (moveRight && !moveForward && !moveBackward && !moveLeft) {
       targetAction = runningRightAction;
     }
+    
 
     // Crossfade to the appropriate movement animation if it's different from the current one
   if (currentAction !== targetAction) {
@@ -416,15 +406,17 @@ function updateMovement(deltaTime) {
   }
 
   // Reset isJumping flag if the player has landed (velocity in the Y direction is near 0)
-  if (
+  // Reset angular velocity
+  playerBody.angularVelocity.set(0, 0, 0);
+
+  // Update jumping state
+  const height =
     playerBody.position.y -
-      (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
-      0.1 <
-    0.1
-  ) {
+    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+    0.1;
+  if (height < 0.1) {
     isJumping = false;
   }
-  playerBody.angularVelocity.set(0, 0, 0);
 }
 
 function createGroundPiece(x, y, z, width, length) {

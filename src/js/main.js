@@ -819,12 +819,39 @@ function initFanObstacles() {
   let fan3 = createFan(scene, 15, 0, 290, 3, 30);
   let fan4 = createFan(scene, -15, 0, 300, 3, 30);
 
-  fans.push(fan1);
-  fans.push(fan2);
-  fans.push(fan3);
-  fans.push(fan4);
+  fans.push(fan1.blade1);
+  fans.push(fan1.blade2);
+  fans.push(fan1.center);
 
-  console.log(fan1);
+  fans.push(fan2.blade1);
+  fans.push(fan2.blade2);
+  fans.push(fan2.center);
+
+  fans.push(fan3.blade1);
+  fans.push(fan3.blade2);
+  fans.push(fan3.center);
+
+  fans.push(fan4.blade1);
+  fans.push(fan4.blade2);
+  fans.push(fan4.center);
+
+  fanHelpers.push(fan1.blade1Helper);
+  fanHelpers.push(fan1.blade2Helper);
+  fanHelpers.push(fan1.centerHelper);
+
+  fanHelpers.push(fan2.blade1Helper);
+  fanHelpers.push(fan2.blade2Helper);
+  fanHelpers.push(fan2.centerHelper);
+
+  fanHelpers.push(fan3.blade1Helper);
+  fanHelpers.push(fan3.blade2Helper);
+  fanHelpers.push(fan3.centerHelper);
+
+  fanHelpers.push(fan4.blade1Helper);
+  fanHelpers.push(fan4.blade2Helper);
+  fanHelpers.push(fan4.centerHelper);
+
+  console.log(fans);
 }
 
 function AddVisualGateHelpers() {
@@ -900,7 +927,19 @@ function animateGates(deltaTime) {
 function animateFans(deltaTime) {
   const fanSpinSpeed = 2;
   fans.forEach((fan) => {
-    fan.rotation.y += fanSpinSpeed * deltaTime;
+    if (fan.name == "blade1") {
+      fan.rotation.y += fanSpinSpeed * deltaTime;
+    }
+    if (fan.name == "blade2") {
+      fan.rotation.z -= fanSpinSpeed * deltaTime;
+    }
+  });
+
+  fanHelpers.forEach((helper) => {
+    if (helper) {
+      helper.update();
+      helper.updateMatrixWorld(true);
+    }
   });
 }
 
@@ -1011,6 +1050,23 @@ function animate() {
       }
     });
 
+    // fans.forEach((fan) => {
+    //   fan.children.forEach((child) => {
+    //     const fanBoundingBox = new THREE.Box3().setFromObject(child);
+
+    //     if (playerBoundingBox.intersectsBox(fanBoundingBox)) {
+    //       //Reset the players position
+    //       playerBody.position.set(0, 10, 10);
+    //     }
+    //   });
+    //   // const fanBoundingBox = new THREE.Box3().setFromObject(fan);
+
+    //   // if (playerBoundingBox.intersectsBox(fanBoundingBox)) {
+    //   //   //Reset the players position
+    //   //   playerBody.position.set(0, 10, 10);
+    //   // }
+    // });
+
     /*Actual bounding boxes for the player and obstacles*/
 
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
@@ -1022,6 +1078,10 @@ function animate() {
     gateHelpers.forEach((helper) => {
       if (helper) helper.update();
     });
+
+    // fanHelpers.forEach((helper) => {
+    //   if (helper) helper.update();
+    // });
 
     //Update cylinder helpers
     cylinderHelpers.forEach((helper) => {

@@ -93,32 +93,51 @@ export function createFan(scene, x, y, z, radius, lengthOfFans) {
   const centerGeometry = new THREE.CylinderGeometry(radius, radius, 1.5, 32);
   const centerMaterial = new THREE.MeshStandardMaterial({ color: "yellow" });
   const center = new THREE.Mesh(centerGeometry, centerMaterial);
+  center.position.set(x, y + radius / 2, z);
+  scene.add(center);
+
+  //center helper
+  const centerHelper = new THREE.BoxHelper(center, 0x00ff00);
+  scene.add(centerHelper);
 
   // Create the fan blades
   const bladeGeometry = new THREE.CylinderGeometry(1, 1, lengthOfFans, 32);
   const bladeMaterial = new THREE.MeshStandardMaterial({ color: "yellow" });
 
-  const fan = new THREE.Group();
+  // const fan = new THREE.Group();
 
   //Create a single fan blade
   const blade1 = new THREE.Mesh(bladeGeometry, bladeMaterial);
   //Rotate the blade so it is horitzontal
   blade1.rotation.z = Math.PI / 2;
+  blade1.position.set(x, y + radius / 2, z);
+  blade1.name = "blade1";
+  scene.add(blade1);
+
+  //blade1 helper
+  const blade1Helper = new THREE.BoxHelper(blade1, 0x00ff00);
+  scene.add(blade1Helper);
 
   const blade2 = new THREE.Mesh(bladeGeometry, bladeMaterial);
+  blade2.position.set(x, y + radius / 2, z);
   blade2.rotation.x = Math.PI / 2;
+  blade2.name = "blade2";
+  scene.add(blade2);
 
-  fan.add(center);
-  fan.add(blade1);
-  fan.add(blade2);
+  //blade2 helper
+  const blade2Helper = new THREE.BoxHelper(blade2, 0x00ff00);
+  scene.add(blade2Helper);
 
-  fan.position.set(x, y + radius / 2, z);
-  fan.castShadow = true;
-  fan.receiveShadow = true;
-  scene.add(fan);
+  // fan.add(center);
+  // fan.add(blade1);
+  // fan.add(blade2);
 
-  //return the pillar position
-  return fan;
+  // fan.position.set(x, y + radius / 2, z);
+  // fan.castShadow = true;
+  // fan.receiveShadow = true;
+  // scene.add(fan);
+
+  return { center, blade1, blade2, blade1Helper, blade2Helper, centerHelper };
 }
 
 //  // Create a circular obstacle

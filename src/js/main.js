@@ -262,80 +262,25 @@ function initEventListeners() {
   window.addEventListener("keyup", handleKeyUp);
 }
 
-
-function checkIdleState() {
-  if (!moveForward && !moveBackward && !moveRight && !moveLeft) {
-    if (currentAction !== idleAction) {
-      console.log("Transitioning to idle");
-      idleAction.reset().fadeIn(fadeDuration);
-      idleAction.play();
-      idleAction.z = 90;
-      if (currentAction) {
-        currentAction.fadeOut(fadeDuration);
-      }
-      currentAction = idleAction;
-    }
-  }
-}
-
 //Movememnt functions that update the movement flags
 function handleKeyDown(event) {
   switch (event.key) {
     case "w":
     case "ArrowUp":
       moveForward = true;
-      currentAction = runningAction;
-        if (runningAction && !runningAction.isRunning()) {
-          runningAction.reset();
-          runningAction.setLoop(THREE.LoopRepeat);
-          runningAction.play();
-        }
-        if (idleAction && idleAction.isRunning()) {
-          idleAction.fadeOut(0.5); // Stop the idle animation
-          idleAction.stop();
-        }
+      
       break;
     case "s":
     case "ArrowDown":
       moveBackward = true;
-      currentAction = backRunningAction;
-      if (backRunningAction && !backRunningAction.isRunning()) {
-        backRunningAction.reset(); // Reset to the start of the animation
-        backRunningAction.setLoop(THREE.LoopRepeat); // Ensure the animation loops
-        backRunningAction.play(); // Play the animation
-      }
-      if (idleAction && idleAction.isRunning()) {
-        idleAction.fadeOut(0.5); // Stop the idle animation
-        idleAction.stop();
-      }
       break;
     case "a":
     case "ArrowLeft":
       moveLeft = true;
-      currentAction = runningLeftAction;
-      if (runningLeftAction && !runningLeftAction.isRunning()) {
-        runningLeftAction.reset(); // Reset to the start of the animation
-        runningLeftAction.setLoop(THREE.LoopRepeat); // Ensure the animation loops
-        runningLeftAction.play(); // Play the animation
-      }
-      if (idleAction && idleAction.isRunning()) {
-        idleAction.fadeOut(0.5); // Stop the idle animation
-        idleAction.stop();
-      }
       break;
     case "d":
     case "ArrowRight":
       moveRight = true;
-      currentAction = runningRightAction;
-      if (runningRightAction && !runningRightAction.isRunning()) {
-        runningRightAction.reset(); // Reset to the start of the animation
-        runningRightAction.setLoop(THREE.LoopRepeat); // Ensure the animation loops
-        runningRightAction.play(); // Play the animation
-      }
-      if (idleAction && idleAction.isRunning()) {
-        idleAction.fadeOut(0.5); // Stop the idle animation
-        idleAction.stop();
-      }
       break;
     case " ":
       // Jump when spacebar is pressed
@@ -362,35 +307,18 @@ function handleKeyUp(event) {
     case "w":
     case "ArrowUp":
       moveForward = false;
-        if (runningAction) {
-          runningAction.fadeOut(0.5);
-        }
       break;
     case "s":
     case "ArrowDown":
       moveBackward = false;
-      if (backRunningAction) {
-        //runningAction.stop();  // Stop the animation when key is released
-        backRunningAction.fadeOut(0.5); // Fade out the animation when key is released
-      }
       break;
     case "a":
     case "ArrowLeft":
       moveLeft = false;
-      if (runningLeftAction) {
-        //runningAction.stop();  // Stop the animation when key is released
-        //runningAction.fadeOut(0.5); // Fade out the animation when key is released
-        idleAction.reset().fadeIn(fadeDuration);
-      }
       break;
     case "d":
     case "ArrowRight":
       moveRight = false;
-      if (runningRightAction) {
-        //runningAction.stop();  // Stop the animation when key is released
-        //runningAction.fadeOut(0.5); // Fade out the animation when key is released
-        idleAction.reset().fadeIn(fadeDuration);
-      }
       break;
   }
 }
@@ -409,6 +337,30 @@ function jump() {
   }
 }
 
+function crossfadeAction(fromAction, toAction, duration) {
+  if (fromAction !== toAction) {
+    toAction.reset().fadeIn(duration).play(); // Fade in the new action
+    fromAction.fadeOut(duration); // Fade out the old action
+  }
+}
+function checkIdleState() {
+  // If no movement keys are pressed and the current action isn't idle, switch to idle
+  if (!moveForward && !moveBackward && !moveRight && !moveLeft && currentAction !== idleAction) {
+    console.log("Transitioning to idle");
+    
+    // Fade in the idle action
+    idleAction.reset().fadeIn(fadeDuration);
+    idleAction.play();
+
+    // Fade out the current action (if it's not already idle)
+    if (currentAction) {
+      currentAction.fadeOut(fadeDuration);
+    }
+
+    currentAction = idleAction; // Set the current action to idle
+  }
+}
+
 // Update player movement based on key presses
 function updateMovement(deltaTime) {
   const translationStep = PLAYER_SPEED * deltaTime;
@@ -421,26 +373,35 @@ function updateMovement(deltaTime) {
 
   const isMoving = moveForward || moveBackward || moveLeft || moveRight;
 
+  if(idleAction && idleAction.isRunning()){
+    playerBody.position.y = 1.72;  
+  }
+  else{
+    playerBody.position.y = +2.5;
+  }
+  
   if (isMoving) {
     // Determine which movement animation to play
     let targetAction = runningAction;
     if (moveBackward && !moveForward && !moveLeft && !moveRight) {
       targetAction = backRunningAction;
     }
-
-    // Crossfade to the appropriate movement animation
-    if (currentAction !== targetAction) {
-      targetAction.reset().fadeIn(fadeDuration);
-      if (currentAction) {
-        currentAction.fadeOut(fadeDuration);
-      }
-      currentAction = targetAction;
+    else if (moveLeft && !moveForward && !moveBackward && !moveRight) {
+      targetAction = runningLeftAction;
     }
-  } else {
-    // Check for idle state if not moving
+    else if (moveRight && !moveForward && !moveBackward && !moveLeft) {
+      targetAction = runningRightAction;
+    }
+
+    // Crossfade to the appropriate movement animation if it's different from the current one
+  if (currentAction !== targetAction) {
+    crossfadeAction(currentAction, targetAction, fadeDuration);
+    currentAction = targetAction; // Update current action to the new one
+  }
+}else {
+    // Check if the player should transition to the idle animation
     checkIdleState();
   }
-
 
   // Reset isJumping flag if the player has landed (velocity in the Y direction is near 0)
   if (

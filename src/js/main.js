@@ -559,14 +559,19 @@ function crossfadeAction(fromAction, toAction, duration) {
     if (toAction == jumpAction) {
       console.log("imhere");
       jumpAction.setLoop(THREE.LoopOnce); // Make jumpAction play only once
-      jumpAction.clampWhenFinished = true; // Ensure the animation holds the last frame
+      jumpAction.clamspWhenFinished = true; // Ensure the animation holds the last frame
       jumpAction.enable = false; // Initially, disable it to prevent accidental play
+      toAction.reset().fadeIn(duration).play(); // Fade in the new action
+      fromAction.fadeOut(duration); // Fade out the old action
     }
+    else{
+      toAction.reset().fadeIn(duration).play(); // Fade in the new action
+      fromAction.fadeOut(duration); // Fade out the old action
+    }
+
     if (playerBody.position.y < 0) {
       toAction = fallingAction;
     }
-    toAction.reset().fadeIn(duration).play(); // Fade in the new action
-    fromAction.fadeOut(duration); // Fade out the old action
   }
 }
 function checkIdleState() {
@@ -629,67 +634,37 @@ function updateMovement(delta) {
   const isMoving =
     moveForward || moveBackward || moveLeft || moveRight || isJumping;
 
-  if (isMoving) {
-    // Determine which movement animation to play
-    let targetAction = runningAction;
-    if (moveBackward && !moveForward && !moveLeft && !moveRight) {
-      targetAction = backRunningAction;
+    if (isMoving) {
+      let targetAction = runningAction;
+  
+      // Determine which movement animation to play
+      if (moveBackward && !moveForward && !moveLeft && !moveRight) {
+        targetAction = backRunningAction;
+      }
+      if (moveLeft && !moveForward && !moveBackward && !moveRight) {
+        targetAction = runningLeftAction;
+      }
+      if (moveRight && !moveForward && !moveBackward && !moveLeft) {
+        targetAction = runningRightAction;
+      }
+      if (playerBody.position.y < 0 && (moveRight || moveForward || moveBackward || moveLeft)) {
+        targetAction = fallingAction;
+      }
+  
+      // Always prioritize jumpAction if space bar is pressed
+      if (isJumping) {
+        targetAction = jumpAction;
+      }
+  
+      // Crossfade to the appropriate movement animation if it's different from the current one
+      if (currentAction !== targetAction) {
+        crossfadeAction(currentAction, targetAction, fadeDuration);
+        currentAction = targetAction; // Update current action to the new one
+      }
+    } else {
+      // Check if the player should transition to the idle animation
+      checkIdleState();
     }
-    if (moveLeft && !moveForward && !moveBackward && !moveRight) {
-      targetAction = runningLeftAction;
-    }
-    if (moveRight && !moveForward && !moveBackward && !moveLeft) {
-      targetAction = runningRightAction;
-    }
-    if (isJumping && !moveForward && !moveBackward && !moveLeft && !moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveForward && !moveBackward && !moveLeft && !moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveBackward && !moveForward && !moveLeft && !moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveLeft && !moveForward && !moveBackward && !moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && !moveForward && !moveBackward && !moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveForward && moveBackward && moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && !moveForward && !moveBackward && moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && !moveForward && moveBackward && moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveForward && !moveBackward && !moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveForward && !moveBackward && moveLeft && !moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && !moveForward && moveBackward && moveLeft && !moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && !moveForward && moveBackward && !moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveForward && !moveBackward && moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-
-    // Crossfade to the appropriate movement animation if it's different from the current one
-    if (currentAction !== targetAction) {
-      crossfadeAction(currentAction, targetAction, fadeDuration);
-      currentAction = targetAction; // Update current action to the new one
-    }
-  } else {
-    // Check if the player should transition to the idle animation
-    checkIdleState();
-  }
 
   // Normalize and apply movement
   if (moveDirection.length() > 0) {

@@ -739,6 +739,8 @@ function jump() {
       jumpSound.play();
     });
     playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
+    crossfadeAction(currentAction, jumpAction, fadeDuration);
+    currentAction = jumpAction;
     const jumpland = new THREE.Audio(listener);
     audioLoader.load(Pjumpland, function (buffer) {
       jumpland.setBuffer(buffer);
@@ -852,7 +854,7 @@ function updateMovement(delta) {
     }
 
     // Crossfade to the appropriate movement animation if it's different from the current one
-    if (currentAction !== targetAction) {
+    if (currentAction !== targetAction && targetAction != jumpAction) {
       crossfadeAction(currentAction, targetAction, fadeDuration);
       currentAction = targetAction; // Update current action to the new one
     }

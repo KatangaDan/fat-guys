@@ -146,6 +146,8 @@ async function init() {
 
       await createGroundPiece(0, 0, 490, 60, 260);
 
+      //await initFinishLine();
+
       console.log("Game initialized successfully!");
 
       resolve();
@@ -171,8 +173,35 @@ async function initAudio() {
   });
 }
 
-async function initFinishLine(){
+async function initFinishLine() {
+  return new Promise((resolve, reject) => {
+    const textureLoader = new THREE.TextureLoader();
 
+    textureLoader.load(
+      finish,
+      (texture) => {
+        const finishLineGeometry = new THREE.BoxGeometry(6, 0.1, 1);
+        const finishLineMaterial = new THREE.MeshStandardMaterial({
+          map: texture,
+        });
+        const finishLine = new THREE.Mesh(
+          finishLineGeometry,
+          finishLineMaterial
+        );
+        finishLine.position.set(0, 0.5, 0);
+        finishLine.scale.x = 10;
+        finishLine.scale.z = 10;
+        scene.add(finishLine);
+
+        resolve();
+      },
+      undefined, // onProgress callback (optional)
+      (error) => {
+        console.error("Error loading texture:", error);
+        reject(error);
+      }
+    );
+  });
 }
 
 // //Variables for die particles
@@ -213,9 +242,9 @@ function die() {
   }
 
   //Hide the player model
-  model.visible = false;
+  // model.visible = false;
 
-  playerBody.visible = false;
+  // playerBody.visible = false;
 
   // // Create a bunch of NEW particles at the player's position and make them fly outwards
   // dieParticles = new THREE.BufferGeometry();
@@ -1854,9 +1883,9 @@ function animate() {
     updateCamera();
   }
 
-  if (dieParticles) {
-    updateParticles();
-  }
+  // if (dieParticles) {
+  //   updateParticles();
+  // }
 
   //Animate the gates
   animateGates(deltaTime);

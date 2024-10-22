@@ -18,6 +18,10 @@ import {
 import finish from "../img/finish.jpg";
 import basicBg from "../img/sky.jpg";
 import groundTexture from "../img/stoleItLol.jpg";
+import PbackGroundMusic from "../sounds/backGroundMusic.mp3"
+import PjumpSound from "../sounds/jumpSound.wav"
+import Pjumpland from "../sounds/jumpland.wav"
+import Phitsound from "../sounds/hit.wav"
 
 //Global variables
 let scene,
@@ -91,7 +95,18 @@ const turnSpeed = 0.2; // for rotation
 //Jumping flag
 let isJumping = false;
 
+//Audio Setup
+const listener = new THREE.AudioListener();
+const audioLoader = new THREE.AudioLoader();
+
 function init() {
+  const backGroundMusic = new THREE.Audio(listener);
+  audioLoader.load(PbackGroundMusic, function(buffer) {
+    backGroundMusic.setBuffer(buffer);
+    backGroundMusic.setLoop(true);
+    backGroundMusic.setVolume(0.4);
+    backGroundMusic.play();
+  });
   initStats();
   initScene();
   initLighting();
@@ -134,6 +149,13 @@ function init() {
 }
 
 function die() {
+  const hitsound = new THREE.Audio(listener);
+  audioLoader.load(Phitsound, function(buffer) {
+    hitsound.setBuffer(buffer);
+    hitsound.setLoop(false);
+    hitsound.setVolume(1);
+    hitsound.play();
+  });
   if (playerBody.position.z < 210) {
     playerBody.position.set(0, 10, 10);
   }
@@ -198,6 +220,7 @@ function initScene() {
     0.1, // Min distance objects are rendered
     1000 //Max distance objects are rendered
   );
+  camera.add(listener);
 
   //Set camera position
   camera.position.set(0, 0, 0);
@@ -550,7 +573,21 @@ function jump() {
   // Check if the player is grounded and if they are , allow them to jump
   if (startingY < 0.1) {
     isJumping = true;
+    const jumpSound = new THREE.Audio(listener);
+    audioLoader.load(PjumpSound, function(buffer) {
+      jumpSound.setBuffer(buffer);
+      jumpSound.setLoop(false);
+      jumpSound.setVolume(1);
+      jumpSound.play();
+    });
     playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
+    const jumpland = new THREE.Audio(listener);
+    audioLoader.load(Pjumpland, function(buffer) {
+      jumpland.setBuffer(buffer);
+      jumpland.setLoop(false);
+      jumpland.setVolume(1);
+      jumpland.play();
+    });
   }
 }
 

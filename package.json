@@ -7,6 +7,16 @@
     "three": "^0.168.0"
   },
   "devDependencies": {
-    "vite": "^5.4.8"
-  }
+    "vite": "^5.4.9"
+  },
+  "name": "fat-guys",
+  "description": "2024 CGV Project",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

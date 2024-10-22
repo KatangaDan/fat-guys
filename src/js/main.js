@@ -18,6 +18,10 @@ import {
 import finish from "../img/finish.jpg";
 import basicBg from "../img/sky.jpg";
 import groundTexture from "../img/stoleItLol.jpg";
+import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
+import PjumpSound from "../sounds/jumpSound.wav";
+import Pjumpland from "../sounds/jumpland.wav";
+import Phitsound from "../sounds/hit.wav";
 
 //Global variables
 let scene,
@@ -91,7 +95,18 @@ const turnSpeed = 0.2; // for rotation
 //Jumping flag
 let isJumping = false;
 
+//Audio Setup
+const listener = new THREE.AudioListener();
+const audioLoader = new THREE.AudioLoader();
+
 async function init() {
+  const backGroundMusic = new THREE.Audio(listener);
+  audioLoader.load(PbackGroundMusic, function (buffer) {
+    backGroundMusic.setBuffer(buffer);
+    backGroundMusic.setLoop(true);
+    backGroundMusic.setVolume(0.4);
+    backGroundMusic.play();
+  });
   return new Promise(async (resolve, reject) => {
     try {
       await initStats();
@@ -142,6 +157,13 @@ async function init() {
 }
 
 function die() {
+  const hitsound = new THREE.Audio(listener);
+  audioLoader.load(Phitsound, function (buffer) {
+    hitsound.setBuffer(buffer);
+    hitsound.setLoop(false);
+    hitsound.setVolume(1);
+    hitsound.play();
+  });
   if (playerBody.position.z < 210) {
     playerBody.position.set(0, 10, 10);
   }
@@ -214,6 +236,7 @@ async function initScene() {
       0.1, // Min distance objects are rendered
       1000 //Max distance objects are rendered
     );
+    camera.add(listener);
 
     //Set camera position
     camera.position.set(0, 0, 0);
@@ -586,7 +609,21 @@ function jump() {
   // Check if the player is grounded and if they are , allow them to jump
   if (startingY < 0.1) {
     isJumping = true;
+    const jumpSound = new THREE.Audio(listener);
+    audioLoader.load(PjumpSound, function (buffer) {
+      jumpSound.setBuffer(buffer);
+      jumpSound.setLoop(false);
+      jumpSound.setVolume(1);
+      jumpSound.play();
+    });
     playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
+    const jumpland = new THREE.Audio(listener);
+    audioLoader.load(Pjumpland, function (buffer) {
+      jumpland.setBuffer(buffer);
+      jumpland.setLoop(false);
+      jumpland.setVolume(1);
+      jumpland.play();
+    });
   }
 }
 
@@ -595,14 +632,18 @@ function crossfadeAction(fromAction, toAction, duration) {
     if (toAction == jumpAction) {
       console.log("imhere");
       jumpAction.setLoop(THREE.LoopOnce); // Make jumpAction play only once
-      jumpAction.clampWhenFinished = true; // Ensure the animation holds the last frame
+      jumpAction.clamspWhenFinished = true; // Ensure the animation holds the last frame
       jumpAction.enable = false; // Initially, disable it to prevent accidental play
+      toAction.reset().fadeIn(duration).play(); // Fade in the new action
+      fromAction.fadeOut(duration); // Fade out the old action
+    } else {
+      toAction.reset().fadeIn(duration).play(); // Fade in the new action
+      fromAction.fadeOut(duration); // Fade out the old action
     }
+
     if (playerBody.position.y < 0) {
       toAction = fallingAction;
     }
-    toAction.reset().fadeIn(duration).play(); // Fade in the new action
-    fromAction.fadeOut(duration); // Fade out the old action
   }
 }
 function checkIdleState() {
@@ -666,8 +707,9 @@ function updateMovement(delta) {
     moveForward || moveBackward || moveLeft || moveRight || isJumping;
 
   if (isMoving) {
-    // Determine which movement animation to play
     let targetAction = runningAction;
+
+    // Determine which movement animation to play
     if (moveBackward && !moveForward && !moveLeft && !moveRight) {
       targetAction = backRunningAction;
     }
@@ -677,43 +719,15 @@ function updateMovement(delta) {
     if (moveRight && !moveForward && !moveBackward && !moveLeft) {
       targetAction = runningRightAction;
     }
-    if (isJumping && !moveForward && !moveBackward && !moveLeft && !moveRight) {
-      targetAction = jumpAction;
+    if (
+      playerBody.position.y < 0 &&
+      (moveRight || moveForward || moveBackward || moveLeft)
+    ) {
+      targetAction = fallingAction;
     }
-    if (isJumping && moveForward && !moveBackward && !moveLeft && !moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveBackward && !moveForward && !moveLeft && !moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveLeft && !moveForward && !moveBackward && !moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && !moveForward && !moveBackward && !moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveForward && moveBackward && moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && !moveForward && !moveBackward && moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && !moveForward && moveBackward && moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveForward && !moveBackward && !moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveForward && !moveBackward && moveLeft && !moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && !moveForward && moveBackward && moveLeft && !moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && !moveForward && moveBackward && !moveLeft && moveRight) {
-      targetAction = jumpAction;
-    }
-    if (isJumping && moveForward && !moveBackward && moveLeft && moveRight) {
+
+    // Always prioritize jumpAction if space bar is pressed
+    if (isJumping) {
       targetAction = jumpAction;
     }
 
@@ -722,14 +736,6 @@ function updateMovement(delta) {
       crossfadeAction(currentAction, targetAction, fadeDuration);
       currentAction = targetAction; // Update current action to the new one
     }
-
-    const targetRotation = Math.atan2(moveDirection.x, moveDirection.z);
-
-    // // Create a quaternion for the target rotation
-    playerBody.quaternion.setFromAxisAngle(
-      new CANNON.Vec3(0, 1, 0),
-      targetRotation
-    );
   } else {
     // Check if the player should transition to the idle animation
     checkIdleState();

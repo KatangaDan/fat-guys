@@ -1023,9 +1023,9 @@ async function initGateObstacles() {
     );
 
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, 15, 0, 148.5, 1, 6));
+    cylinders.push(await createCylinder(scene, 30, 0, 148.5, 1, 6));
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, -15, 0, 158, 1, 6));
+    cylinders.push(await createCylinder(scene, -30, 0, 158, 1, 6));
 
     // Moving gates between pillar 5 and 6
     gates.push(
@@ -1196,14 +1196,14 @@ async function initGateObstacles() {
     );
 
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, 29, 0, 198.5, 1, 6));
+    cylinders.push(await createCylinder(scene, 30, 0, 198.5, 1, 6));
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, -29, 0, 198.5, 1, 6));
+    cylinders.push(await createCylinder(scene, -30, 0, 198.5, 1, 6));
 
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, 12, 0, 208.5, 1, 6));
+    cylinders.push(await createCylinder(scene, 20, 0, 208.5, 1, 6));
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, -12, 0, 208.5, 1, 6));
+    cylinders.push(await createCylinder(scene, -15, 0, 208.5, 1, 6));
 
     AddVisualGateHelpers();
     AddVisualCylinderHelpers();
@@ -1547,6 +1547,7 @@ function animate() {
       playerBody.quaternion.w
     );
 
+    //checking for falling
     if (playerBody.position.y < 0) {
       //console.log("Transitioning to falling");
       crossfadeAction(currentAction, fallingAction, fadeDuration);
@@ -1566,8 +1567,15 @@ function animate() {
     const worldOffset = modelCenterOffset.clone();
     worldOffset.applyQuaternion(playerBody.quaternion); // Transform offset by current rotation
 
-    model.position.copy(playerBody.position).add(worldOffset);
-
+    // check if player is currently in idling animation
+    if (currentAction === idleAction) {
+      // Update the position of the model based on the physics body (update each component separately)
+      model.position.x = playerBody.position.x + worldOffset.x;
+      model.position.y = playerBody.position.y + worldOffset.y - 0.5;
+      model.position.z = playerBody.position.z + worldOffset.z;
+    } else {
+      model.position.copy(playerBody.position).add(worldOffset);
+    }
     /*Actual bounding boxes for the player and obstacles*/
 
     //player bounding box

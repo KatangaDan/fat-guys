@@ -422,7 +422,11 @@ async function initScene() {
 }
 
 function checkForWin() {
-  if (playerBody.position.z > 487 && playerBody.position.y > 0) {
+  if (
+    playerBody.position.z > 487 &&
+    playerBody.position.y > 0 &&
+    gameWon == false
+  ) {
     gameWon = true;
     console.log("You win!");
     showWinScreen(elapsedTime);
@@ -2174,6 +2178,11 @@ function showWinScreen(elapsedTime) {
 }
 
 function generateBestTime() {
+  //clear the best time container
+  if (document.getElementById("best-time")) {
+    document.getElementById("best-time").remove();
+  }
+
   const bestTimeContainer = document.createElement("div");
   bestTimeContainer.id = "best-time";
 
@@ -2236,6 +2245,13 @@ async function startGame() {
 
       //restart timer
       resetTimer();
+
+      currentLives = 3;
+      generateHearts(currentLives);
+
+      gameWon = false;
+
+      generateBestTime();
     });
 
     //Add event listener to the start button

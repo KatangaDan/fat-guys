@@ -167,7 +167,7 @@ async function initAudio() {
     audioLoader.load(PbackGroundMusic, function (buffer) {
       backGroundMusic.setBuffer(buffer);
       backGroundMusic.setLoop(true);
-      backGroundMusic.setVolume(0.4);
+      backGroundMusic.setVolume(0.2);
       backGroundMusic.play();
 
       resolve();
@@ -609,7 +609,7 @@ async function initPlayer() {
 
         // Create a helper to visualize the player's bounding box
         playerHelper = new THREE.BoxHelper(model, "red"); // Red box around object1
-        scene.add(playerHelper);
+        //scene.add(playerHelper);
 
         resolve();
       },
@@ -1421,12 +1421,12 @@ function addVisualRodHelpers() {
   rods.forEach((rod) => {
     const helper = new THREE.BoxHelper(rod, "blue");
     rodsHelpers.push(helper);
-    scene.add(helper);
+    //scene.add(helper);
   });
   rodsZ.forEach((rod) => {
     const helper = new THREE.BoxHelper(rod, "blue");
     rodsZHelpers.push(helper);
-    scene.add(helper);
+    //scene.add(helper);
   });
 }
 
@@ -1514,7 +1514,7 @@ function AddVisualGateHelpers() {
   gates.forEach((gate) => {
     const helper = new THREE.BoxHelper(gate, "blue");
     gateHelpers.push(helper);
-    scene.add(helper);
+    //scene.add(helper);
   });
 }
 
@@ -1523,7 +1523,7 @@ function AddVisualCylinderHelpers() {
   cylinders.forEach((cylinder) => {
     const helper = new THREE.BoxHelper(cylinder, "blue");
     cylinderHelpers.push(helper);
-    scene.add(helper);
+    //scene.add(helper);
   });
 }
 
@@ -1926,6 +1926,8 @@ function animate() {
 }
 
 // Create a function to show the loading screen
+let loadingAnimationInterval;
+
 function showLoadingScreen() {
   const loadingScreen = document.createElement("div");
   loadingScreen.id = "loading-screen";
@@ -1941,18 +1943,30 @@ function showLoadingScreen() {
   loadingScreen.style.zIndex = "9999";
 
   const loadingText = document.createElement("h1");
-  loadingText.textContent = "Loading...";
+  loadingText.textContent = "Loading";
   loadingText.style.color = "white";
 
   loadingScreen.appendChild(loadingText);
   document.body.appendChild(loadingScreen);
+
+  // Start the loading animation
+  let dots = "";
+  loadingAnimationInterval = setInterval(() => {
+    if (dots.length < 3) {
+      dots += ".";
+    } else {
+      dots = ""; // Reset the dots after reaching 3
+    }
+    loadingText.textContent = `Loading${dots}`; // Update the loading text
+  }, 200); // Adjust the interval duration as needed
 }
 
-// Create a function to hide the loading screen
+// Function to hide the loading screen
 function hideLoadingScreen() {
+  clearInterval(loadingAnimationInterval); // Clear the animation interval
   const loadingScreen = document.getElementById("loading-screen");
   if (loadingScreen) {
-    loadingScreen.remove();
+    document.body.removeChild(loadingScreen);
   }
 }
 
@@ -2020,12 +2034,17 @@ function toggleMenu() {
     //if win and congration message is displayed, hide it
     const winMessage = document.getElementById("winMessage");
     const congratsMessage = document.getElementById("congratsMessage");
+    const bestTimeMessage = document.getElementById("bestTimeMessage");
+
     if (winMessage) {
       winMessage.remove();
     }
 
     if (congratsMessage) {
       congratsMessage.remove();
+    }
+    if (bestTimeMessage) {
+      bestTimeMessage.remove();
     }
 
     gameMenu.style.display = "block";
@@ -2069,6 +2088,26 @@ function showWinScreen(elapsedTime) {
   congratsMessage.textContent = "Congratulations!";
   winMessage.appendChild(congratsMessage);
 
+  //store elapsed time in local storage as best time
+  let bestTime = localStorage.getItem("bestTime");
+
+  if (!bestTime) {
+    localStorage.setItem("bestTime", elapsedTime);
+    bestTime = localStorage.getItem("bestTime");
+  }
+
+  // Create a best time message
+  const bestTimeMessage = document.createElement("p");
+  bestTimeMessage.id = "bestTimeMessage";
+  bestTimeMessage.textContent = `Best Time: ${bestTime} seconds`; // Show the best time
+  winMessage.appendChild(bestTimeMessage);
+
+  //new best time
+  if (elapsedTime <= bestTime) {
+    localStorage.setItem("bestTime", elapsedTime);
+    congratsMessage.textContent = "Congratulations! New Best Time!";
+  }
+
   // Create the final time message
   const finalTime = document.createElement("p");
   finalTime.textContent = `Your time: ${elapsedTime.toFixed(3)} seconds`; // Show the final time
@@ -2076,6 +2115,34 @@ function showWinScreen(elapsedTime) {
 
   // Append the win message to the game menu
   gameMenu.appendChild(winMessage);
+}
+
+function generateBestTime() {
+  const bestTimeContainer = document.createElement("div");
+  bestTimeContainer.id = "best-time";
+
+  // Style the best time container
+  bestTimeContainer.style.position = "fixed";
+  bestTimeContainer.style.top = "50px"; // Adjust to position it below the timer
+  bestTimeContainer.style.right = "10px"; // Same right alignment as the timer
+  bestTimeContainer.style.color = "white"; // Text color
+  bestTimeContainer.style.fontSize = "20px"; // Font size
+  bestTimeContainer.style.zIndex = "10000"; // Higher than other game elements
+
+  // Retrieve the best time from localStorage
+  let bestTime = localStorage.getItem("bestTime");
+
+  // Format the display message
+  if (bestTime) {
+    bestTimeContainer.textContent = `Best Time: ${parseFloat(bestTime).toFixed(
+      3
+    )} s`; // Show best time formatted to 3 decimal places
+  } else {
+    bestTimeContainer.textContent = "Best Time: N/A"; // Default message if no best time
+  }
+
+  // Append the best time container to the body
+  document.body.appendChild(bestTimeContainer);
 }
 
 // Example reset function (you need to implement the actual logic)
@@ -2125,6 +2192,8 @@ async function startGame() {
       hideLoadingScreen();
       createHeartsContainer();
       generateHearts(3);
+      generateBestTime();
+
       renderer.setAnimationLoop(animate);
 
       //Add pause event listener

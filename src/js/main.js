@@ -54,7 +54,8 @@ let scene,
   elapsedTime = 0,
   timerRunning = false,
   previousTimestamp = 0,
-  currentLives = 3;
+  currentLives = 3,
+  gameWon = false;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -434,13 +435,7 @@ async function initScene() {
 
 function checkForWin() {
   if (playerBody.position.z > 487 && playerBody.position.y > 0) {
-    const winSound = new THREE.Audio(listener);
-    audioLoader.load(Pwinsound, function (buffer) {
-      winSound.setBuffer(buffer);
-      winSound.setLoop(false);
-      winSound.setVolume(1);
-      winSound.play();
-    });
+    gameWon = true;
     console.log("You win!");
     showWinScreen(elapsedTime);
     //Stop the timer

@@ -47,7 +47,11 @@ let scene,
   modelCenterOffset,
   stats,
   cameraGoal,
-  isFirstPerson = false;
+  isFirstPerson = false,
+  startTime = 0,
+  elapsedTime = 0,
+  timerRunning = false,
+  previousTimestamp = 0;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -100,15 +104,9 @@ const listener = new THREE.AudioListener();
 const audioLoader = new THREE.AudioLoader();
 
 async function init() {
-  const backGroundMusic = new THREE.Audio(listener);
-  audioLoader.load(PbackGroundMusic, function (buffer) {
-    backGroundMusic.setBuffer(buffer);
-    backGroundMusic.setLoop(true);
-    backGroundMusic.setVolume(0.4);
-    backGroundMusic.play();
-  });
   return new Promise(async (resolve, reject) => {
     try {
+      console.log("Initializing the game...");
       await initStats();
       await initScene();
       await initLighting();
@@ -116,8 +114,10 @@ async function init() {
       await initPhysics();
       await initPlayer();
       await initEventListeners();
-      await createGroundPiece(0, 0, 0, 60, 260);
+      await initAudio();
 
+      console.log("Creating obstacles + particles...");
+      await createGroundPiece(0, 0, 0, 60, 260);
       //Init particle background system
       await initBackgroundParticleSystem();
 
@@ -125,7 +125,6 @@ async function init() {
       await initGateObstacles();
 
       //Ground pieces for second set of obstacles
-
       await createGroundPiece(0, 0, 290, 10, 10);
       await createGroundPiece(-29, 0, 275, 10, 10);
       await createGroundPiece(29, 0, 275, 10, 10);
@@ -147,6 +146,8 @@ async function init() {
 
       await createGroundPiece(0, 0, 490, 60, 260);
 
+      console.log("Game initialized successfully!");
+
       resolve();
       // initFanObstacles();
     } catch (error) {
@@ -156,6 +157,42 @@ async function init() {
   });
 }
 
+async function initAudio() {
+  return new Promise((resolve) => {
+    const backGroundMusic = new THREE.Audio(listener);
+    audioLoader.load(PbackGroundMusic, function (buffer) {
+      backGroundMusic.setBuffer(buffer);
+      backGroundMusic.setLoop(true);
+      backGroundMusic.setVolume(0.4);
+      backGroundMusic.play();
+
+      resolve();
+    });
+  });
+}
+
+async function initFinishLine(){
+
+}
+
+// //Variables for die particles
+// let dieParticles;
+// let diePositions;
+// let dieVelocities;
+
+// // Update function to move particles over time (using velocities)
+// function updateParticles() {
+//   const positions = dieParticles.attributes.position.array;
+
+//   for (let i = 0; i < particleCount; i++) {
+//     diePositions[i * 3] += dieVelocities[i * 3]; // X position
+//     diePositions[i * 3 + 1] += dieVelocities[i * 3 + 1]; // Y position
+//     diePositions[i * 3 + 2] += dieVelocities[i * 3 + 2]; // Z position (positive spread)
+//   }
+
+//   dieParticles.attributes.position.needsUpdate = true; // Mark the position attribute as needing an update
+// }
+
 function die() {
   const hitsound = new THREE.Audio(listener);
   audioLoader.load(Phitsound, function (buffer) {
@@ -164,13 +201,59 @@ function die() {
     hitsound.setVolume(1);
     hitsound.play();
   });
+
   if (playerBody.position.z < 210) {
     playerBody.position.set(0, 10, 10);
+    //reset timer
+    resetTimer();
   }
 
   if (playerBody.position.z > 210) {
     playerBody.position.set(0, 10, 230);
   }
+
+  //Hide the player model
+  model.visible = false;
+
+  playerBody.visible = false;
+
+  // // Create a bunch of NEW particles at the player's position and make them fly outwards
+  // dieParticles = new THREE.BufferGeometry();
+  // diePositions = new Float32Array(particleCount * 3);
+  // dieVelocities = new Float32Array(particleCount * 3);
+
+  // for (let i = 0; i < particleCount; i++) {
+  //   // Set initial positions to the player's position
+  //   diePositions[i * 3] = playerBody.position.x;
+  //   diePositions[i * 3 + 1] = playerBody.position.y;
+  //   diePositions[i * 3 + 2] = playerBody.position.z;
+
+  //   // Randomize velocities for spread
+  //   dieVelocities[i * 3] = (Math.random() - 0.5) * 0.1; // X velocity (random spread)
+  //   dieVelocities[i * 3 + 1] = (Math.random() - 0.5) * 0.1; // Y velocity (random spread)
+
+  //   // Ensure positive spread in Z direction
+  //   dieVelocities[i * 3 + 2] = Math.random() * 0.2; // Positive Z direction only
+  // }
+
+  // dieParticles.setAttribute(
+  //   "position",
+  //   new THREE.BufferAttribute(diePositions, 3)
+  // );
+
+  // const particleMaterial = new THREE.PointsMaterial({
+  //   color: "red",
+  //   size: 0.35,
+  //   transparent: true,
+  //   opacity: 0.65,
+  //   blending: THREE.AdditiveBlending,
+  //   depthTest: true,
+  //   sizeAttenuation: true,
+  //   fog: true,
+  // });
+
+  // const particleSystem = new THREE.Points(dieParticles, particleMaterial);
+  // scene.add(particleSystem);
 }
 
 async function initBackgroundParticleSystem() {
@@ -1022,9 +1105,9 @@ async function initGateObstacles() {
     );
 
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, 15, 0, 148.5, 1, 6));
+    cylinders.push(await createCylinder(scene, 30, 0, 148.5, 1, 6));
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, -15, 0, 158, 1, 6));
+    cylinders.push(await createCylinder(scene, -30, 0, 158, 1, 6));
 
     // Moving gates between pillar 5 and 6
     gates.push(
@@ -1195,14 +1278,14 @@ async function initGateObstacles() {
     );
 
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, 29, 0, 198.5, 1, 6));
+    cylinders.push(await createCylinder(scene, 30, 0, 198.5, 1, 6));
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, -29, 0, 198.5, 1, 6));
+    cylinders.push(await createCylinder(scene, -30, 0, 198.5, 1, 6));
 
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, 12, 0, 208.5, 1, 6));
+    cylinders.push(await createCylinder(scene, 20, 0, 208.5, 1, 6));
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, -12, 0, 208.5, 1, 6));
+    cylinders.push(await createCylinder(scene, -15, 0, 208.5, 1, 6));
 
     AddVisualGateHelpers();
     AddVisualCylinderHelpers();
@@ -1524,11 +1607,84 @@ function updateCamera() {
     camera.rotateX(cameraRotation.x);
   }
 }
+// Start game timer
+function startGameTimer() {
+  startTime = Date.now(); // Get the current timestamp in milliseconds
+  elapsedTime = 0; // Reset elapsed time
+  timerRunning = true;
+  updateTimerDisplay(0);
+  // Start the interval to update the timer every 100 ms (or your desired interval)
+  // timerInterval = setInterval(updateTimer, 100);
+}
 
-//Bounding boxes
+// Update game timer
+function updateTimer() {
+  if (!timerRunning) return;
 
+  const currentTime = Date.now(); // Get the current timestamp in milliseconds
+  // Calculate the time elapsed since the timer started
+  elapsedTime = currentTime - startTime;
+
+  // Update the display
+  updateTimerDisplay(elapsedTime);
+}
+
+// Create a function to show the timer
+function showTimer() {
+  const timer = document.createElement("div");
+  timer.id = "game-timer";
+
+  // Style the timer
+  timer.style.position = "fixed";
+  timer.style.top = "10px";
+  timer.style.right = "10px";
+  timer.style.color = "white";
+  timer.style.padding = "10px";
+  timer.style.borderRadius = "5px";
+  timer.style.fontSize = "24px";
+  timer.style.zIndex = "10000"; // Higher than other game elements
+
+  // Initial timer content
+  timer.textContent = "0.000 s";
+
+  document.body.appendChild(timer);
+}
+
+// Update the timer display
+function updateTimerDisplay(timeInMs) {
+  const timer = document.getElementById("game-timer");
+  if (timer) {
+    const seconds = Math.max(0, timeInMs / 1000).toFixed(1); // Ensure we never show negative time
+    timer.textContent = seconds + " s";
+  }
+}
+
+// Reset timer function (useful for restarts)
+function resetTimer() {
+  startTime = Date.now(); // Get the current timestamp in milliseconds
+  elapsedTime = 0; // Reset elapsed time
+  timerRunning = true;
+  updateTimerDisplay(0);
+}
+
+//display game timer
+let frame = 0;
 function animate() {
+  //console.log("Frame:", frame);
+  frame++;
+
+  //start timer on 2nd frame because theres a big time difference between the first frame and the second frame
+  if (frame === 2) {
+    startGameTimer();
+    //showTimer;
+  }
+
   stats.begin();
+
+  // update the game timer
+  updateTimer();
+  //console.log("elapsedTime", elapsedTime);
+
   // Update the physics world on every frame
   const deltaTime = clock.getDelta();
   world.step(1 / 60, deltaTime, 10);
@@ -1546,6 +1702,7 @@ function animate() {
       playerBody.quaternion.w
     );
 
+    //checking for falling
     if (playerBody.position.y < 0) {
       //console.log("Transitioning to falling");
       crossfadeAction(currentAction, fallingAction, fadeDuration);
@@ -1565,8 +1722,15 @@ function animate() {
     const worldOffset = modelCenterOffset.clone();
     worldOffset.applyQuaternion(playerBody.quaternion); // Transform offset by current rotation
 
-    model.position.copy(playerBody.position).add(worldOffset);
-
+    // check if player is currently in idling animation
+    if (currentAction === idleAction) {
+      // Update the position of the model based on the physics body (update each component separately)
+      model.position.x = playerBody.position.x + worldOffset.x;
+      model.position.y = playerBody.position.y + worldOffset.y - 0.5;
+      model.position.z = playerBody.position.z + worldOffset.z;
+    } else {
+      model.position.copy(playerBody.position).add(worldOffset);
+    }
     /*Actual bounding boxes for the player and obstacles*/
 
     //player bounding box
@@ -1689,6 +1853,10 @@ function animate() {
     updateCamera();
   }
 
+  // if (dieParticles) {
+  //   updateParticles();
+  // }
+
   //Animate the gates
   animateGates(deltaTime);
   animateCylinders(deltaTime);
@@ -1742,18 +1910,73 @@ function hideGameMenu() {
   document.getElementById("gameMenu").style.display = "none";
 }
 
+function toggleMenu() {
+  const gameMenu = document.getElementById("gameMenu");
+  if (gameMenu.style.display === "block") {
+    gameMenu.style.display = "none";
+
+    // unpauseGame();
+  } else {
+    const resumeButton = document.getElementById("resumeButton");
+    const startButton = document.getElementById("startButton");
+    const restartButton = document.getElementById("restartButton");
+
+    startButton.style.display = "none";
+    resumeButton.style.display = "block";
+    restartButton.style.display = "block";
+
+    gameMenu.style.display = "block";
+
+    // pauseGame();
+  }
+}
+
 //Main function to start the game
 async function startGame() {
   try {
     let startButton = document.getElementById("startButton");
+    let resumeButton = document.getElementById("resumeButton");
+    let restartButton = document.getElementById("restartButton");
+
+    //Add event listener to the resume button
+    resumeButton.addEventListener("click", () => {
+      toggleMenu();
+      //Add pointer lock to the document
+      document.body.requestPointerLock();
+
+      // unpauseGame();
+    });
+
+    //Add event listener to the restart button
+    restartButton.addEventListener("click", () => {
+      // window.location.reload();
+      toggleMenu();
+
+      //Respawn the player(make it a function cause timer needs to be reset, etc)
+      playerBody.position.set(0, 10, 10);
+
+      //restart timer
+      resetTimer();
+    });
 
     //Add event listener to the start button
     startButton.addEventListener("click", async () => {
       showLoadingScreen();
       hideGameMenu();
-      init().then(() => {
-        hideLoadingScreen();
-        renderer.setAnimationLoop(animate);
+      await init();
+      //startGameTimer();
+      showTimer();
+      hideLoadingScreen();
+
+      renderer.setAnimationLoop(animate);
+
+      //Add pause event listener
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "P" || event.key === "p") {
+          toggleMenu();
+
+          document.exitPointerLock();
+        }
       });
     });
   } catch (error) {

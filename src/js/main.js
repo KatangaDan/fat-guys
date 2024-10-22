@@ -225,6 +225,14 @@ async function initFinishLine() {
 // }
 
 function die() {
+  const hitsound = new THREE.Audio(listener);
+  audioLoader.load(Phitsound, function (buffer) {
+    hitsound.setBuffer(buffer);
+    hitsound.setLoop(false);
+    hitsound.setVolume(1);
+    hitsound.play();
+  });
+
   currentLives--;
 
   //true death
@@ -238,14 +246,6 @@ function die() {
   }
 
   generateHearts(currentLives);
-
-  const hitsound = new THREE.Audio(listener);
-  audioLoader.load(Phitsound, function (buffer) {
-    hitsound.setBuffer(buffer);
-    hitsound.setLoop(false);
-    hitsound.setVolume(1);
-    hitsound.play();
-  });
 
   if (playerBody.position.z < 210) {
     playerBody.position.set(0, 10, 10);

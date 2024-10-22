@@ -175,6 +175,24 @@ async function initFinishLine(){
 
 }
 
+// //Variables for die particles
+// let dieParticles;
+// let diePositions;
+// let dieVelocities;
+
+// // Update function to move particles over time (using velocities)
+// function updateParticles() {
+//   const positions = dieParticles.attributes.position.array;
+
+//   for (let i = 0; i < particleCount; i++) {
+//     diePositions[i * 3] += dieVelocities[i * 3]; // X position
+//     diePositions[i * 3 + 1] += dieVelocities[i * 3 + 1]; // Y position
+//     diePositions[i * 3 + 2] += dieVelocities[i * 3 + 2]; // Z position (positive spread)
+//   }
+
+//   dieParticles.attributes.position.needsUpdate = true; // Mark the position attribute as needing an update
+// }
+
 function die() {
   const hitsound = new THREE.Audio(listener);
   audioLoader.load(Phitsound, function (buffer) {
@@ -183,6 +201,7 @@ function die() {
     hitsound.setVolume(1);
     hitsound.play();
   });
+
   if (playerBody.position.z < 210) {
     playerBody.position.set(0, 10, 10);
     //reset timer
@@ -192,6 +211,49 @@ function die() {
   if (playerBody.position.z > 210) {
     playerBody.position.set(0, 10, 230);
   }
+
+  //Hide the player model
+  model.visible = false;
+
+  playerBody.visible = false;
+
+  // // Create a bunch of NEW particles at the player's position and make them fly outwards
+  // dieParticles = new THREE.BufferGeometry();
+  // diePositions = new Float32Array(particleCount * 3);
+  // dieVelocities = new Float32Array(particleCount * 3);
+
+  // for (let i = 0; i < particleCount; i++) {
+  //   // Set initial positions to the player's position
+  //   diePositions[i * 3] = playerBody.position.x;
+  //   diePositions[i * 3 + 1] = playerBody.position.y;
+  //   diePositions[i * 3 + 2] = playerBody.position.z;
+
+  //   // Randomize velocities for spread
+  //   dieVelocities[i * 3] = (Math.random() - 0.5) * 0.1; // X velocity (random spread)
+  //   dieVelocities[i * 3 + 1] = (Math.random() - 0.5) * 0.1; // Y velocity (random spread)
+
+  //   // Ensure positive spread in Z direction
+  //   dieVelocities[i * 3 + 2] = Math.random() * 0.2; // Positive Z direction only
+  // }
+
+  // dieParticles.setAttribute(
+  //   "position",
+  //   new THREE.BufferAttribute(diePositions, 3)
+  // );
+
+  // const particleMaterial = new THREE.PointsMaterial({
+  //   color: "red",
+  //   size: 0.35,
+  //   transparent: true,
+  //   opacity: 0.65,
+  //   blending: THREE.AdditiveBlending,
+  //   depthTest: true,
+  //   sizeAttenuation: true,
+  //   fog: true,
+  // });
+
+  // const particleSystem = new THREE.Points(dieParticles, particleMaterial);
+  // scene.add(particleSystem);
 }
 
 async function initBackgroundParticleSystem() {
@@ -1790,6 +1852,10 @@ function animate() {
 
     // Update camera
     updateCamera();
+  }
+
+  if (dieParticles) {
+    updateParticles();
   }
 
   //Animate the gates

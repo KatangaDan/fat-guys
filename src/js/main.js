@@ -17,6 +17,7 @@ import {
 // Import assets
 import finish from "../img/finish.jpg";
 import basicBg from "../img/sky.jpg";
+import heart from "../img/heart.png";
 import groundTexture from "../img/stoleItLol.jpg";
 import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
 import PjumpSound from "../sounds/jumpSound.wav";
@@ -51,7 +52,8 @@ let scene,
   startTime = 0,
   elapsedTime = 0,
   timerRunning = false,
-  previousTimestamp = 0;
+  previousTimestamp = 0,
+  currentLives = 3;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -223,6 +225,20 @@ async function initFinishLine() {
 // }
 
 function die() {
+  currentLives--;
+
+  //true death
+  if (currentLives <= 0) {
+    playerBody.position.set(0, 10, 10);
+    currentLives = 3;
+    generateHearts(currentLives);
+    //reset timer
+    resetTimer();
+    return;
+  }
+
+  generateHearts(currentLives);
+
   const hitsound = new THREE.Audio(listener);
   audioLoader.load(Phitsound, function (buffer) {
     hitsound.setBuffer(buffer);
@@ -233,8 +249,6 @@ function die() {
 
   if (playerBody.position.z < 210) {
     playerBody.position.set(0, 10, 10);
-    //reset timer
-    resetTimer();
   }
 
   if (playerBody.position.z > 210) {
@@ -1950,6 +1964,44 @@ function hideGameMenu() {
   document.getElementById("gameMenu").style.display = "none";
 }
 
+function generateHearts(currentLives) {
+  // Get the container for the hearts
+  const heartsContainer = document.getElementById("hearts-container");
+
+  // Clear existing hearts
+  while (heartsContainer.firstChild) {
+    heartsContainer.removeChild(heartsContainer.firstChild);
+  }
+
+  // Create hearts based on currentLives
+  for (let i = 0; i < currentLives; i++) {
+    const heartImg = document.createElement("img");
+    heartImg.src = heart; // Use the imported heart image
+    heartImg.style.width = "30px"; // Adjust size as needed
+    heartImg.style.marginLeft = "5px"; // Space between hearts
+    heartImg.style.position = "relative";
+    heartImg.style.zIndex = "10001"; // Higher than other game elements
+    heartsContainer.appendChild(heartImg);
+  }
+}
+
+// Create a container for the hearts when the game starts
+function createHeartsContainer() {
+  const heartsContainer = document.createElement("div");
+  heartsContainer.id = "hearts-container";
+  heartsContainer.style.position = "fixed";
+  heartsContainer.style.top = "20px";
+  heartsContainer.style.right = "100px"; // Adjust based on timer position
+  heartsContainer.style.display = "flex";
+  heartsContainer.style.zIndex = "10000"; // Higher than other game elements
+
+  //add a thick border around this container
+  //heartsContainer.style.border = "2px solid white";
+  document.body.appendChild(heartsContainer);
+}
+
+// Example usage: generateHearts(3);
+
 function toggleMenu() {
   const gameMenu = document.getElementById("gameMenu");
   if (gameMenu.style.display === "block") {
@@ -2071,7 +2123,8 @@ async function startGame() {
       //startGameTimer();
       showTimer();
       hideLoadingScreen();
-
+      createHeartsContainer();
+      generateHearts(3);
       renderer.setAnimationLoop(animate);
 
       //Add pause event listener

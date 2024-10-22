@@ -21,6 +21,7 @@ import groundTexture from "../img/stoleItLol.jpg";
 import PbackGroundMusic from "../sounds/backGroundMusic.mp3"
 import PjumpSound from "../sounds/jumpSound.wav"
 import Pjumpland from "../sounds/jumpland.wav"
+import Phitsound from "../sounds/hit.wav"
 
 //Global variables
 let scene,
@@ -148,6 +149,13 @@ function init() {
 }
 
 function die() {
+  const hitsound = new THREE.Audio(listener);
+  audioLoader.load(Phitsound, function(buffer) {
+    hitsound.setBuffer(buffer);
+    hitsound.setLoop(false);
+    hitsound.setVolume(1);
+    hitsound.play();
+  });
   if (playerBody.position.z < 210) {
     playerBody.position.set(0, 10, 10);
   }
@@ -569,7 +577,7 @@ function jump() {
     audioLoader.load(PjumpSound, function(buffer) {
       jumpSound.setBuffer(buffer);
       jumpSound.setLoop(false);
-      jumpSound.setVolume(0.4);
+      jumpSound.setVolume(1);
       jumpSound.play();
     });
     playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
@@ -577,7 +585,7 @@ function jump() {
     audioLoader.load(Pjumpland, function(buffer) {
       jumpland.setBuffer(buffer);
       jumpland.setLoop(false);
-      jumpland.setVolume(0.4);
+      jumpland.setVolume(1);
       jumpland.play();
     });
   }

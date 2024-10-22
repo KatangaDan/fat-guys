@@ -23,6 +23,7 @@ import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
 import PjumpSound from "../sounds/jumpSound.wav";
 import Pjumpland from "../sounds/jumpland.wav";
 import Phitsound from "../sounds/hit.wav";
+import Pwinsound from "../sounds/winSound.wav";
 
 //Global variables
 let scene,
@@ -403,6 +404,13 @@ async function initScene() {
 
 function checkForWin() {
   if (playerBody.position.z > 487 && playerBody.position.y > 0) {
+    const winSound = new THREE.Audio(listener);
+    audioLoader.load(Pwinsound, function (buffer) {
+      winSound.setBuffer(buffer);
+      winSound.setLoop(false);
+      winSound.setVolume(1);
+      winSound.play();
+    });
     console.log("You win!");
     showWinScreen(elapsedTime);
     //Stop the timer

@@ -47,7 +47,11 @@ let scene,
   modelCenterOffset,
   stats,
   cameraGoal,
-  isFirstPerson = false;
+  isFirstPerson = false,
+  startTime = 0,
+  elapsedTime = 0,
+  timerRunning = false,
+  previousTimestamp = 0;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -100,15 +104,9 @@ const listener = new THREE.AudioListener();
 const audioLoader = new THREE.AudioLoader();
 
 async function init() {
-  const backGroundMusic = new THREE.Audio(listener);
-  audioLoader.load(PbackGroundMusic, function (buffer) {
-    backGroundMusic.setBuffer(buffer);
-    backGroundMusic.setLoop(true);
-    backGroundMusic.setVolume(0.4);
-    backGroundMusic.play();
-  });
   return new Promise(async (resolve, reject) => {
     try {
+      console.log("Initializing the game...");
       await initStats();
       await initScene();
       await initLighting();
@@ -116,8 +114,10 @@ async function init() {
       await initPhysics();
       await initPlayer();
       await initEventListeners();
-      await createGroundPiece(0, 0, 0, 60, 260);
+      await initAudio();
 
+      console.log("Creating obstacles + particles...");
+      await createGroundPiece(0, 0, 0, 60, 260);
       //Init particle background system
       await initBackgroundParticleSystem();
 
@@ -125,7 +125,6 @@ async function init() {
       await initGateObstacles();
 
       //Ground pieces for second set of obstacles
-
       await createGroundPiece(0, 0, 290, 10, 10);
       await createGroundPiece(-29, 0, 275, 10, 10);
       await createGroundPiece(29, 0, 275, 10, 10);
@@ -147,6 +146,8 @@ async function init() {
 
       await createGroundPiece(0, 0, 490, 60, 260);
 
+      console.log("Game initialized successfully!");
+
       resolve();
       // initFanObstacles();
     } catch (error) {
@@ -154,6 +155,24 @@ async function init() {
       reject(error);
     }
   });
+}
+
+async function initAudio() {
+  return new Promise((resolve) => {
+    const backGroundMusic = new THREE.Audio(listener);
+    audioLoader.load(PbackGroundMusic, function (buffer) {
+      backGroundMusic.setBuffer(buffer);
+      backGroundMusic.setLoop(true);
+      backGroundMusic.setVolume(0.4);
+      backGroundMusic.play();
+
+      resolve();
+    });
+  });
+}
+
+async function initFinishLine(){
+
 }
 
 // //Variables for die particles
@@ -185,6 +204,8 @@ function die() {
 
   if (playerBody.position.z < 210) {
     playerBody.position.set(0, 10, 10);
+    //reset timer
+    resetTimer();
   }
 
   if (playerBody.position.z > 210) {
@@ -1587,11 +1608,84 @@ function updateCamera() {
     camera.rotateX(cameraRotation.x);
   }
 }
+// Start game timer
+function startGameTimer() {
+  startTime = Date.now(); // Get the current timestamp in milliseconds
+  elapsedTime = 0; // Reset elapsed time
+  timerRunning = true;
+  updateTimerDisplay(0);
+  // Start the interval to update the timer every 100 ms (or your desired interval)
+  // timerInterval = setInterval(updateTimer, 100);
+}
 
-//Bounding boxes
+// Update game timer
+function updateTimer() {
+  if (!timerRunning) return;
 
+  const currentTime = Date.now(); // Get the current timestamp in milliseconds
+  // Calculate the time elapsed since the timer started
+  elapsedTime = currentTime - startTime;
+
+  // Update the display
+  updateTimerDisplay(elapsedTime);
+}
+
+// Create a function to show the timer
+function showTimer() {
+  const timer = document.createElement("div");
+  timer.id = "game-timer";
+
+  // Style the timer
+  timer.style.position = "fixed";
+  timer.style.top = "10px";
+  timer.style.right = "10px";
+  timer.style.color = "white";
+  timer.style.padding = "10px";
+  timer.style.borderRadius = "5px";
+  timer.style.fontSize = "24px";
+  timer.style.zIndex = "10000"; // Higher than other game elements
+
+  // Initial timer content
+  timer.textContent = "0.000 s";
+
+  document.body.appendChild(timer);
+}
+
+// Update the timer display
+function updateTimerDisplay(timeInMs) {
+  const timer = document.getElementById("game-timer");
+  if (timer) {
+    const seconds = Math.max(0, timeInMs / 1000).toFixed(1); // Ensure we never show negative time
+    timer.textContent = seconds + " s";
+  }
+}
+
+// Reset timer function (useful for restarts)
+function resetTimer() {
+  startTime = Date.now(); // Get the current timestamp in milliseconds
+  elapsedTime = 0; // Reset elapsed time
+  timerRunning = true;
+  updateTimerDisplay(0);
+}
+
+//display game timer
+let frame = 0;
 function animate() {
+  //console.log("Frame:", frame);
+  frame++;
+
+  //start timer on 2nd frame because theres a big time difference between the first frame and the second frame
+  if (frame === 2) {
+    startGameTimer();
+    //showTimer;
+  }
+
   stats.begin();
+
+  // update the game timer
+  updateTimer();
+  //console.log("elapsedTime", elapsedTime);
+
   // Update the physics world on every frame
   const deltaTime = clock.getDelta();
   world.step(1 / 60, deltaTime, 10);
@@ -1861,24 +1955,29 @@ async function startGame() {
 
       //Respawn the player(make it a function cause timer needs to be reset, etc)
       playerBody.position.set(0, 10, 10);
+
+      //restart timer
+      resetTimer();
     });
 
     //Add event listener to the start button
     startButton.addEventListener("click", async () => {
       showLoadingScreen();
       hideGameMenu();
-      init().then(() => {
-        hideLoadingScreen();
-        renderer.setAnimationLoop(animate);
+      await init();
+      //startGameTimer();
+      showTimer();
+      hideLoadingScreen();
 
-        //Add pause event listener
-        document.addEventListener("keydown", (event) => {
-          if (event.key === "P" || event.key === "p") {
-            toggleMenu();
+      renderer.setAnimationLoop(animate);
 
-            document.exitPointerLock();
-          }
-        });
+      //Add pause event listener
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "P" || event.key === "p") {
+          toggleMenu();
+
+          document.exitPointerLock();
+        }
       });
     });
   } catch (error) {

@@ -557,21 +557,17 @@ function jump() {
 function crossfadeAction(fromAction, toAction, duration) {
   if (fromAction !== toAction) {
     if (toAction == jumpAction) {
+      isJumping = true;
       console.log("imhere");
       jumpAction.setLoop(THREE.LoopOnce); // Make jumpAction play only once
-      jumpAction.clamspWhenFinished = true; // Ensure the animation holds the last frame
-      jumpAction.enable = false; // Initially, disable it to prevent accidental play
-      toAction.reset().fadeIn(duration).play(); // Fade in the new action
-      fromAction.fadeOut(duration); // Fade out the old action
+      jumpAction.clampWhenFinished = true; // Ensure the animation holds the last frame
+      //jumpAction.enable = false; // Initially, disable it to prevent accidental play
     }
-    else{
-      toAction.reset().fadeIn(duration).play(); // Fade in the new action
-      fromAction.fadeOut(duration); // Fade out the old action
-    }
-
     if (playerBody.position.y < 0) {
       toAction = fallingAction;
     }
+    toAction.reset().fadeIn(duration).play(); // Fade in the new action
+    fromAction.fadeOut(duration); // Fade out the old action
   }
 }
 function checkIdleState() {
@@ -630,6 +626,10 @@ function updateMovement(delta) {
   if (moveBackward) moveDirection.sub(forward);
   if (moveLeft) moveDirection.add(right);
   if (moveRight) moveDirection.sub(right);
+  
+  if(playerBody.position.y ==0){
+    console.log("1");
+  }
 
   const isMoving =
     moveForward || moveBackward || moveLeft || moveRight || isJumping;
@@ -650,6 +650,9 @@ function updateMovement(delta) {
       if (playerBody.position.y < 0 && (moveRight || moveForward || moveBackward || moveLeft)) {
         targetAction = fallingAction;
       }
+      /*if (playerBody.position.y >0.2  && (moveRight || moveForward || moveBackward || moveLeft)) {
+        targetAction = fallingAction;
+      }*/
   
       // Always prioritize jumpAction if space bar is pressed
       if (isJumping) {

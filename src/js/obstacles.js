@@ -132,7 +132,7 @@ export function createFan(scene, x, y, z, radius, lengthOfFans) {
 
   //center helper
   const centerHelper = new THREE.BoxHelper(center, 0x00ff00);
-  scene.add(centerHelper);
+  //scene.add(centerHelper);
 
   // Create the fan blades
   const bladeGeometry = new THREE.CylinderGeometry(
@@ -155,7 +155,7 @@ export function createFan(scene, x, y, z, radius, lengthOfFans) {
 
   //blade1 helper
   const blade1Helper = new THREE.BoxHelper(blade1, 0x00ff00);
-  scene.add(blade1Helper);
+  //scene.add(blade1Helper);
 
   const blade2 = new THREE.Mesh(bladeGeometry, bladeMaterial);
   blade2.position.set(x, y + radius / 2, z);
@@ -165,7 +165,7 @@ export function createFan(scene, x, y, z, radius, lengthOfFans) {
 
   //blade2 helper
   const blade2Helper = new THREE.BoxHelper(blade2, 0x00ff00);
-  scene.add(blade2Helper);
+  //scene.add(blade2Helper);
 
   // fan.add(center);
   // fan.add(blade1);

@@ -169,7 +169,7 @@ async function initAudio() {
     audioLoader.load(PbackGroundMusic, function (buffer) {
       backGroundMusic.setBuffer(buffer);
       backGroundMusic.setLoop(true);
-      backGroundMusic.setVolume(0.4);
+      backGroundMusic.setVolume(0.2);
       backGroundMusic.play();
 
       resolve();
@@ -208,25 +208,85 @@ async function initFinishLine() {
   });
 }
 
-// //Variables for die particles
-// let dieParticles;
-// let diePositions;
-// let dieVelocities;
+// First, add these variables at the top with your other global variables
+let particles = [];
+const particleCountDie = 100;
+const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+const particleMaterial = new THREE.MeshBasicMaterial({
+  color: 0xff0000,
+  transparent: true,
+  opacity: 0.8,
+});
 
-// // Update function to move particles over time (using velocities)
-// function updateParticles() {
-//   const positions = dieParticles.attributes.position.array;
+function createParticleExplosion(position) {
+  // Clear any existing particles
+  particles.forEach((particle) => {
+    scene.remove(particle.mesh);
+  });
+  particles = [];
 
-//   for (let i = 0; i < particleCount; i++) {
-//     diePositions[i * 3] += dieVelocities[i * 3]; // X position
-//     diePositions[i * 3 + 1] += dieVelocities[i * 3 + 1]; // Y position
-//     diePositions[i * 3 + 2] += dieVelocities[i * 3 + 2]; // Z position (positive spread)
-//   }
+  // Create new particles
+  for (let i = 0; i < particleCount; i++) {
+    const mesh = new THREE.Mesh(particleGeometry, particleMaterial.clone());
 
-//   dieParticles.attributes.position.needsUpdate = true; // Mark the position attribute as needing an update
-// }
+    // Set initial position to player's position
+    mesh.position.copy(position);
 
-function die() {
+    // Random velocity in all directions
+    const velocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 10,
+      Math.random() * 10,
+      (Math.random() - 0.5) * 10
+    );
+
+    scene.add(mesh);
+
+    particles.push({
+      mesh: mesh,
+      velocity: velocity,
+      lifetime: 1.0, // Particle lifetime in seconds
+    });
+  }
+}
+// Add this to your animation loop
+function updateParticles(deltaTime) {
+  particles.forEach((particle, index) => {
+    // Update position based on velocity
+    particle.mesh.position.x += particle.velocity.x * deltaTime;
+    particle.mesh.position.y += particle.velocity.y * deltaTime;
+    particle.mesh.position.z += particle.velocity.z * deltaTime;
+
+    // Add gravity effect
+    particle.velocity.y -= 9.8 * deltaTime;
+
+    // Reduce lifetime
+    particle.lifetime -= deltaTime;
+
+    // Fade out based on lifetime
+    particle.mesh.material.opacity = particle.lifetime;
+
+    // Remove dead particles
+    if (particle.lifetime <= 0) {
+      scene.remove(particle.mesh);
+      particles.splice(index, 1);
+    }
+  });
+}
+
+async function die() {
+  currentLives--;
+
+  // Create particle explosion at player's current position
+  createParticleExplosion(model.position);
+
+  //Hide the player model
+  model.visible = false;
+
+  const respawnPosition =
+    playerBody.position.z < 210
+      ? { x: 0, y: 10, z: 10 }
+      : { x: 0, y: 10, z: 230 };
+
   const hitsound = new THREE.Audio(listener);
   audioLoader.load(Phitsound, function (buffer) {
     hitsound.setBuffer(buffer);
@@ -235,7 +295,8 @@ function die() {
     hitsound.play();
   });
 
-  currentLives--;
+  // Wait for particle effect and then respawn
+  await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
 
   //true death
   if (currentLives <= 0) {
@@ -244,61 +305,18 @@ function die() {
     generateHearts(currentLives);
     //reset timer
     resetTimer();
-    return;
+  } else {
+    // Respawn at appropriate position
+    playerBody.position.set(
+      respawnPosition.x,
+      respawnPosition.y,
+      respawnPosition.z
+    );
+    generateHearts(currentLives);
   }
 
-  generateHearts(currentLives);
-
-  if (playerBody.position.z < 210) {
-    playerBody.position.set(0, 10, 10);
-  }
-
-  if (playerBody.position.z > 210) {
-    playerBody.position.set(0, 10, 230);
-  }
-
-  //Hide the player model
-  // model.visible = false;
-
-  // playerBody.visible = false;
-
-  // // Create a bunch of NEW particles at the player's position and make them fly outwards
-  // dieParticles = new THREE.BufferGeometry();
-  // diePositions = new Float32Array(particleCount * 3);
-  // dieVelocities = new Float32Array(particleCount * 3);
-
-  // for (let i = 0; i < particleCount; i++) {
-  //   // Set initial positions to the player's position
-  //   diePositions[i * 3] = playerBody.position.x;
-  //   diePositions[i * 3 + 1] = playerBody.position.y;
-  //   diePositions[i * 3 + 2] = playerBody.position.z;
-
-  //   // Randomize velocities for spread
-  //   dieVelocities[i * 3] = (Math.random() - 0.5) * 0.1; // X velocity (random spread)
-  //   dieVelocities[i * 3 + 1] = (Math.random() - 0.5) * 0.1; // Y velocity (random spread)
-
-  //   // Ensure positive spread in Z direction
-  //   dieVelocities[i * 3 + 2] = Math.random() * 0.2; // Positive Z direction only
-  // }
-
-  // dieParticles.setAttribute(
-  //   "position",
-  //   new THREE.BufferAttribute(diePositions, 3)
-  // );
-
-  // const particleMaterial = new THREE.PointsMaterial({
-  //   color: "red",
-  //   size: 0.35,
-  //   transparent: true,
-  //   opacity: 0.65,
-  //   blending: THREE.AdditiveBlending,
-  //   depthTest: true,
-  //   sizeAttenuation: true,
-  //   fog: true,
-  // });
-
-  // const particleSystem = new THREE.Points(dieParticles, particleMaterial);
-  // scene.add(particleSystem);
+  // Make player visible again
+  model.visible = true;
 }
 
 async function initBackgroundParticleSystem() {
@@ -612,7 +630,7 @@ async function initPlayer() {
 
         // Create a helper to visualize the player's bounding box
         playerHelper = new THREE.BoxHelper(model, "red"); // Red box around object1
-        scene.add(playerHelper);
+        //scene.add(playerHelper);
 
         resolve();
       },
@@ -1426,12 +1444,12 @@ function addVisualRodHelpers() {
   rods.forEach((rod) => {
     const helper = new THREE.BoxHelper(rod, "blue");
     rodsHelpers.push(helper);
-    scene.add(helper);
+    //scene.add(helper);
   });
   rodsZ.forEach((rod) => {
     const helper = new THREE.BoxHelper(rod, "blue");
     rodsZHelpers.push(helper);
-    scene.add(helper);
+    //scene.add(helper);
   });
 }
 
@@ -1519,7 +1537,7 @@ function AddVisualGateHelpers() {
   gates.forEach((gate) => {
     const helper = new THREE.BoxHelper(gate, "blue");
     gateHelpers.push(helper);
-    scene.add(helper);
+    //scene.add(helper);
   });
 }
 
@@ -1528,7 +1546,7 @@ function AddVisualCylinderHelpers() {
   cylinders.forEach((cylinder) => {
     const helper = new THREE.BoxHelper(cylinder, "blue");
     cylinderHelpers.push(helper);
-    scene.add(helper);
+    //scene.add(helper);
   });
 }
 
@@ -1723,6 +1741,10 @@ function resetTimer() {
   updateTimerDisplay(0);
 }
 
+let isPlayerDead = false;
+let deathCooldown = 2000; // 2 seconds in milliseconds
+let lastDeathTime = 0;
+
 //display game timer
 let frame = 0;
 function animate() {
@@ -1747,6 +1769,8 @@ function animate() {
   // Update the physics world on every frame
   const deltaTime = clock.getDelta();
   world.step(1 / 60, deltaTime, 10);
+
+  updateParticles(deltaTime);
 
   // make the model follow the physics body
   if (model && playerBody) {
@@ -1800,8 +1824,17 @@ function animate() {
       const gateBoundingBox = new THREE.Box3().setFromObject(gate);
 
       if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
-        //Reset the players position
-        die();
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
       }
     });
 
@@ -1810,8 +1843,17 @@ function animate() {
       const cylinderBoundingBox = new THREE.Box3().setFromObject(cylinder);
 
       if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
-        //Reset the players position
-        die();
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
       }
     });
 
@@ -1829,8 +1871,17 @@ function animate() {
       const rodBoundingBox = new THREE.Box3().setFromObject(rod);
 
       if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
-        //Reset the players position
-        die();
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
       }
     });
 
@@ -1931,6 +1982,8 @@ function animate() {
 }
 
 // Create a function to show the loading screen
+let loadingAnimationInterval;
+
 function showLoadingScreen() {
   const loadingScreen = document.createElement("div");
   loadingScreen.id = "loading-screen";
@@ -1946,18 +1999,30 @@ function showLoadingScreen() {
   loadingScreen.style.zIndex = "9999";
 
   const loadingText = document.createElement("h1");
-  loadingText.textContent = "Loading...";
+  loadingText.textContent = "Loading";
   loadingText.style.color = "white";
 
   loadingScreen.appendChild(loadingText);
   document.body.appendChild(loadingScreen);
+
+  // Start the loading animation
+  let dots = "";
+  loadingAnimationInterval = setInterval(() => {
+    if (dots.length < 3) {
+      dots += ".";
+    } else {
+      dots = ""; // Reset the dots after reaching 3
+    }
+    loadingText.textContent = `Loading${dots}`; // Update the loading text
+  }, 200); // Adjust the interval duration as needed
 }
 
-// Create a function to hide the loading screen
+// Function to hide the loading screen
 function hideLoadingScreen() {
+  clearInterval(loadingAnimationInterval); // Clear the animation interval
   const loadingScreen = document.getElementById("loading-screen");
   if (loadingScreen) {
-    loadingScreen.remove();
+    document.body.removeChild(loadingScreen);
   }
 }
 
@@ -2025,12 +2090,17 @@ function toggleMenu() {
     //if win and congration message is displayed, hide it
     const winMessage = document.getElementById("winMessage");
     const congratsMessage = document.getElementById("congratsMessage");
+    const bestTimeMessage = document.getElementById("bestTimeMessage");
+
     if (winMessage) {
       winMessage.remove();
     }
 
     if (congratsMessage) {
       congratsMessage.remove();
+    }
+    if (bestTimeMessage) {
+      bestTimeMessage.remove();
     }
 
     gameMenu.style.display = "block";
@@ -2074,6 +2144,26 @@ function showWinScreen(elapsedTime) {
   congratsMessage.textContent = "Congratulations!";
   winMessage.appendChild(congratsMessage);
 
+  //store elapsed time in local storage as best time
+  let bestTime = localStorage.getItem("bestTime");
+
+  if (!bestTime) {
+    localStorage.setItem("bestTime", elapsedTime);
+    bestTime = localStorage.getItem("bestTime");
+  }
+
+  // Create a best time message
+  const bestTimeMessage = document.createElement("p");
+  bestTimeMessage.id = "bestTimeMessage";
+  bestTimeMessage.textContent = `Best Time: ${bestTime} seconds`; // Show the best time
+  winMessage.appendChild(bestTimeMessage);
+
+  //new best time
+  if (elapsedTime <= bestTime) {
+    localStorage.setItem("bestTime", elapsedTime);
+    congratsMessage.textContent = "Congratulations! New Best Time!";
+  }
+
   // Create the final time message
   const finalTime = document.createElement("p");
   finalTime.textContent = `Your time: ${elapsedTime.toFixed(3)} seconds`; // Show the final time
@@ -2081,6 +2171,34 @@ function showWinScreen(elapsedTime) {
 
   // Append the win message to the game menu
   gameMenu.appendChild(winMessage);
+}
+
+function generateBestTime() {
+  const bestTimeContainer = document.createElement("div");
+  bestTimeContainer.id = "best-time";
+
+  // Style the best time container
+  bestTimeContainer.style.position = "fixed";
+  bestTimeContainer.style.top = "50px"; // Adjust to position it below the timer
+  bestTimeContainer.style.right = "10px"; // Same right alignment as the timer
+  bestTimeContainer.style.color = "white"; // Text color
+  bestTimeContainer.style.fontSize = "20px"; // Font size
+  bestTimeContainer.style.zIndex = "10000"; // Higher than other game elements
+
+  // Retrieve the best time from localStorage
+  let bestTime = localStorage.getItem("bestTime");
+
+  // Format the display message
+  if (bestTime) {
+    bestTimeContainer.textContent = `Best Time: ${parseFloat(bestTime).toFixed(
+      3
+    )} s`; // Show best time formatted to 3 decimal places
+  } else {
+    bestTimeContainer.textContent = "Best Time: N/A"; // Default message if no best time
+  }
+
+  // Append the best time container to the body
+  document.body.appendChild(bestTimeContainer);
 }
 
 // Example reset function (you need to implement the actual logic)
@@ -2130,6 +2248,8 @@ async function startGame() {
       hideLoadingScreen();
       createHeartsContainer();
       generateHearts(3);
+      generateBestTime();
+
       renderer.setAnimationLoop(animate);
 
       //Add pause event listener

@@ -565,7 +565,21 @@ function jump() {
   // Check if the player is grounded and if they are , allow them to jump
   if (startingY < 0.1) {
     isJumping = true;
+    const jumpSound = new THREE.Audio(listener);
+    audioLoader.load(PjumpSound, function(buffer) {
+      jumpSound.setBuffer(buffer);
+      jumpSound.setLoop(false);
+      jumpSound.setVolume(0.4);
+      jumpSound.play();
+    });
     playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
+    const jumpland = new THREE.Audio(listener);
+    audioLoader.load(Pjumpland, function(buffer) {
+      jumpland.setBuffer(buffer);
+      jumpland.setLoop(false);
+      jumpland.setVolume(0.4);
+      jumpland.play();
+    });
   }
 }
 

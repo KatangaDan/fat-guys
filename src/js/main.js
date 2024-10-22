@@ -1743,10 +1743,51 @@ function hideGameMenu() {
   document.getElementById("gameMenu").style.display = "none";
 }
 
+function toggleMenu() {
+  const gameMenu = document.getElementById("gameMenu");
+  if (gameMenu.style.display === "block") {
+    gameMenu.style.display = "none";
+
+    // unpauseGame();
+  } else {
+    const resumeButton = document.getElementById("resumeButton");
+    const startButton = document.getElementById("startButton");
+    const restartButton = document.getElementById("restartButton");
+
+    startButton.style.display = "none";
+    resumeButton.style.display = "block";
+    restartButton.style.display = "block";
+
+    gameMenu.style.display = "block";
+
+    // pauseGame();
+  }
+}
+
 //Main function to start the game
 async function startGame() {
   try {
     let startButton = document.getElementById("startButton");
+    let resumeButton = document.getElementById("resumeButton");
+    let restartButton = document.getElementById("restartButton");
+
+    //Add event listener to the resume button
+    resumeButton.addEventListener("click", () => {
+      toggleMenu();
+      //Add pointer lock to the document
+      document.body.requestPointerLock();
+
+      // unpauseGame();
+    });
+
+    //Add event listener to the restart button
+    restartButton.addEventListener("click", () => {
+      // window.location.reload();
+      toggleMenu();
+
+      //Respawn the player(make it a function cause timer needs to be reset, etc)
+      playerBody.position.set(0, 10, 10);
+    });
 
     //Add event listener to the start button
     startButton.addEventListener("click", async () => {
@@ -1755,6 +1796,15 @@ async function startGame() {
       init().then(() => {
         hideLoadingScreen();
         renderer.setAnimationLoop(animate);
+
+        //Add pause event listener
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "P" || event.key === "p") {
+            toggleMenu();
+
+            document.exitPointerLock();
+          }
+        });
       });
     });
   } catch (error) {

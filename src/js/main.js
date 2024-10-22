@@ -206,38 +206,84 @@ async function initFinishLine() {
   });
 }
 
-// //Variables for die particles
-// let dieParticles;
-// let diePositions;
-// let dieVelocities;
+// First, add these variables at the top with your other global variables
+let particles = [];
+const particleCountDie = 100;
+const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+const particleMaterial = new THREE.MeshBasicMaterial({
+  color: 0xff0000,
+  transparent: true,
+  opacity: 0.8,
+});
 
-// // Update function to move particles over time (using velocities)
-// function updateParticles() {
-//   const positions = dieParticles.attributes.position.array;
+function createParticleExplosion(position) {
+  // Clear any existing particles
+  particles.forEach((particle) => {
+    scene.remove(particle.mesh);
+  });
+  particles = [];
 
-//   for (let i = 0; i < particleCount; i++) {
-//     diePositions[i * 3] += dieVelocities[i * 3]; // X position
-//     diePositions[i * 3 + 1] += dieVelocities[i * 3 + 1]; // Y position
-//     diePositions[i * 3 + 2] += dieVelocities[i * 3 + 2]; // Z position (positive spread)
-//   }
+  // Create new particles
+  for (let i = 0; i < particleCount; i++) {
+    const mesh = new THREE.Mesh(particleGeometry, particleMaterial.clone());
 
-//   dieParticles.attributes.position.needsUpdate = true; // Mark the position attribute as needing an update
-// }
+    // Set initial position to player's position
+    mesh.position.copy(position);
 
-function die() {
+    // Random velocity in all directions
+    const velocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 10,
+      Math.random() * 10,
+      (Math.random() - 0.5) * 10
+    );
+
+    scene.add(mesh);
+
+    particles.push({
+      mesh: mesh,
+      velocity: velocity,
+      lifetime: 1.0, // Particle lifetime in seconds
+    });
+  }
+}
+// Add this to your animation loop
+function updateParticles(deltaTime) {
+  particles.forEach((particle, index) => {
+    // Update position based on velocity
+    particle.mesh.position.x += particle.velocity.x * deltaTime;
+    particle.mesh.position.y += particle.velocity.y * deltaTime;
+    particle.mesh.position.z += particle.velocity.z * deltaTime;
+
+    // Add gravity effect
+    particle.velocity.y -= 9.8 * deltaTime;
+
+    // Reduce lifetime
+    particle.lifetime -= deltaTime;
+
+    // Fade out based on lifetime
+    particle.mesh.material.opacity = particle.lifetime;
+
+    // Remove dead particles
+    if (particle.lifetime <= 0) {
+      scene.remove(particle.mesh);
+      particles.splice(index, 1);
+    }
+  });
+}
+
+async function die() {
   currentLives--;
 
-  //true death
-  if (currentLives <= 0) {
-    playerBody.position.set(0, 10, 10);
-    currentLives = 3;
-    generateHearts(currentLives);
-    //reset timer
-    resetTimer();
-    return;
-  }
+  // Create particle explosion at player's current position
+  createParticleExplosion(model.position);
 
-  generateHearts(currentLives);
+  //Hide the player model
+  model.visible = false;
+
+  const respawnPosition =
+    playerBody.position.z < 210
+      ? { x: 0, y: 10, z: 10 }
+      : { x: 0, y: 10, z: 230 };
 
   const hitsound = new THREE.Audio(listener);
   audioLoader.load(Phitsound, function (buffer) {
@@ -247,56 +293,28 @@ function die() {
     hitsound.play();
   });
 
-  if (playerBody.position.z < 210) {
+  // Wait for particle effect and then respawn
+  await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
+
+  //true death
+  if (currentLives <= 0) {
     playerBody.position.set(0, 10, 10);
+    currentLives = 3;
+    generateHearts(currentLives);
+    //reset timer
+    resetTimer();
+  } else {
+    // Respawn at appropriate position
+    playerBody.position.set(
+      respawnPosition.x,
+      respawnPosition.y,
+      respawnPosition.z
+    );
+    generateHearts(currentLives);
   }
 
-  if (playerBody.position.z > 210) {
-    playerBody.position.set(0, 10, 230);
-  }
-
-  //Hide the player model
-  // model.visible = false;
-
-  // playerBody.visible = false;
-
-  // // Create a bunch of NEW particles at the player's position and make them fly outwards
-  // dieParticles = new THREE.BufferGeometry();
-  // diePositions = new Float32Array(particleCount * 3);
-  // dieVelocities = new Float32Array(particleCount * 3);
-
-  // for (let i = 0; i < particleCount; i++) {
-  //   // Set initial positions to the player's position
-  //   diePositions[i * 3] = playerBody.position.x;
-  //   diePositions[i * 3 + 1] = playerBody.position.y;
-  //   diePositions[i * 3 + 2] = playerBody.position.z;
-
-  //   // Randomize velocities for spread
-  //   dieVelocities[i * 3] = (Math.random() - 0.5) * 0.1; // X velocity (random spread)
-  //   dieVelocities[i * 3 + 1] = (Math.random() - 0.5) * 0.1; // Y velocity (random spread)
-
-  //   // Ensure positive spread in Z direction
-  //   dieVelocities[i * 3 + 2] = Math.random() * 0.2; // Positive Z direction only
-  // }
-
-  // dieParticles.setAttribute(
-  //   "position",
-  //   new THREE.BufferAttribute(diePositions, 3)
-  // );
-
-  // const particleMaterial = new THREE.PointsMaterial({
-  //   color: "red",
-  //   size: 0.35,
-  //   transparent: true,
-  //   opacity: 0.65,
-  //   blending: THREE.AdditiveBlending,
-  //   depthTest: true,
-  //   sizeAttenuation: true,
-  //   fog: true,
-  // });
-
-  // const particleSystem = new THREE.Points(dieParticles, particleMaterial);
-  // scene.add(particleSystem);
+  // Make player visible again
+  model.visible = true;
 }
 
 async function initBackgroundParticleSystem() {
@@ -1720,6 +1738,10 @@ function resetTimer() {
   updateTimerDisplay(0);
 }
 
+let isPlayerDead = false;
+let deathCooldown = 2000; // 2 seconds in milliseconds
+let lastDeathTime = 0;
+
 //display game timer
 let frame = 0;
 function animate() {
@@ -1744,6 +1766,8 @@ function animate() {
   // Update the physics world on every frame
   const deltaTime = clock.getDelta();
   world.step(1 / 60, deltaTime, 10);
+
+  updateParticles(deltaTime);
 
   // make the model follow the physics body
   if (model && playerBody) {
@@ -1797,8 +1821,17 @@ function animate() {
       const gateBoundingBox = new THREE.Box3().setFromObject(gate);
 
       if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
-        //Reset the players position
-        die();
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
       }
     });
 
@@ -1807,8 +1840,17 @@ function animate() {
       const cylinderBoundingBox = new THREE.Box3().setFromObject(cylinder);
 
       if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
-        //Reset the players position
-        die();
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
       }
     });
 
@@ -1826,8 +1868,17 @@ function animate() {
       const rodBoundingBox = new THREE.Box3().setFromObject(rod);
 
       if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
-        //Reset the players position
-        die();
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
       }
     });
 

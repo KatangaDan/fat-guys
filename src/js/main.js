@@ -736,6 +736,12 @@ function updateMovement(delta) {
       crossfadeAction(currentAction, targetAction, fadeDuration);
       currentAction = targetAction; // Update current action to the new one
     }
+    const targetRotation = Math.atan2(moveDirection.x, moveDirection.z);
+    // // Create a quaternion for the target rotation
+    playerBody.quaternion.setFromAxisAngle(
+      new CANNON.Vec3(0, 1, 0),
+      targetRotation
+    );
   } else {
     // Check if the player should transition to the idle animation
     checkIdleState();

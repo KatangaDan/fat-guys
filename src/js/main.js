@@ -213,7 +213,7 @@ let particles = [];
 const particleCountDie = 100;
 const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
 const particleMaterial = new THREE.MeshBasicMaterial({
-  color: 0xff0000,
+  color: "#8E1767",
   transparent: true,
   opacity: 0.8,
 });
@@ -225,29 +225,41 @@ function createParticleExplosion(position) {
   });
   particles = [];
 
+  const explosionSpeed = 10; // Adjust this to control explosion force
+
   // Create new particles
   for (let i = 0; i < particleCount; i++) {
     const mesh = new THREE.Mesh(particleGeometry, particleMaterial.clone());
-
-    // Set initial position to player's position
     mesh.position.copy(position);
 
-    // Random velocity in all directions
+    // Calculate spherical coordinates
+    // Phi is the angle from the y axis (vertical angle)
+    // Theta is the angle in the xz plane (horizontal angle)
+    const phi = Math.acos((2 * i) / particleCount - 1);
+    const theta = Math.sqrt(particleCount * Math.PI) * phi;
+
+    // Convert spherical coordinates to cartesian coordinates for velocity
     const velocity = new THREE.Vector3(
-      (Math.random() - 0.5) * 10,
-      Math.random() * 10,
-      (Math.random() - 0.5) * 10
+      explosionSpeed * Math.sin(phi) * Math.cos(theta),
+      explosionSpeed * Math.cos(phi),
+      explosionSpeed * Math.sin(phi) * Math.sin(theta)
     );
+
+    // Add some randomness to make it look more natural
+    velocity.x += (Math.random() - 0.5) * 2;
+    velocity.y += (Math.random() - 0.5) * 2;
+    velocity.z += (Math.random() - 0.5) * 2;
 
     scene.add(mesh);
 
     particles.push({
       mesh: mesh,
       velocity: velocity,
-      lifetime: 1.0, // Particle lifetime in seconds
+      lifetime: 1.0,
     });
   }
 }
+
 // Add this to your animation loop
 function updateParticles(deltaTime) {
   particles.forEach((particle, index) => {
@@ -1798,7 +1810,17 @@ function animate() {
     }
 
     if (playerBody.position.y < -20) {
-      die();
+      const currentTime = Date.now();
+      if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+        isPlayerDead = true;
+        lastDeathTime = currentTime;
+        die();
+
+        // Reset the dead state after the cooldown
+        setTimeout(() => {
+          isPlayerDead = false;
+        }, deathCooldown);
+      }
     }
 
     if (mixer) {
@@ -1867,7 +1889,17 @@ function animate() {
 
       if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
         //Reset the players position
-        die();
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
       }
     });
 

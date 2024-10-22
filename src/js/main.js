@@ -146,7 +146,7 @@ async function init() {
 
       await createGroundPiece(0, 0, 490, 60, 260);
 
-      //await initFinishLine();
+      await initFinishLine();
 
       console.log("Game initialized successfully!");
 
@@ -180,7 +180,7 @@ async function initFinishLine() {
     textureLoader.load(
       finish,
       (texture) => {
-        const finishLineGeometry = new THREE.BoxGeometry(6, 0.1, 1);
+        const finishLineGeometry = new THREE.BoxGeometry(6.5, 0.1, 1);
         const finishLineMaterial = new THREE.MeshStandardMaterial({
           map: texture,
         });
@@ -188,9 +188,9 @@ async function initFinishLine() {
           finishLineGeometry,
           finishLineMaterial
         );
-        finishLine.position.set(0, 0.5, 0);
+        finishLine.position.set(0, 0.5, 495);
         finishLine.scale.x = 10;
-        finishLine.scale.z = 10;
+        finishLine.scale.z = 15;
         scene.add(finishLine);
 
         resolve();
@@ -387,6 +387,15 @@ async function initScene() {
   });
 }
 
+function checkForWin() {
+  if (playerBody.position.z > 487 && playerBody.position.y > 0) {
+    console.log("You win!");
+    showWinScreen(elapsedTime);
+    //Stop the timer
+    timerRunning = false;
+  }
+}
+
 // function to toggle between first-person and third-person views
 function toggleView() {
   isFirstPerson = !isFirstPerson;
@@ -501,7 +510,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 10, 5);
+        model.position.set(0, 10, 10);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -717,7 +726,7 @@ function jump() {
     playerBody.position.y -
     (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
     0.1;
-    isJumping = true;
+  isJumping = true;
 
   // Check if the player is grounded and if they are , allow them to jump
   if (startingY < 0.1) {
@@ -813,7 +822,6 @@ function updateMovement(delta) {
   if (moveBackward) moveDirection.sub(forward);
   if (moveLeft) moveDirection.add(right);
   if (moveRight) moveDirection.sub(right);
-
 
   const isMoving =
     moveForward || moveBackward || moveLeft || moveRight || isJumping;
@@ -1714,6 +1722,9 @@ function animate() {
   updateTimer();
   //console.log("elapsedTime", elapsedTime);
 
+  //check if the player has reached the end of the game
+  checkForWin();
+
   // Update the physics world on every frame
   const deltaTime = clock.getDelta();
   world.step(1 / 60, deltaTime, 10);
@@ -1954,10 +1965,71 @@ function toggleMenu() {
     resumeButton.style.display = "block";
     restartButton.style.display = "block";
 
+    //if win and congration message is displayed, hide it
+    const winMessage = document.getElementById("winMessage");
+    const congratsMessage = document.getElementById("congratsMessage");
+    if (winMessage) {
+      winMessage.remove();
+    }
+
+    if (congratsMessage) {
+      congratsMessage.remove();
+    }
+
     gameMenu.style.display = "block";
 
     // pauseGame();
   }
+}
+
+function showWinScreen(elapsedTime) {
+  const gameMenu = document.getElementById("gameMenu");
+  elapsedTime = elapsedTime / 1000;
+  // Hide start and resume buttons
+  document.getElementById("startButton").style.display = "none";
+  document.getElementById("resumeButton").style.display = "none";
+  document.getElementById("restartButton").style.display = "block"; // Show restart button
+
+  //show the game menu
+  gameMenu.style.display = "block";
+
+  //disable player movement by removing event listers for wasd
+  window.removeEventListener("keydown", handleKeyDown);
+
+  //exit pointer lock
+  document.exitPointerLock();
+
+  // Remove any existing win message if it exists
+  const existingWinMessage = document.getElementById("winMessage");
+  if (existingWinMessage) {
+    existingWinMessage.remove();
+  }
+
+  // Create a new div for the win message
+  const winMessage = document.createElement("div");
+  winMessage.id = "winMessage";
+  winMessage.style.textAlign = "center"; // Center the text
+  winMessage.style.color = "white";
+
+  // Create the congratulatory message
+  const congratsMessage = document.createElement("h2");
+  congratsMessage.id = "congratsMessage";
+  congratsMessage.textContent = "Congratulations!";
+  winMessage.appendChild(congratsMessage);
+
+  // Create the final time message
+  const finalTime = document.createElement("p");
+  finalTime.textContent = `Your time: ${elapsedTime.toFixed(3)} seconds`; // Show the final time
+  winMessage.appendChild(finalTime);
+
+  // Append the win message to the game menu
+  gameMenu.appendChild(winMessage);
+}
+
+// Example reset function (you need to implement the actual logic)
+function resetGame() {
+  // Logic to reset your game
+  console.log("Game is restarting...");
 }
 
 //Main function to start the game
@@ -1980,6 +2052,9 @@ async function startGame() {
     restartButton.addEventListener("click", () => {
       // window.location.reload();
       toggleMenu();
+
+      //if wasd dont have event listeners, add them back
+      window.addEventListener("keydown", handleKeyDown);
 
       //Respawn the player(make it a function cause timer needs to be reset, etc)
       playerBody.position.set(0, 10, 10);

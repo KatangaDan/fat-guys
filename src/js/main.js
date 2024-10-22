@@ -1760,9 +1760,9 @@ function animate() {
     updateCamera();
   }
 
-  if (dieParticles) {
-    updateParticles();
-  }
+  // if (dieParticles) {
+  //   updateParticles();
+  // }
 
   //Animate the gates
   animateGates(deltaTime);

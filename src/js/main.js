@@ -23,6 +23,7 @@ import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
 import PjumpSound from "../sounds/jumpSound.wav";
 import Pjumpland from "../sounds/jumpland.wav";
 import Phitsound from "../sounds/hit.wav";
+import Pwinsound from "../sounds/winSound.wav";
 
 //Global variables
 let scene,
@@ -225,6 +226,14 @@ async function initFinishLine() {
 // }
 
 function die() {
+  const hitsound = new THREE.Audio(listener);
+  audioLoader.load(Phitsound, function (buffer) {
+    hitsound.setBuffer(buffer);
+    hitsound.setLoop(false);
+    hitsound.setVolume(1);
+    hitsound.play();
+  });
+
   currentLives--;
 
   //true death
@@ -238,14 +247,6 @@ function die() {
   }
 
   generateHearts(currentLives);
-
-  const hitsound = new THREE.Audio(listener);
-  audioLoader.load(Phitsound, function (buffer) {
-    hitsound.setBuffer(buffer);
-    hitsound.setLoop(false);
-    hitsound.setVolume(1);
-    hitsound.play();
-  });
 
   if (playerBody.position.z < 210) {
     playerBody.position.set(0, 10, 10);
@@ -403,6 +404,13 @@ async function initScene() {
 
 function checkForWin() {
   if (playerBody.position.z > 487 && playerBody.position.y > 0) {
+    const winSound = new THREE.Audio(listener);
+    audioLoader.load(Pwinsound, function (buffer) {
+      winSound.setBuffer(buffer);
+      winSound.setLoop(false);
+      winSound.setVolume(1);
+      winSound.play();
+    });
     console.log("You win!");
     showWinScreen(elapsedTime);
     //Stop the timer
@@ -753,6 +761,8 @@ function jump() {
       jumpSound.play();
     });
     playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
+    crossfadeAction(currentAction, jumpAction, fadeDuration);
+    currentAction = jumpAction;
     const jumpland = new THREE.Audio(listener);
     audioLoader.load(Pjumpland, function (buffer) {
       jumpland.setBuffer(buffer);
@@ -866,7 +876,7 @@ function updateMovement(delta) {
     }
 
     // Crossfade to the appropriate movement animation if it's different from the current one
-    if (currentAction !== targetAction) {
+    if (currentAction !== targetAction && targetAction != jumpAction) {
       crossfadeAction(currentAction, targetAction, fadeDuration);
       currentAction = targetAction; // Update current action to the new one
     }

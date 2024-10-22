@@ -1,13 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<meta charset="utf-8">
-		<title>Parcel Three js Demo</title>
-		<style>
-			body { margin: 0; }
-		</style>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Fat Guys Demo</title>
+		<link rel="stylesheet" href="src/css/styles.css">
+		<link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
 	</head>
 	<body>
-		<script type="module" src="./src/js/main.js"></script>
+		<div id="gameMenu" class="menu">
+			<h1>Fat Guys Demo</h1>
+			<button id="startButton">Start Game</button>
+			<button id="resumeButton" style="display: none;">Resume Game</button>
+			<button id="restartButton" style="display: none;">Restart Game</button>
+		</div>
+		<div id="gameContainer"></div>
+		<script type="module" src="src/js/main.js"></script>
+		
+		
 	</body>
 </html>

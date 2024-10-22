@@ -91,46 +91,54 @@ const turnSpeed = 0.2; // for rotation
 //Jumping flag
 let isJumping = false;
 
-function init() {
-  initStats();
-  initScene();
-  initLighting();
-  initBackground();
-  initPhysics();
-  initPlayer();
-  initEventListeners();
-  createGroundPiece(0, 0, 0, 60, 260);
+async function init() {
+  return new Promise(async (resolve, reject) => {
+    try {
+      await initStats();
+      await initScene();
+      await initLighting();
+      await initBackground();
+      await initPhysics();
+      await initPlayer();
+      await initEventListeners();
+      await createGroundPiece(0, 0, 0, 60, 260);
 
-  //Init particle background system
-  initBackgroundParticleSystem();
+      //Init particle background system
+      await initBackgroundParticleSystem();
 
-  //First set of obstacles
-  initGateObstacles();
+      //First set of obstacles
+      await initGateObstacles();
 
-  //Ground pieces for second set of obstacles
+      //Ground pieces for second set of obstacles
 
-  createGroundPiece(0, 0, 290, 10, 10);
-  createGroundPiece(-29, 0, 275, 10, 10);
-  createGroundPiece(29, 0, 275, 10, 10);
-  createGroundPiece(20, 0, 300, 10, 10);
-  createGroundPiece(-18, 0, 305, 10, 10);
-  createGroundPiece(27, 0, 350, 10, 10);
-  createGroundPiece(5, 0, 330, 10, 10);
-  createGroundPiece(-15, 0, 350, 10, 10);
-  createGroundPiece(25, 0, 380, 10, 10);
-  createGroundPiece(0, 0, 390, 10, 10);
-  createGroundPiece(-20, 0, 387, 10, 10);
-  createGroundPiece(-10, 0, 410, 10, 10);
-  createGroundPiece(10, 0, 430, 10, 10);
-  createGroundPiece(-29, 0, 450, 10, 10);
-  createGroundPiece(20, 0, 460, 10, 10);
+      await createGroundPiece(0, 0, 290, 10, 10);
+      await createGroundPiece(-29, 0, 275, 10, 10);
+      await createGroundPiece(29, 0, 275, 10, 10);
+      await createGroundPiece(20, 0, 300, 10, 10);
+      await createGroundPiece(-18, 0, 305, 10, 10);
+      await createGroundPiece(27, 0, 350, 10, 10);
+      await createGroundPiece(5, 0, 330, 10, 10);
+      await createGroundPiece(-15, 0, 350, 10, 10);
+      await createGroundPiece(25, 0, 380, 10, 10);
+      await createGroundPiece(0, 0, 390, 10, 10);
+      await createGroundPiece(-20, 0, 387, 10, 10);
+      await createGroundPiece(-10, 0, 410, 10, 10);
+      await createGroundPiece(10, 0, 430, 10, 10);
+      await createGroundPiece(-29, 0, 450, 10, 10);
+      await createGroundPiece(20, 0, 460, 10, 10);
 
-  //Rod pieces for second set of obstacles
-  initRodObstacles();
+      //Rod pieces for second set of obstacles
+      await initRodObstacles();
 
-  createGroundPiece(0, 0, 490, 60, 260);
+      await createGroundPiece(0, 0, 490, 60, 260);
 
-  // initFanObstacles();
+      resolve();
+      // initFanObstacles();
+    } catch (error) {
+      console.error("Error initializing the game:", error);
+      reject(error);
+    }
+  });
 }
 
 function die() {
@@ -143,94 +151,105 @@ function die() {
   }
 }
 
-function initBackgroundParticleSystem() {
-  const particles = new THREE.BufferGeometry();
-  positions = new Float32Array(particleCount * 3);
-  velocities = new Float32Array(particleCount * 3);
+async function initBackgroundParticleSystem() {
+  return new Promise((resolve) => {
+    const particles = new THREE.BufferGeometry();
+    positions = new Float32Array(particleCount * 3);
+    velocities = new Float32Array(particleCount * 3);
 
-  for (let i = 0; i < particleCount; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * particleSpreadX;
-    positions[i * 3 + 1] = (Math.random() - 0.5) * particleSpreadY;
-    positions[i * 3 + 2] = Math.random() * particleSpreadZ;
+    for (let i = 0; i < particleCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * particleSpreadX;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * particleSpreadY;
+      positions[i * 3 + 2] = Math.random() * particleSpreadZ;
 
-    velocities[i * 3] = (Math.random() - 0.5) * 0.1;
-    velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.05;
-    velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
-  }
+      velocities[i * 3] = (Math.random() - 0.5) * 0.1;
+      velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.05;
+      velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
+    }
 
-  particles.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    particles.setAttribute("position", new THREE.BufferAttribute(positions, 3));
 
-  const particleMaterial = new THREE.PointsMaterial({
-    color: "white",
-    size: 0.25,
-    transparent: true,
-    opacity: 0.25,
+    const particleMaterial = new THREE.PointsMaterial({
+      color: "white",
+      size: 0.25,
+      transparent: true,
+      opacity: 0.25,
 
-    // Add blending for better transparency
-    blending: THREE.AdditiveBlending,
+      // Add blending for better transparency
+      blending: THREE.AdditiveBlending,
 
-    // Add depth test to avoid rendering overlapping particles
-    depthTest: true,
+      // Add depth test to avoid rendering overlapping particles
+      depthTest: true,
 
-    // Enable size attenuation for better visibility
-    sizeAttenuation: true,
+      // Enable size attenuation for better visibility
+      sizeAttenuation: true,
 
-    // Enable fog for better depth perception
-    fog: true,
+      // Enable fog for better depth perception
+      fog: true,
+    });
+
+    particleSystem = new THREE.Points(particles, particleMaterial);
+    scene.add(particleSystem);
+    resolve();
   });
-
-  particleSystem = new THREE.Points(particles, particleMaterial);
-  scene.add(particleSystem);
 }
 
-function initStats() {
-  stats = new Stats();
-  stats.showPanel(0); // 0: fps, 1: ms, 2: mb
-  document.body.appendChild(stats.dom);
+async function initStats() {
+  return new Promise((resolve) => {
+    stats = new Stats();
+    stats.showPanel(0); // 0: fps, 1: ms, 2: mb
+    document.body.appendChild(stats.dom);
+
+    resolve();
+  });
 }
 
-function initScene() {
-  scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x202020, 100, 500); // Add depth fog
-  camera = new THREE.PerspectiveCamera(
-    70, // Field of view (45-75)
-    window.innerWidth / window.innerHeight,
-    0.1, // Min distance objects are rendered
-    1000 //Max distance objects are rendered
-  );
+async function initScene() {
+  return new Promise((resolve) => {
+    scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x202020, 100, 500); // Add depth fog
+    camera = new THREE.PerspectiveCamera(
+      70, // Field of view (45-75)
+      window.innerWidth / window.innerHeight,
+      0.1, // Min distance objects are rendered
+      1000 //Max distance objects are rendered
+    );
 
-  //Set camera position
-  camera.position.set(0, 0, 0);
+    //Set camera position
+    camera.position.set(0, 0, 0);
 
-  //Create a renderer
-  renderer = new THREE.WebGLRenderer({ antialias: true }); // Add antialias for smoother edges
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
+    //Create a renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true }); // Add antialias for smoother edges
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
-  renderer.setAnimationLoop(animate);
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Better shadow quality
-  document.body.appendChild(renderer.domElement);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    // renderer.setAnimationLoop(animate);
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Better shadow quality
+    document.body.appendChild(renderer.domElement);
 
-  //Create controls for testing
-  // controls = new OrbitControls(camera, renderer.domElement);
-  // controls.enableDamping = true; // Smooth motion
-  // controls.enableZoom = true; // Allow zooming
-  // controls.enablePan = true; // Allow panning
-  // controls.maxPolarAngle = Math.PI / 2; // Restrict vertical rotation (optional)
+    //Create controls for testing
+    // controls = new OrbitControls(camera, renderer.domElement);
+    // controls.enableDamping = true; // Smooth motion
+    // controls.enableZoom = true; // Allow zooming
+    // controls.enablePan = true; // Allow panning
+    // controls.maxPolarAngle = Math.PI / 2; // Restrict vertical rotation (optional)
 
-  //Create an axis
-  const axesHelper = new THREE.AxesHelper(1000); // Size of the axes
-  scene.add(axesHelper);
+    //Create an axis
+    const axesHelper = new THREE.AxesHelper(1000); // Size of the axes
+    scene.add(axesHelper);
 
-  //Start clock
-  clock = new THREE.Clock();
+    //Start clock
+    clock = new THREE.Clock();
 
-  //Setup controls
-  setupControls();
+    //Setup controls
+    setupControls();
+
+    resolve();
+  });
 }
 
 // function to toggle between first-person and third-person views
@@ -262,183 +281,200 @@ function setupControls() {
   });
 }
 
-function initLighting() {
-  // Scene-wide dim ambient light for base illumination
-  const ambientLight = new THREE.AmbientLight(0x404040, 1.0); // Reduced intensity
-  scene.add(ambientLight);
+async function initLighting() {
+  return new Promise((resolve) => {
+    // Scene-wide dim ambient light for base illumination
+    const ambientLight = new THREE.AmbientLight(0x404040, 1.0); // Reduced intensity
+    scene.add(ambientLight);
 
-  // Main directional light (sun-like)
-  const mainLight = new THREE.DirectionalLight(0xffffff, 2.5); // Reduced intensity
+    // Main directional light (sun-like)
+    const mainLight = new THREE.DirectionalLight(0xffffff, 2.5); // Reduced intensity
 
-  // Position light higher and further back for better coverage
-  mainLight.position.set(50, 100, -50); // Increased height and distance
-  mainLight.castShadow = true;
+    // Position light higher and further back for better coverage
+    mainLight.position.set(50, 100, -50); // Increased height and distance
+    mainLight.castShadow = true;
 
-  // Increase shadow map size for better quality
-  mainLight.shadow.mapSize.width = 4096;
-  mainLight.shadow.mapSize.height = 4096;
+    // Increase shadow map size for better quality
+    mainLight.shadow.mapSize.width = 4096;
+    mainLight.shadow.mapSize.height = 4096;
 
-  // Adjust shadow camera frustum for scene coverage
-  const shadowDistance = 300; // Increased shadow camera size
-  mainLight.shadow.camera.left = -shadowDistance;
-  mainLight.shadow.camera.right = shadowDistance;
-  mainLight.shadow.camera.top = shadowDistance;
-  mainLight.shadow.camera.bottom = -shadowDistance;
-  mainLight.shadow.camera.near = 1;
-  mainLight.shadow.camera.far = 5000;
+    // Adjust shadow camera frustum for scene coverage
+    const shadowDistance = 300; // Increased shadow camera size
+    mainLight.shadow.camera.left = -shadowDistance;
+    mainLight.shadow.camera.right = shadowDistance;
+    mainLight.shadow.camera.top = shadowDistance;
+    mainLight.shadow.camera.bottom = -shadowDistance;
+    mainLight.shadow.camera.near = 1;
+    mainLight.shadow.camera.far = 5000;
 
-  // Optional: visualize shadow camera frustum
-  // const helper = new THREE.CameraHelper(mainLight.shadow.camera);
-  // scene.add(helper);
+    // Optional: visualize shadow camera frustum
+    // const helper = new THREE.CameraHelper(mainLight.shadow.camera);
+    // scene.add(helper);
 
-  scene.add(mainLight);
+    scene.add(mainLight);
 
-  // Secondary fill light (no shadows) for better coverage
-  const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-  fillLight.position.set(-50, 50, -50);
-  scene.add(fillLight);
-}
+    // Secondary fill light (no shadows) for better coverage
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    fillLight.position.set(-50, 50, -50);
+    scene.add(fillLight);
 
-function initBackground() {
-  //We have to do the background
-  const textureLoader = new THREE.TextureLoader();
-  const skyboxTexture = textureLoader.load(basicBg, function (texture) {
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.repeat.set(1, 1);
-    texture.offset.set(0, -0.3); // Move the image up by 0.3 units
-
-    // // Enable texture matrix transformation
-    // texture.center.set(0.5, 0.5); // Set the center of rotation to the center of the texture
-    // texture.rotation = Math.PI/2; // Rotate the texture by 45 degrees (π/4 radians)
+    resolve();
   });
+}
 
-  const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);
-  const skyboxMaterial = new THREE.MeshBasicMaterial({
-    map: skyboxTexture,
-    side: THREE.BackSide,
+async function initBackground() {
+  return new Promise((resolve) => {
+    //We have to do the background
+    const textureLoader = new THREE.TextureLoader();
+    const skyboxTexture = textureLoader.load(basicBg, function (texture) {
+      texture.wrapS = THREE.ClampToEdgeWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
+      texture.repeat.set(1, 1);
+      texture.offset.set(0, -0.3); // Move the image up by 0.3 units
+
+      // // Enable texture matrix transformation
+      // texture.center.set(0.5, 0.5); // Set the center of rotation to the center of the texture
+      // texture.rotation = Math.PI/2; // Rotate the texture by 45 degrees (π/4 radians)
+    });
+
+    const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);
+    const skyboxMaterial = new THREE.MeshBasicMaterial({
+      map: skyboxTexture,
+      side: THREE.BackSide,
+    });
+    const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+    scene.add(skybox);
+    resolve();
   });
-  const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
-  scene.add(skybox);
 }
 
-function initPhysics() {
-  world = new CANNON.World();
-  world.gravity.set(0, -30, 0); // Set gravity
-  cannonDebugger = new CannonDebugger(scene, world, { color: 0xff0000 });
+async function initPhysics() {
+  return new Promise((resolve) => {
+    world = new CANNON.World();
+    world.gravity.set(0, -30, 0); // Set gravity
+    cannonDebugger = new CannonDebugger(scene, world, { color: 0xff0000 });
+    resolve();
+  });
 }
 
-function initPlayer() {
-  const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
-  const assetLoader = new GLTFLoader();
+async function initPlayer() {
+  return new Promise((resolve) => {
+    const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
+    const assetLoader = new GLTFLoader();
 
-  assetLoader.load(
-    fatGuyURL.href,
-    (gltf) => {
-      model = gltf.scene;
-      model.position.set(0, 10, 5);
-      model.scale.set(0.4, 0.4, 0.4);
+    assetLoader.load(
+      fatGuyURL.href,
+      (gltf) => {
+        model = gltf.scene;
+        model.position.set(0, 10, 5);
+        model.scale.set(0.4, 0.4, 0.4);
 
-      // Enable shadows for all meshes in the model
-      model.traverse((node) => {
-        if (node.isMesh) {
-          node.castShadow = true;
-          node.receiveShadow = true;
-        }
-      });
+        // Enable shadows for all meshes in the model
+        model.traverse((node) => {
+          if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+          }
+        });
 
-      scene.add(model);
+        scene.add(model);
 
-      // Create and add camera goal as a child of the model
-      cameraGoal = new THREE.Object3D();
-      cameraGoal.position.copy(cameraOffset);
-      model.add(cameraGoal);
+        // Create and add camera goal as a child of the model
+        cameraGoal = new THREE.Object3D();
+        cameraGoal.position.copy(cameraOffset);
+        model.add(cameraGoal);
 
-      // Set up animation
-      mixer = new THREE.AnimationMixer(model);
-      const clips = gltf.animations;
-      const clip = THREE.AnimationClip.findByName(clips, "Running");
-      runningAction = mixer.clipAction(clip);
+        // Set up animation
+        mixer = new THREE.AnimationMixer(model);
+        const clips = gltf.animations;
+        const clip = THREE.AnimationClip.findByName(clips, "Running");
+        runningAction = mixer.clipAction(clip);
 
-      const clipLeft = THREE.AnimationClip.findByName(clips, "Running");
-      runningLeftAction = mixer.clipAction(clipLeft);
+        const clipLeft = THREE.AnimationClip.findByName(clips, "Running");
+        runningLeftAction = mixer.clipAction(clipLeft);
 
-      const clipRight = THREE.AnimationClip.findByName(clips, "Running");
-      runningRightAction = mixer.clipAction(clipRight);
+        const clipRight = THREE.AnimationClip.findByName(clips, "Running");
+        runningRightAction = mixer.clipAction(clipRight);
 
-      const backClip = THREE.AnimationClip.findByName(
-        clips,
-        "Running Backward"
-      );
-      backRunningAction = mixer.clipAction(backClip);
+        const backClip = THREE.AnimationClip.findByName(
+          clips,
+          "Running Backward"
+        );
+        backRunningAction = mixer.clipAction(backClip);
 
-      const jumpClip = THREE.AnimationClip.findByName(clips, "Jumping Land");
-      jumpAction = mixer.clipAction(jumpClip);
+        const jumpClip = THREE.AnimationClip.findByName(clips, "Jumping Land");
+        jumpAction = mixer.clipAction(jumpClip);
 
-      idleClip = THREE.AnimationClip.findByName(clips, "Idle");
-      idleAction = mixer.clipAction(idleClip);
+        idleClip = THREE.AnimationClip.findByName(clips, "Idle");
+        idleAction = mixer.clipAction(idleClip);
 
-      const fallingClip = THREE.AnimationClip.findByName(clips, "Falling");
-      fallingAction = mixer.clipAction(fallingClip);
+        const fallingClip = THREE.AnimationClip.findByName(clips, "Falling");
+        fallingAction = mixer.clipAction(fallingClip);
 
-      idleAction.setLoop(THREE.LoopRepeat);
-      idleAction.play();
+        idleAction.setLoop(THREE.LoopRepeat);
+        idleAction.play();
 
-      currentAction = idleAction;
+        currentAction = idleAction;
 
-      // Calculate the bounding box of the model
-      const bbox = new THREE.Box3().setFromObject(model);
-      const size = bbox.getSize(new THREE.Vector3());
-      const center = bbox.getCenter(new THREE.Vector3());
+        // Calculate the bounding box of the model
+        const bbox = new THREE.Box3().setFromObject(model);
+        const size = bbox.getSize(new THREE.Vector3());
+        const center = bbox.getCenter(new THREE.Vector3());
 
-      // Store the model center offset to use it in animate
-      modelCenterOffset = new THREE.Vector3().subVectors(
-        model.position,
-        center
-      );
+        // Store the model center offset to use it in animate
+        modelCenterOffset = new THREE.Vector3().subVectors(
+          model.position,
+          center
+        );
 
-      // Create a Cannon Box shape using the bounding box dimensions
-      const playerShape = new CANNON.Box(
-        new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)
-      );
+        // Create a Cannon Box shape using the bounding box dimensions
+        const playerShape = new CANNON.Box(
+          new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)
+        );
 
-      // Create the player body using the Box shape
-      playerBody = new CANNON.Body({
-        mass: 70, // Mass for the player
-        // Add linear damping to reduce floatiness
-        linearDamping: 0.9,
-        // Add angular damping to prevent unwanted rotation
-        angularDamping: 0.99,
-        fixedRotation: true, // This will prevent the body from rotating
-        position: new CANNON.Vec3(center.x, center.y, center.z), // Start position of the player
-      });
+        // Create the player body using the Box shape
+        playerBody = new CANNON.Body({
+          mass: 70, // Mass for the player
+          // Add linear damping to reduce floatiness
+          linearDamping: 0.9,
+          // Add angular damping to prevent unwanted rotation
+          angularDamping: 0.99,
+          fixedRotation: true, // This will prevent the body from rotating
+          position: new CANNON.Vec3(center.x, center.y, center.z), // Start position of the player
+        });
 
-      // Add the Box shape to the body
-      playerBody.addShape(playerShape);
+        // Add the Box shape to the body
+        playerBody.addShape(playerShape);
 
-      // Add the body to the world
-      world.addBody(playerBody);
+        // Add the body to the world
+        world.addBody(playerBody);
 
-      // Create a helper to visualize the player's bounding box
-      playerHelper = new THREE.BoxHelper(model, "red"); // Red box around object1
-      scene.add(playerHelper);
-    },
-    undefined,
-    (error) => console.error("Error loading player model:", error)
-  );
+        // Create a helper to visualize the player's bounding box
+        playerHelper = new THREE.BoxHelper(model, "red"); // Red box around object1
+        scene.add(playerHelper);
+
+        resolve();
+      },
+      undefined,
+      (error) => console.error("Error loading player model:", error)
+    );
+  });
 }
 
 // Set up movement event listeners
-function initEventListeners() {
-  window.addEventListener("keydown", handleKeyDown);
-  window.addEventListener("keyup", handleKeyUp);
-  // event listeners for mouse control
-  document.addEventListener("mousemove", onMouseMove, false);
-  //switch between first and third person view
-  window.addEventListener("keydown", (event) => {
-    if (event.key === "v") {
-      toggleView();
-    }
+async function initEventListeners() {
+  return new Promise((resolve) => {
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    // event listeners for mouse control
+    document.addEventListener("mousemove", onMouseMove, false);
+    //switch between first and third person view
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "v") {
+        toggleView();
+      }
+    });
+    resolve();
   });
 }
 // function to handle mouse movement
@@ -719,414 +755,479 @@ function updateMovement(delta) {
   }
 }
 
-function createGroundPiece(x, y, z, width, length) {
-  //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
-  
-  //Create a simple plane for the ground
-  const groundGeometry = new THREE.PlaneGeometry(width, length);
-  const groundMaterial = new THREE.MeshStandardMaterial();
-  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-  ground.position.set(x, y, z + length / 2);
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
+async function createGroundPiece(x, y, z, width, length) {
+  return new Promise((resolve) => {
+    //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
 
-  //Create a cannon.js body for the ground
-  const groundShape = new CANNON.Box(
-    new CANNON.Vec3(width / 2, 0.001, length / 2)
-  );
-  const groundBody = new CANNON.Body({ mass: 0, shape: groundShape });
-  groundBody.position.set(x, y, z + length / 2);
-  world.addBody(groundBody);
+    //Create a simple plane for the ground
+    const groundGeometry = new THREE.PlaneGeometry(width, length);
+    const groundMaterial = new THREE.MeshStandardMaterial();
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.position.set(x, y, z + length / 2);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
 
-  //add texture over the ground
-  const textureLoader = new THREE.TextureLoader();
-  const texture = textureLoader.load(groundTexture);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(10, 10);
-  groundMaterial.map = texture;
+    //Create a cannon.js body for the ground
+    const groundShape = new CANNON.Box(
+      new CANNON.Vec3(width / 2, 0.001, length / 2)
+    );
+    const groundBody = new CANNON.Body({ mass: 0, shape: groundShape });
+    groundBody.position.set(x, y, z + length / 2);
+    world.addBody(groundBody);
+
+    //add texture over the ground
+    const textureLoader = new THREE.TextureLoader();
+    const texture = textureLoader.load(groundTexture);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(10, 10);
+    groundMaterial.map = texture;
+
+    resolve();
+  });
 }
 
-function initGateObstacles() {
-  //FIRST SET OF PILLARS AND GATES (4 pillars, 3 gates)
-  let pillar1 = createPillar(world, scene, 28.5, 0, 50, 3, 8, 7);
-  let pillar2 = createPillar(world, scene, 9.5, 0, 50, 3, 8, 7);
-  let pillar3 = createPillar(world, scene, -9.5, 0, 50, 3, 8, 7);
-  let pillar4 = createPillar(world, scene, -28.5, 0, 50, 3, 8, 7);
+async function initGateObstacles() {
+  return new Promise(async (resolve) => {
+    //FIRST SET OF PILLARS AND GATES (4 pillars, 3 gates)
+    let pillar1 = await createPillar(world, scene, 28.5, 0, 50, 3, 8, 7);
+    let pillar2 = await createPillar(world, scene, 9.5, 0, 50, 3, 8, 7);
+    let pillar3 = await createPillar(world, scene, -9.5, 0, 50, 3, 8, 7);
+    let pillar4 = await createPillar(world, scene, -28.5, 0, 50, 3, 8, 7);
 
-  // //moving gates between pillar 1 and 2
-  gates.push(
-    createGate(
+    // //moving gates between pillar 1 and 2
+    gates.push(
+      await createGate(
+        scene,
+        pillar1.position.x,
+        0,
+        pillar1.position.z,
+        8,
+        2,
+        pillar1,
+        pillar2
+      )
+    );
+    //moving gates between pillar 2 and 3
+    gates.push(
+      await createGate(
+        scene,
+        pillar2.position.x,
+        -8,
+        pillar2.position.z,
+        8,
+        2,
+        pillar2,
+        pillar3
+      )
+    );
+    //moving gates between pillar 3 and 4
+    gates.push(
+      await createGate(
+        scene,
+        pillar3.position.x,
+        0,
+        pillar3.position.z,
+        8,
+        2,
+        pillar3,
+        pillar4
+      )
+    );
+
+    //SECOND SET OF PILLARS (5 pillars, 4 gates)
+
+    const secondSetZ = 100; // Z position for the second set of pillars
+    const leftmostX = 28.5; // Fixed x position for the leftmost pillar
+    const rightmostX = -28.5; // Fixed x position for the rightmost pillar
+
+    // Calculate equal spacing between the pillars
+    const totalDistance = leftmostX - rightmostX; // Distance between leftmost and rightmost
+    const pillarSpacing = totalDistance / 4; // We have 4 gaps for 5 pillars
+
+    // Create 5 pillars with equal spacing between them
+    let pillar5 = await createPillar(
+      world,
       scene,
-      pillar1.position.x,
+      leftmostX,
       0,
-      pillar1.position.z,
+      secondSetZ,
+      3,
       8,
-      2,
-      pillar1,
-      pillar2
-    )
-  );
-  //moving gates between pillar 2 and 3
-  gates.push(
-    createGate(
+      7
+    );
+    let pillar6 = await createPillar(
+      world,
       scene,
-      pillar2.position.x,
-      -8,
-      pillar2.position.z,
-      8,
-      2,
-      pillar2,
-      pillar3
-    )
-  );
-  //moving gates between pillar 3 and 4
-  gates.push(
-    createGate(
-      scene,
-      pillar3.position.x,
+      leftmostX - pillarSpacing,
       0,
-      pillar3.position.z,
+      secondSetZ,
+      3,
       8,
-      2,
-      pillar3,
-      pillar4
-    )
-  );
-
-  //SECOND SET OF PILLARS (5 pillars, 4 gates)
-
-  const secondSetZ = 100; // Z position for the second set of pillars
-  const leftmostX = 28.5; // Fixed x position for the leftmost pillar
-  const rightmostX = -28.5; // Fixed x position for the rightmost pillar
-
-  // Calculate equal spacing between the pillars
-  const totalDistance = leftmostX - rightmostX; // Distance between leftmost and rightmost
-  const pillarSpacing = totalDistance / 4; // We have 4 gaps for 5 pillars
-
-  // Create 5 pillars with equal spacing between them
-  let pillar5 = createPillar(world, scene, leftmostX, 0, secondSetZ, 3, 8, 7);
-  let pillar6 = createPillar(
-    world,
-    scene,
-    leftmostX - pillarSpacing,
-    0,
-    secondSetZ,
-    3,
-    8,
-    7
-  );
-  let pillar7 = createPillar(
-    world,
-    scene,
-    leftmostX - 2 * pillarSpacing,
-    0,
-    secondSetZ,
-    3,
-    8,
-    7
-  );
-  let pillar8 = createPillar(
-    world,
-    scene,
-    leftmostX - 3 * pillarSpacing,
-    0,
-    secondSetZ,
-    3,
-    8,
-    7
-  );
-  let pillar9 = createPillar(world, scene, rightmostX, 0, secondSetZ, 3, 8, 7);
-
-  //create cylinder obstacle
-  cylinders.push(createCylinder(scene, -29, 0, 98.5, 1, 6));
-
-  // Moving gates between pillar 5 and 6
-  gates.push(
-    createGate(
+      7
+    );
+    let pillar7 = await createPillar(
+      world,
       scene,
-      pillar5.position.x,
+      leftmostX - 2 * pillarSpacing,
       0,
-      pillar5.position.z,
+      secondSetZ,
+      3,
       8,
-      2,
-      pillar5,
-      pillar6
-    )
-  );
-  // Moving gates between pillar 6 and 7
-  gates.push(
-    createGate(
+      7
+    );
+    let pillar8 = await createPillar(
+      world,
       scene,
-      pillar6.position.x,
-      -8,
-      pillar6.position.z,
-      8,
-      2,
-      pillar6,
-      pillar7
-    )
-  );
-  // Moving gates between pillar 7 and 8
-  gates.push(
-    createGate(
-      scene,
-      pillar7.position.x,
+      leftmostX - 3 * pillarSpacing,
       0,
-      pillar7.position.z,
+      secondSetZ,
+      3,
       8,
-      2,
-      pillar7,
-      pillar8
-    )
-  );
-  // Moving gates between pillar 8 and 9
-  gates.push(
-    createGate(
+      7
+    );
+    let pillar9 = await createPillar(
+      world,
       scene,
-      pillar8.position.x,
-      -8,
-      pillar8.position.z,
-      8,
-      2,
-      pillar8,
-      pillar9
-    )
-  );
-
-  //Third SET OF PILLARS, gates , and cylinders (5 pillars, 4 gates)
-  const thirdSetZ = 150; // Z position for the second set of pillars
-
-  // Create 5 pillars with equal spacing between them
-  let pillar10 = createPillar(world, scene, leftmostX, 0, thirdSetZ, 3, 8, 7);
-  let pillar11 = createPillar(
-    world,
-    scene,
-    leftmostX - pillarSpacing,
-    0,
-    thirdSetZ,
-    3,
-    8,
-    7
-  );
-  let pillar12 = createPillar(
-    world,
-    scene,
-    leftmostX - 2 * pillarSpacing,
-    0,
-    thirdSetZ,
-    3,
-    8,
-    7
-  );
-  let pillar13 = createPillar(
-    world,
-    scene,
-    leftmostX - 3 * pillarSpacing,
-    0,
-    thirdSetZ,
-    3,
-    8,
-    7
-  );
-  let pillar14 = createPillar(world, scene, rightmostX, 0, thirdSetZ, 3, 8, 7);
-
-  //create cylinder obstacle
-  cylinders.push(createCylinder(scene, 15, 0, 148.5, 1, 6));
-  //create cylinder obstacle
-  cylinders.push(createCylinder(scene, -15, 0, 158, 1, 6));
-
-  // Moving gates between pillar 5 and 6
-  gates.push(
-    createGate(
-      scene,
-      pillar10.position.x,
+      rightmostX,
       0,
-      pillar10.position.z,
+      secondSetZ,
+      3,
       8,
-      2,
-      pillar10,
-      pillar11
-    )
-  );
-  // Moving gates between pillar 6 and 7
-  gates.push(
-    createGate(
+      7
+    );
+
+    //create cylinder obstacle
+    cylinders.push(await createCylinder(scene, -29, 0, 98.5, 1, 6));
+
+    // Moving gates between pillar 5 and 6
+    gates.push(
+      await createGate(
+        scene,
+        pillar5.position.x,
+        0,
+        pillar5.position.z,
+        8,
+        2,
+        pillar5,
+        pillar6
+      )
+    );
+    // Moving gates between pillar 6 and 7
+    gates.push(
+      await createGate(
+        scene,
+        pillar6.position.x,
+        -8,
+        pillar6.position.z,
+        8,
+        2,
+        pillar6,
+        pillar7
+      )
+    );
+    // Moving gates between pillar 7 and 8
+    gates.push(
+      await createGate(
+        scene,
+        pillar7.position.x,
+        0,
+        pillar7.position.z,
+        8,
+        2,
+        pillar7,
+        pillar8
+      )
+    );
+    // Moving gates between pillar 8 and 9
+    gates.push(
+      await createGate(
+        scene,
+        pillar8.position.x,
+        -8,
+        pillar8.position.z,
+        8,
+        2,
+        pillar8,
+        pillar9
+      )
+    );
+
+    //Third SET OF PILLARS, gates , and cylinders (5 pillars, 4 gates)
+    const thirdSetZ = 150; // Z position for the second set of pillars
+
+    // Create 5 pillars with equal spacing between them
+    let pillar10 = await createPillar(
+      world,
       scene,
-      pillar11.position.x,
-      -8,
-      pillar11.position.z,
-      8,
-      2,
-      pillar11,
-      pillar12
-    )
-  );
-  // Moving gates between pillar 7 and 8
-  gates.push(
-    createGate(
-      scene,
-      pillar12.position.x,
+      leftmostX,
       0,
-      pillar12.position.z,
+      thirdSetZ,
+      3,
       8,
-      2,
-      pillar12,
-      pillar13
-    )
-  );
-  // Moving gates between pillar 8 and 9
-  gates.push(
-    createGate(
+      7
+    );
+    let pillar11 = await createPillar(
+      world,
       scene,
-      pillar13.position.x,
-      -8,
-      pillar13.position.z,
-      8,
-      2,
-      pillar13,
-      pillar14
-    )
-  );
-
-  //Fourth SET OF PILLARS, gates , and cylinders (5 pillars, 4 gates)
-  const fourthSetZ = 200; // Z position for the second set of pillars
-
-  // Create 5 pillars with equal spacing between them
-  let pillar15 = createPillar(world, scene, leftmostX, 0, fourthSetZ, 3, 8, 7);
-
-  let pillar16 = createPillar(
-    world,
-    scene,
-    leftmostX - pillarSpacing,
-    0,
-    fourthSetZ,
-    3,
-    8,
-    7
-  );
-
-  let pillar17 = createPillar(
-    world,
-    scene,
-    leftmostX - 2 * pillarSpacing,
-    0,
-    fourthSetZ,
-    3,
-    8,
-    7
-  );
-
-  let pillar18 = createPillar(
-    world,
-    scene,
-    leftmostX - 3 * pillarSpacing,
-    0,
-    fourthSetZ,
-    3,
-    8,
-    7
-  );
-
-  let pillar19 = createPillar(world, scene, rightmostX, 0, fourthSetZ, 3, 8, 7);
-
-  // Moving gates between pillar 5 and 6
-  gates.push(
-    createGate(
-      scene,
-      pillar15.position.x,
+      leftmostX - pillarSpacing,
       0,
-      pillar15.position.z,
+      thirdSetZ,
+      3,
       8,
-      2,
-      pillar15,
-      pillar16
-    )
-  );
-
-  // Moving gates between pillar 6 and 7
-  gates.push(
-    createGate(
+      7
+    );
+    let pillar12 = await createPillar(
+      world,
       scene,
-      pillar16.position.x,
-      -8,
-      pillar16.position.z,
-      8,
-      2,
-      pillar16,
-      pillar17
-    )
-  );
-
-  // Moving gates between pillar 7 and 8
-  gates.push(
-    createGate(
-      scene,
-      pillar17.position.x,
+      leftmostX - 2 * pillarSpacing,
       0,
-      pillar17.position.z,
+      thirdSetZ,
+      3,
       8,
-      2,
-      pillar17,
-      pillar18
-    )
-  );
-
-  // Moving gates between pillar 8 and 9
-  gates.push(
-    createGate(
+      7
+    );
+    let pillar13 = await createPillar(
+      world,
       scene,
-      pillar18.position.x,
-      -8,
-      pillar18.position.z,
+      leftmostX - 3 * pillarSpacing,
+      0,
+      thirdSetZ,
+      3,
       8,
-      2,
-      pillar18,
-      pillar19
-    )
-  );
+      7
+    );
+    let pillar14 = await createPillar(
+      world,
+      scene,
+      rightmostX,
+      0,
+      thirdSetZ,
+      3,
+      8,
+      7
+    );
 
-  //create cylinder obstacle
-  cylinders.push(createCylinder(scene, 29, 0, 198.5, 1, 6));
-  //create cylinder obstacle
-  cylinders.push(createCylinder(scene, -29, 0, 198.5, 1, 6));
+    //create cylinder obstacle
+    cylinders.push(await createCylinder(scene, 15, 0, 148.5, 1, 6));
+    //create cylinder obstacle
+    cylinders.push(await createCylinder(scene, -15, 0, 158, 1, 6));
 
-  //create cylinder obstacle
-  cylinders.push(createCylinder(scene, 12, 0, 208.5, 1, 6));
-  //create cylinder obstacle
-  cylinders.push(createCylinder(scene, -12, 0, 208.5, 1, 6));
+    // Moving gates between pillar 5 and 6
+    gates.push(
+      await createGate(
+        scene,
+        pillar10.position.x,
+        0,
+        pillar10.position.z,
+        8,
+        2,
+        pillar10,
+        pillar11
+      )
+    );
+    // Moving gates between pillar 6 and 7
+    gates.push(
+      await createGate(
+        scene,
+        pillar11.position.x,
+        -8,
+        pillar11.position.z,
+        8,
+        2,
+        pillar11,
+        pillar12
+      )
+    );
+    // Moving gates between pillar 7 and 8
+    gates.push(
+      await createGate(
+        scene,
+        pillar12.position.x,
+        0,
+        pillar12.position.z,
+        8,
+        2,
+        pillar12,
+        pillar13
+      )
+    );
+    // Moving gates between pillar 8 and 9
+    gates.push(
+      await createGate(
+        scene,
+        pillar13.position.x,
+        -8,
+        pillar13.position.z,
+        8,
+        2,
+        pillar13,
+        pillar14
+      )
+    );
 
-  AddVisualGateHelpers();
-  AddVisualCylinderHelpers();
+    //Fourth SET OF PILLARS, gates , and cylinders (5 pillars, 4 gates)
+    const fourthSetZ = 200; // Z position for the second set of pillars
+
+    // Create 5 pillars with equal spacing between them
+    let pillar15 = await createPillar(
+      world,
+      scene,
+      leftmostX,
+      0,
+      fourthSetZ,
+      3,
+      8,
+      7
+    );
+
+    let pillar16 = await createPillar(
+      world,
+      scene,
+      leftmostX - pillarSpacing,
+      0,
+      fourthSetZ,
+      3,
+      8,
+      7
+    );
+
+    let pillar17 = await createPillar(
+      world,
+      scene,
+      leftmostX - 2 * pillarSpacing,
+      0,
+      fourthSetZ,
+      3,
+      8,
+      7
+    );
+
+    let pillar18 = await createPillar(
+      world,
+      scene,
+      leftmostX - 3 * pillarSpacing,
+      0,
+      fourthSetZ,
+      3,
+      8,
+      7
+    );
+
+    let pillar19 = await createPillar(
+      world,
+      scene,
+      rightmostX,
+      0,
+      fourthSetZ,
+      3,
+      8,
+      7
+    );
+
+    // Moving gates between pillar 5 and 6
+    gates.push(
+      await createGate(
+        scene,
+        pillar15.position.x,
+        0,
+        pillar15.position.z,
+        8,
+        2,
+        pillar15,
+        pillar16
+      )
+    );
+
+    // Moving gates between pillar 6 and 7
+    gates.push(
+      await createGate(
+        scene,
+        pillar16.position.x,
+        -8,
+        pillar16.position.z,
+        8,
+        2,
+        pillar16,
+        pillar17
+      )
+    );
+
+    // Moving gates between pillar 7 and 8
+    gates.push(
+      await createGate(
+        scene,
+        pillar17.position.x,
+        0,
+        pillar17.position.z,
+        8,
+        2,
+        pillar17,
+        pillar18
+      )
+    );
+
+    // Moving gates between pillar 8 and 9
+    gates.push(
+      await createGate(
+        scene,
+        pillar18.position.x,
+        -8,
+        pillar18.position.z,
+        8,
+        2,
+        pillar18,
+        pillar19
+      )
+    );
+
+    //create cylinder obstacle
+    cylinders.push(await createCylinder(scene, 29, 0, 198.5, 1, 6));
+    //create cylinder obstacle
+    cylinders.push(await createCylinder(scene, -29, 0, 198.5, 1, 6));
+
+    //create cylinder obstacle
+    cylinders.push(await createCylinder(scene, 12, 0, 208.5, 1, 6));
+    //create cylinder obstacle
+    cylinders.push(await createCylinder(scene, -12, 0, 208.5, 1, 6));
+
+    AddVisualGateHelpers();
+    AddVisualCylinderHelpers();
+    resolve();
+  });
 }
 
-function initRodObstacles() {
-  //x, y, z, minX, maxX, radius, length
-  // let rod1 = createRod(scene, -29, 0, 280, -32, 32, 0.75, 15, 30);
-  // let rod2 = createRod(scene, 20, 0, 305, -25, 29, 0.75, 30, 40);
-  let rod3 = createRod(scene, -29, 0, 333, -32, 32, 0.75, 15, 20);
-  let rod4 = createRod(scene, 20, 0, 355, 0, 32, 0.75, 15, 10);
-  let rod5 = createRod(scene, -10, 0, 355, -32, 0, 0.75, 15, 10);
-  let rod6 = createRod(scene, 20, 0, 390, -32, 32, 0.75, 22, 30);
-  let rod7 = createRod(scene, -20, 0, 415, -32, 0, 0.75, 20, 15);
-  // z moving rod
-  let rod8 = createRod(scene, 15, 0, 450, 425, 485, 0.75, 30, 40);
-  //rotate rod8 in the X axis
-  rod8.rotation.z = Math.PI / 2;
-  let rod9 = createRod(scene, -15, 0, 455, -32, 0, 0.75, 15, 30);
+async function initRodObstacles() {
+  return new Promise(async (resolve) => {
+    //x, y, z, minX, maxX, radius, length
+    // let rod1 = createRod(scene, -29, 0, 280, -32, 32, 0.75, 15, 30);
+    // let rod2 = createRod(scene, 20, 0, 305, -25, 29, 0.75, 30, 40);
+    let rod3 = await createRod(scene, -29, 0, 333, -32, 32, 0.75, 15, 20);
+    let rod4 = await createRod(scene, 20, 0, 355, 0, 32, 0.75, 15, 10);
+    let rod5 = await createRod(scene, -10, 0, 355, -32, 0, 0.75, 15, 10);
+    let rod6 = await createRod(scene, 20, 0, 390, -32, 32, 0.75, 22, 30);
+    let rod7 = await createRod(scene, -20, 0, 415, -32, 0, 0.75, 20, 15);
+    // z moving rod
+    let rod8 = await createRod(scene, 15, 0, 450, 425, 485, 0.75, 30, 40);
+    //rotate rod8 in the X axis
+    rod8.rotation.z = Math.PI / 2;
+    let rod9 = await createRod(scene, -15, 0, 455, -32, 0, 0.75, 15, 30);
 
-  // rods.push(rod1);
-  // rods.push(rod2);
-  rods.push(rod3);
-  rods.push(rod4);
-  rods.push(rod5);
-  rods.push(rod6);
-  rods.push(rod7);
-  rodsZ.push(rod8);
-  rods.push(rod9);
+    // rods.push(rod1);
+    // rods.push(rod2);
+    rods.push(rod3);
+    rods.push(rod4);
+    rods.push(rod5);
+    rods.push(rod6);
+    rods.push(rod7);
+    rodsZ.push(rod8);
+    rods.push(rod9);
 
-  addVisualRodHelpers();
+    addVisualRodHelpers();
+
+    resolve();
+  });
 }
 
 function initFanObstacles() {
@@ -1590,4 +1691,67 @@ function animate() {
   stats.end();
 }
 
-init();
+// Create a function to show the loading screen
+function showLoadingScreen() {
+  const loadingScreen = document.createElement("div");
+  loadingScreen.id = "loading-screen";
+  loadingScreen.style.position = "fixed";
+  loadingScreen.style.top = "0";
+  loadingScreen.style.left = "0";
+  loadingScreen.style.width = "100%";
+  loadingScreen.style.height = "100%";
+  loadingScreen.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+  loadingScreen.style.display = "flex";
+  loadingScreen.style.justifyContent = "center";
+  loadingScreen.style.alignItems = "center";
+  loadingScreen.style.zIndex = "9999";
+
+  const loadingText = document.createElement("h1");
+  loadingText.textContent = "Loading...";
+  loadingText.style.color = "white";
+
+  loadingScreen.appendChild(loadingText);
+  document.body.appendChild(loadingScreen);
+}
+
+// Create a function to hide the loading screen
+function hideLoadingScreen() {
+  const loadingScreen = document.getElementById("loading-screen");
+  if (loadingScreen) {
+    loadingScreen.remove();
+  }
+}
+
+function showGameMenu() {
+  document.getElementById("gameMenu").style.display = "block";
+}
+
+function hideGameMenu() {
+  document.getElementById("gameMenu").style.display = "none";
+}
+
+//Main function to start the game
+async function startGame() {
+  try {
+    let startButton = document.getElementById("startButton");
+
+    //Add event listener to the start button
+    startButton.addEventListener("click", async () => {
+      showLoadingScreen();
+      hideGameMenu();
+      init().then(() => {
+        hideLoadingScreen();
+        renderer.setAnimationLoop(animate);
+      });
+    });
+  } catch (error) {
+    console.error("Error during initialization:", error);
+    hideLoadingScreen();
+    // Show an error message to the user
+    alert("An error occurred while loading the game. Please try again.");
+  }
+}
+
+startGame();
+
+// init();

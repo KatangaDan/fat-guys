@@ -605,6 +605,7 @@ function jump() {
     playerBody.position.y -
     (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
     0.1;
+    isJumping = true;
 
   // Check if the player is grounded and if they are , allow them to jump
   if (startingY < 0.1) {
@@ -640,7 +641,7 @@ function crossfadeAction(fromAction, toAction, duration) {
       toAction = fallingAction;
     }
     toAction.reset().fadeIn(duration).play(); // Fade in the new action
-    fromAction.fadeOut(duration); // Fade out the old action
+    fromAction.fadeOut(duration); // Fade out th  e old action
   }
 }
 function checkIdleState() {
@@ -655,6 +656,7 @@ function checkIdleState() {
     playerBody.position.y > 0
   ) {
     console.log("Transitioning to idle");
+    //playerBody.position.y = 0;
 
     // Fade in the idle action
     idleAction.reset().fadeIn(fadeDuration);
@@ -700,9 +702,6 @@ function updateMovement(delta) {
   if (moveLeft) moveDirection.add(right);
   if (moveRight) moveDirection.sub(right);
 
-  if (playerBody.position.y == 0) {
-    console.log("1");
-  }
 
   const isMoving =
     moveForward || moveBackward || moveLeft || moveRight || isJumping;

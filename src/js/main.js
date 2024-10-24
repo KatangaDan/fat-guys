@@ -102,6 +102,8 @@ const turnSpeed = 0.2; // for rotation
 
 //Jumping flag
 let isJumping = false;
+let lastJumpTime = 0;
+const jumpCooldown = 250; // milliseconds between allowed jump attempts
 
 //Audio Setup
 const listener = new THREE.AudioListener();
@@ -773,15 +775,20 @@ function handleKeyUp(event) {
 
 // Function to handle jumping
 function jump() {
-  let startingY =
-    playerBody.position.y -
-    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
-    0.1;
-  isJumping = true;
+  const currentTime = Date.now();
+  let startingY = playerBody.position.y - (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 - 0.1;
 
-  // Check if the player is grounded and if they are , allow them to jump
-  if (startingY < 0.1) {
+  // Multiple checks to ensure the jump is valid
+  if (
+    startingY < 0.1 && // Ground check
+    !isJumping && // Not already in a jump
+    currentTime - lastJumpTime >= jumpCooldown && // Cooldown check
+    Math.abs(playerBody.velocity.y) < 0.1 // Ensure player is not moving vertically
+  ) {
     isJumping = true;
+    lastJumpTime = currentTime;
+
+    // Play jump sound
     const jumpSound = new THREE.Audio(listener);
     audioLoader.load(PjumpSound, function (buffer) {
       jumpSound.setBuffer(buffer);
@@ -789,16 +796,44 @@ function jump() {
       jumpSound.setVolume(1);
       jumpSound.play();
     });
+
+    // Apply jump force
     playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
     crossfadeAction(currentAction, jumpAction, fadeDuration);
     currentAction = jumpAction;
-    const jumpland = new THREE.Audio(listener);
-    audioLoader.load(Pjumpland, function (buffer) {
-      jumpland.setBuffer(buffer);
-      jumpland.setLoop(false);
-      jumpland.setVolume(1);
-      jumpland.play();
-    });
+
+    // Set up ground detection
+    const raycaster = new THREE.Raycaster();
+    const rayDirection = new THREE.Vector3(0, -1, 0);
+
+    let groundCheckInterval;
+
+    function checkGroundCollision() {
+      if (!isJumping) {
+        cancelAnimationFrame(groundCheckInterval);
+        return;
+      }
+
+      raycaster.set(playerBody.position, rayDirection);
+      const intersects = raycaster.intersectObjects(scene.children, true);
+
+      if (intersects.length > 0 && intersects[0].distance <= 0.1) {
+        isJumping = false;
+        // Play landing sound
+        const jumpland = new THREE.Audio(listener);
+        audioLoader.load(Pjumpland, function (buffer) {
+          jumpland.setBuffer(buffer);
+          jumpland.setLoop(false);
+          jumpland.setVolume(1);
+          jumpland.play();
+        });
+        cancelAnimationFrame(groundCheckInterval);
+      } else {
+        groundCheckInterval = requestAnimationFrame(checkGroundCollision);
+      }
+    }
+
+    checkGroundCollision();
   }
 }
 

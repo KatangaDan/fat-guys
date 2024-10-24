@@ -122,6 +122,34 @@ export async function createCylinder(scene, x, y, z, radius, height) {
     });
   });
 }
+export async function createHorizontalCylinder(scene, x, y, z, radius, height) {
+  //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
+
+  return new Promise((resolve) => {
+    // load the texture
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(texture2, (texture) => {
+      //Create a simple plane for the ground
+      const cylinderGeometry = new THREE.CylinderGeometry(
+        radius,
+        radius,
+        height,
+        32
+      );
+      const cylinderMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+      cylinder.position.set(x, y, z+height/2);
+      cylinder.rotation.x = Math.PI / 2; // Rotate the cylinder by 90 degrees around the x-axis
+      cylinder.castShadow = true;
+      cylinder.receiveShadow = true;
+      scene.add(cylinder);
+
+      //return the pillar position
+      resolve(cylinder);
+    });
+  });
+}
+
 
 export function createFan(scene, x, y, z, radius, lengthOfFans) {
   const centerGeometry = new THREE.CylinderGeometry(radius, radius, 1.5, 32);
@@ -214,6 +242,81 @@ export async function createRod(
       resolve(rod);
     });
   });
+}
+
+
+// level 3 obstacles
+export function createCannonBall(scene, radius) {
+  const ballGroup = new THREE.Group();
+  
+  // Create main sphere with detailed material
+  const ballGeometry = new THREE.SphereGeometry(radius, 32, 32);
+  const ballMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0xffffff,
+    roughness: 0.3,
+    metalness: 0.9
+  });
+  const ball = new THREE.Mesh(ballGeometry, ballMaterial);
+  
+  // Add surface details (dents and imperfections)
+  for (let i = 0; i < 25; i++) {
+    const dentGeometry = new THREE.SphereGeometry(radius * 0.2, 8, 8);
+    const dent = new THREE.Mesh(dentGeometry, ballMaterial);
+    dent.position.setFromSpherical(new THREE.Spherical(
+      radius,
+      Math.random() * Math.PI,
+      Math.random() * Math.PI * 2
+    ));
+    ball.add(dent);
+  }
+  
+  ballGroup.add(ball);
+  ball.castShadow = true;
+  scene.add(ballGroup);
+
+  return ballGroup;
+}
+
+export function createCrown(scene, x, y, z) {
+  // Crown Base (cylinder)
+  const crownMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.7, roughness: 0.4 });
+  const crownBase = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.5, 32), crownMaterial);
+  
+  // Position crown base at (x, y, z)
+  crownBase.position.set(x, y, z);
+  scene.add(crownBase);
+
+  // Crown Spikes (cones)
+  const spikeGeometry = new THREE.ConeGeometry(0.2, 1, 32);
+  const spikes = []; // Store spikes for easy reference
+  for (let i = 0; i < 8; i++) {
+      const spike = new THREE.Mesh(spikeGeometry, crownMaterial);
+      const angle = (i / 8) * Math.PI * 2;  // Evenly distribute spikes around the crown
+      
+      // Adjust the position to avoid showing the base under the crown
+      spike.scale.set(2, 2, 2); 
+      spike.position.set(Math.cos(angle) * 1.5, 0.75, Math.sin(angle) * 1.5);  // Move spikes up slightly (y = 0.75)
+      spike.lookAt(0, 1, 0);  // Make spike point upwards
+      
+      // Add each spike as a child of the crown base
+      crownBase.add(spike);
+      spikes.push(spike);
+  }
+
+  // Add Spheres (ornaments) to spikes (at the tip of each spike)
+  const sphereGeometry = new THREE.SphereGeometry(0.15, 32, 32);
+  for (let i = 0; i < 8; i++) {
+      const ornament = new THREE.Mesh(sphereGeometry, crownMaterial);
+      
+      // Get the spike position and set the ornament at the tip
+      const spike = spikes[i];
+      ornament.position.set(0, 1.05, 0);  // Slightly above the spike's tip
+      
+      // Add ornament as a child of the spike so it moves with the spike
+      spike.add(ornament);
+  }
+  
+  return crownBase;
 }
 
 //  // Create a circular obstacle

@@ -7,11 +7,18 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import finish from "../img/finish.jpg";
 import beach from "../img/fall-guys-texture.jpg";
-import basicBg from "../img/sky.jpg";
+import sand from "../img/sand-floor2.png";
+import basicBg from "../img/desert.png";
 import godofWarSound from "../sounds/Bike Rides.mp3";
 import { mod } from "three/webgpu";
 
 const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
+const pricklyCactusURL = new URL("../assets/prickly-cactus.glb", import.meta.url);
+const smallCactusURL = new URL("../assets/small-cactus.glb", import.meta.url);
+const tallCactusURL = new URL("../assets/tall-cactus.glb", import.meta.url);
+const superCactusURL = new URL("../assets/super-cactus.glb", import.meta.url);
+
+
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -52,6 +59,8 @@ let idleAction;
 let currentAction = null;
 const fadeDuration = 0.07;
 const animationSpeed = 1.5;
+let cactusModel;
+let roundCactusModel;
 
 // Camera and controls variables
 let cameraGoal;
@@ -85,7 +94,8 @@ let platformDirection = 1;
 // Function to create ground
 function createGround() {
   const geometry = new THREE.PlaneGeometry(100, 300);
-  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x87ceeb });
+  const sandTexture = textureLoader.load(sand);
+  const groundMaterial = new THREE.MeshStandardMaterial({ map:sandTexture});
   const ground = new THREE.Mesh(geometry, groundMaterial);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
@@ -164,6 +174,107 @@ function createFinishLine() {
   finishLine.scale.z = 10;
   scene.add(finishLine);
   return finishLine;
+}
+
+//Function to load prickly cactus
+function loadPricklyCactus(){
+  const assetLoader = new GLTFLoader();
+  assetLoader.load(
+    pricklyCactusURL.href,
+    function (gltf) {
+      cactusModel = gltf.scene;
+      cactusModel.rotation.y = Math.PI;
+      
+      // Populate scene with multiple cactuses
+      populateCactusField();
+    },
+    undefined,
+    function (error) {
+      console.error("Error loading prickly cactus:", error);
+    }
+  );
+}
+//Function to load small cactus
+function loadSmallCactus(){
+  const assetLoader = new GLTFLoader();
+  assetLoader.load(
+    smallCactusURL.href,
+    function (gltf) {
+      cactusModel = gltf.scene;
+      cactusModel.scale.set(1.2,1.2,1.2);
+      cactusModel.rotation.y = Math.PI;
+      
+      // Populate scene with multiple cactuses
+      populateCactusField();
+    },
+    undefined,
+    function (error) {
+      console.error("Error loading small cactus:", error);
+    }
+  );
+}
+//Function to load cactus
+function loadTallCactus(){
+  const assetLoader = new GLTFLoader();
+  assetLoader.load(
+    tallCactusURL.href,
+    function (gltf) {
+      cactusModel = gltf.scene;
+      cactusModel.scale.set(1.2,1.2,1.2);
+      cactusModel.rotation.y = Math.PI;
+      
+      // Populate scene with multiple cactuses
+      populateCactusField();
+    },
+    undefined,
+    function (error) {
+      console.error("Error loading small cactus:", error);
+    }
+  );
+}
+
+function loadSuperCactus(){
+  const assetLoader = new GLTFLoader();
+  assetLoader.load(
+    superCactusURL.href,
+    function (gltf) {
+      cactusModel = gltf.scene;
+      cactusModel.scale.set(1.2,1.2,1.2);
+      cactusModel.rotation.y = Math.PI;
+      
+      // Populate scene with multiple cactuses
+      populateCactusField();
+    },
+    undefined,
+    function (error) {
+      console.error("Error loading small cactus:", error);
+    }
+  );
+}
+
+// Function to clone and position multiple cactuses
+function populateCactusField() {
+  const cactusCount = 10; // Number of cactuses you want to add
+  for (let i = 0; i < cactusCount; i++) {
+    // Clone the original model
+    const cactusClone = cactusModel.clone();
+
+    // Randomly set position and scale for variety
+    cactusClone.position.set(
+      Math.random() * 100 - 50,  // X position between -50 and 50
+      0,                         // Y position (ground level)
+      Math.random() * 100 - 50   // Z position between -50 and 50
+    );
+
+    // cactusClone.scale.set(
+    //   Math.random() * 0.3 + 0.3, // Random scale between 0.3 and 0.6
+    //   Math.random() * 0.3 + 0.3,
+    //   Math.random() * 0.3 + 0.3
+    // );
+
+    // Add the cactus clone to the scene
+    scene.add(cactusClone);
+  }
 }
 
 // Function to load player model
@@ -779,19 +890,23 @@ window.addEventListener("keydown", (event) => {
 
 // Initialize the game
 createGround();
-createCylindricalObstacle(5, 2.5, 130, "obs-1", "#ffffff");
-createCylindricalObstacle(15, 2.5, 115, "obs-2", "blue");
-createCylindricalObstacle(-5, 2.5, 125, "obs-3", "red");
-createCylindricalObstacle(-15, 2.5, 105, "obs-4", "#ffffff");
-createCylindricalObstacle(-35, 2.5, 110, "obs-5", "blue");
-createCylindricalObstacle(-25, 2.5, 120, "obs-6", "red");
-createCylindricalObstacle(25, 2.5, 135, "obs-7", "#ffffff");
-createCylindricalObstacle(40, 2.5, 135, "obs-8", "blue");
-createCylindricalObstacle(35, 2.5, 120, "obs-9", "red");
+// createCylindricalObstacle(5, 2.5, 130, "obs-1", "#ffffff");
+// createCylindricalObstacle(15, 2.5, 115, "obs-2", "blue");
+// createCylindricalObstacle(-5, 2.5, 125, "obs-3", "red");
+// createCylindricalObstacle(-15, 2.5, 105, "obs-4", "#ffffff");
+// createCylindricalObstacle(-35, 2.5, 110, "obs-5", "blue");
+// createCylindricalObstacle(-25, 2.5, 120, "obs-6", "red");
+// createCylindricalObstacle(25, 2.5, 135, "obs-7", "#ffffff");
+// createCylindricalObstacle(40, 2.5, 135, "obs-8", "blue");
+// createCylindricalObstacle(35, 2.5, 120, "obs-9", "red");
 createFloatingPlatform(0, 0.25, -5, "danish", "#ff0000");
 createLighting();
 finishLine = createFinishLine();
 loadPlayerModel();
+loadPricklyCactus();
+loadSmallCactus();
+// loadTallCactus();
+// loadSuperCactus();
 setupControls();
 
 document.body.appendChild(renderer.domElement);

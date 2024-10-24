@@ -7,9 +7,11 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import finish from "../img/finish.jpg";
 import beach from "../img/fall-guys-texture.jpg";
-import sand from "../img/sand-floor2.png";
-import basicBg from "../img/desert.png";
-import godofWarSound from "../sounds/Bike Rides.mp3";
+import basicBg from "../img/sky.jpg";
+import godofWarSound from "../sounds/backGroundMusic.mp3";
+import Pjumpland from "../sounds/jumpland.wav";
+import PjumpSound2 from "../sounds/jumpSound2.wav";
+import PwinSound from "../sounds/winSound.wav";
 import { mod } from "three/webgpu";
 
 const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
@@ -584,6 +586,13 @@ function showWinOverlay() {
   overlay.appendChild(mainMenuButton);
 
   document.body.appendChild(overlay);
+  const winSound = new THREE.Audio(listener);
+  audioLoader.load(PwinSound, function(buffer) {
+    winSound.setBuffer(buffer);
+    winSound.setLoop(false);
+    winSound.setVolume(1);
+    winSound.play();
+  });
   showCursor();
 }
 

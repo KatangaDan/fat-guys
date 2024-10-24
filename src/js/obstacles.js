@@ -122,6 +122,34 @@ export async function createCylinder(scene, x, y, z, radius, height) {
     });
   });
 }
+export async function createHorizontalCylinder(scene, x, y, z, radius, height) {
+  //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
+
+  return new Promise((resolve) => {
+    // load the texture
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(texture2, (texture) => {
+      //Create a simple plane for the ground
+      const cylinderGeometry = new THREE.CylinderGeometry(
+        radius,
+        radius,
+        height,
+        32
+      );
+      const cylinderMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+      cylinder.position.set(x, y, z+height/2);
+      cylinder.rotation.x = Math.PI / 2; // Rotate the cylinder by 90 degrees around the x-axis
+      cylinder.castShadow = true;
+      cylinder.receiveShadow = true;
+      scene.add(cylinder);
+
+      //return the pillar position
+      resolve(cylinder);
+    });
+  });
+}
+
 
 export function createFan(scene, x, y, z, radius, lengthOfFans) {
   const centerGeometry = new THREE.CylinderGeometry(radius, radius, 1.5, 32);

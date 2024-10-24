@@ -1,4 +1,3 @@
-//Imports
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -6,13 +5,7 @@ import * as CANNON from "cannon-es";
 import CannonDebugger from "cannon-es-debugger";
 import Stats from "stats.js";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
-import {
-  createPillar,
-  createGate,
-  createCylinder,
-  createFan,
-  createRod,
-} from "./obstacles";
+import { createCrown, createCannonBall } from "./obstacles";
 
 // Import assets
 import finish from "../img/finish.jpg";
@@ -69,20 +62,6 @@ let particleSpreadZ = 1000; //Based on how long our level is
 //Helpers to visualize intersection boxes
 let playerHelper;
 
-let gates = [];
-let gateHelpers = [];
-let cylinders = [];
-let cylinderHelpers = [];
-
-let fans = [];
-let fanHelpers = [];
-
-let rods = [];
-let rodsHelpers = [];
-
-let rodsZ = [];
-let rodsZHelpers = [];
-
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
 const cameraLerpFactor = 1.0;
@@ -123,41 +102,20 @@ async function init() {
       await initAudio();
 
       console.log("Creating obstacles + particles...");
-      await createGroundPiece(0, 0, 0, 60, 260);
+      await createGroundPiece(0, 0, 0, 60, 60);
+      const crown = await createCrown(scene, 0, 0, 65);
+      const cannonBall = createCannonBall(scene, 2);
+      // const cylinder3 = await createSpinningBeam(scene, 20, 0, 65, 2, 40);
+
       //Init particle background system
       await initBackgroundParticleSystem();
 
-      //First set of obstacles
-      await initGateObstacles();
-
-      //Ground pieces for second set of obstacles
-      await createGroundPiece(0, 0, 290, 10, 10);
-      await createGroundPiece(-29, 0, 275, 10, 10);
-      await createGroundPiece(29, 0, 275, 10, 10);
-      await createGroundPiece(20, 0, 300, 10, 10);
-      await createGroundPiece(-18, 0, 305, 10, 10);
-      await createGroundPiece(27, 0, 350, 10, 10);
-      await createGroundPiece(5, 0, 330, 10, 10);
-      await createGroundPiece(-15, 0, 350, 10, 10);
-      await createGroundPiece(25, 0, 380, 10, 10);
-      await createGroundPiece(0, 0, 390, 10, 10);
-      await createGroundPiece(-20, 0, 387, 10, 10);
-      await createGroundPiece(-10, 0, 410, 10, 10);
-      await createGroundPiece(10, 0, 430, 10, 10);
-      await createGroundPiece(-29, 0, 450, 10, 10);
-      await createGroundPiece(20, 0, 460, 10, 10);
-
-      //Rod pieces for second set of obstacles
-      await initRodObstacles();
-
-      await createGroundPiece(0, 0, 490, 60, 260);
-
+      // Create finish line
       await initFinishLine();
 
       console.log("Game initialized successfully!");
 
       resolve();
-      // initFanObstacles();
     } catch (error) {
       console.error("Error initializing the game:", error);
       reject(error);
@@ -414,13 +372,6 @@ async function initScene() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Better shadow quality
     document.body.appendChild(renderer.domElement);
 
-    //Create controls for testing
-    // controls = new OrbitControls(camera, renderer.domElement);
-    // controls.enableDamping = true; // Smooth motion
-    // controls.enableZoom = true; // Allow zooming
-    // controls.enablePan = true; // Allow panning
-    // controls.maxPolarAngle = Math.PI / 2; // Restrict vertical rotation (optional)
-
     //Create an axis
     const axesHelper = new THREE.AxesHelper(1000); // Size of the axes
     scene.add(axesHelper);
@@ -563,7 +514,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 10, 10);
+        model.position.set(0, 10, 2);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -674,32 +625,6 @@ async function initEventListeners() {
     resolve();
   });
 }
-// function to handle mouse movement
-// Update the onMouseMove function
-// function onMouseMove(event) {
-//   if (controls.isLocked) {
-//     // Update camera rotation
-//     cameraRotation.y -= event.movementX * mouseSensitivity;
-//     // cameraRotation.y = Math.max(
-//     //   -Math.PI / 2, // Limit looking up
-//     //   Math.min(
-//     //     Math.PI / 2, // Limit looking down
-//     //     cameraRotation.y - event.movementX * mouseSensitivity
-//     //   )
-//     // );
-
-//     // Rotate the player model to match camera direction
-//     if (playerBody && model) {
-//       // Set the quaternion of the physics body
-//       playerBody.quaternion.setFromAxisAngle(
-//         new CANNON.Vec3(0, 1, 0),
-//         cameraRotation.y
-//       );
-
-//       // model.rotation.y = cameraRotation.y;
-//     }
-//   }
-// }
 
 let targetRotationY = 0; // Store target rotation
 const rotationDamping = 0.2; // Damping factor
@@ -776,7 +701,10 @@ function handleKeyUp(event) {
 // Function to handle jumping
 function jump() {
   const currentTime = Date.now();
-  let startingY = playerBody.position.y - (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 - 0.1;
+  let startingY =
+    playerBody.position.y -
+    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+    0.1;
 
   // Multiple checks to ensure the jump is valid
   if (
@@ -1008,581 +936,6 @@ async function createGroundPiece(x, y, z, width, length) {
   });
 }
 
-async function initGateObstacles() {
-  return new Promise(async (resolve) => {
-    //FIRST SET OF PILLARS AND GATES (4 pillars, 3 gates)
-    let pillar1 = await createPillar(world, scene, 28.5, 0, 50, 3, 8, 7);
-    let pillar2 = await createPillar(world, scene, 9.5, 0, 50, 3, 8, 7);
-    let pillar3 = await createPillar(world, scene, -9.5, 0, 50, 3, 8, 7);
-    let pillar4 = await createPillar(world, scene, -28.5, 0, 50, 3, 8, 7);
-
-    // //moving gates between pillar 1 and 2
-    gates.push(
-      await createGate(
-        scene,
-        pillar1.position.x,
-        0,
-        pillar1.position.z,
-        8,
-        2,
-        pillar1,
-        pillar2
-      )
-    );
-    //moving gates between pillar 2 and 3
-    gates.push(
-      await createGate(
-        scene,
-        pillar2.position.x,
-        -8,
-        pillar2.position.z,
-        8,
-        2,
-        pillar2,
-        pillar3
-      )
-    );
-    //moving gates between pillar 3 and 4
-    gates.push(
-      await createGate(
-        scene,
-        pillar3.position.x,
-        0,
-        pillar3.position.z,
-        8,
-        2,
-        pillar3,
-        pillar4
-      )
-    );
-
-    //SECOND SET OF PILLARS (5 pillars, 4 gates)
-
-    const secondSetZ = 100; // Z position for the second set of pillars
-    const leftmostX = 28.5; // Fixed x position for the leftmost pillar
-    const rightmostX = -28.5; // Fixed x position for the rightmost pillar
-
-    // Calculate equal spacing between the pillars
-    const totalDistance = leftmostX - rightmostX; // Distance between leftmost and rightmost
-    const pillarSpacing = totalDistance / 4; // We have 4 gaps for 5 pillars
-
-    // Create 5 pillars with equal spacing between them
-    let pillar5 = await createPillar(
-      world,
-      scene,
-      leftmostX,
-      0,
-      secondSetZ,
-      3,
-      8,
-      7
-    );
-    let pillar6 = await createPillar(
-      world,
-      scene,
-      leftmostX - pillarSpacing,
-      0,
-      secondSetZ,
-      3,
-      8,
-      7
-    );
-    let pillar7 = await createPillar(
-      world,
-      scene,
-      leftmostX - 2 * pillarSpacing,
-      0,
-      secondSetZ,
-      3,
-      8,
-      7
-    );
-    let pillar8 = await createPillar(
-      world,
-      scene,
-      leftmostX - 3 * pillarSpacing,
-      0,
-      secondSetZ,
-      3,
-      8,
-      7
-    );
-    let pillar9 = await createPillar(
-      world,
-      scene,
-      rightmostX,
-      0,
-      secondSetZ,
-      3,
-      8,
-      7
-    );
-
-    //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, -29, 0, 98.5, 1, 6));
-
-    // Moving gates between pillar 5 and 6
-    gates.push(
-      await createGate(
-        scene,
-        pillar5.position.x,
-        0,
-        pillar5.position.z,
-        8,
-        2,
-        pillar5,
-        pillar6
-      )
-    );
-    // Moving gates between pillar 6 and 7
-    gates.push(
-      await createGate(
-        scene,
-        pillar6.position.x,
-        -8,
-        pillar6.position.z,
-        8,
-        2,
-        pillar6,
-        pillar7
-      )
-    );
-    // Moving gates between pillar 7 and 8
-    gates.push(
-      await createGate(
-        scene,
-        pillar7.position.x,
-        0,
-        pillar7.position.z,
-        8,
-        2,
-        pillar7,
-        pillar8
-      )
-    );
-    // Moving gates between pillar 8 and 9
-    gates.push(
-      await createGate(
-        scene,
-        pillar8.position.x,
-        -8,
-        pillar8.position.z,
-        8,
-        2,
-        pillar8,
-        pillar9
-      )
-    );
-
-    //Third SET OF PILLARS, gates , and cylinders (5 pillars, 4 gates)
-    const thirdSetZ = 150; // Z position for the second set of pillars
-
-    // Create 5 pillars with equal spacing between them
-    let pillar10 = await createPillar(
-      world,
-      scene,
-      leftmostX,
-      0,
-      thirdSetZ,
-      3,
-      8,
-      7
-    );
-    let pillar11 = await createPillar(
-      world,
-      scene,
-      leftmostX - pillarSpacing,
-      0,
-      thirdSetZ,
-      3,
-      8,
-      7
-    );
-    let pillar12 = await createPillar(
-      world,
-      scene,
-      leftmostX - 2 * pillarSpacing,
-      0,
-      thirdSetZ,
-      3,
-      8,
-      7
-    );
-    let pillar13 = await createPillar(
-      world,
-      scene,
-      leftmostX - 3 * pillarSpacing,
-      0,
-      thirdSetZ,
-      3,
-      8,
-      7
-    );
-    let pillar14 = await createPillar(
-      world,
-      scene,
-      rightmostX,
-      0,
-      thirdSetZ,
-      3,
-      8,
-      7
-    );
-
-    //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, 30, 0, 148.5, 1, 6));
-    //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, -30, 0, 158, 1, 6));
-
-    // Moving gates between pillar 5 and 6
-    gates.push(
-      await createGate(
-        scene,
-        pillar10.position.x,
-        0,
-        pillar10.position.z,
-        8,
-        2,
-        pillar10,
-        pillar11
-      )
-    );
-    // Moving gates between pillar 6 and 7
-    gates.push(
-      await createGate(
-        scene,
-        pillar11.position.x,
-        -8,
-        pillar11.position.z,
-        8,
-        2,
-        pillar11,
-        pillar12
-      )
-    );
-    // Moving gates between pillar 7 and 8
-    gates.push(
-      await createGate(
-        scene,
-        pillar12.position.x,
-        0,
-        pillar12.position.z,
-        8,
-        2,
-        pillar12,
-        pillar13
-      )
-    );
-    // Moving gates between pillar 8 and 9
-    gates.push(
-      await createGate(
-        scene,
-        pillar13.position.x,
-        -8,
-        pillar13.position.z,
-        8,
-        2,
-        pillar13,
-        pillar14
-      )
-    );
-
-    //Fourth SET OF PILLARS, gates , and cylinders (5 pillars, 4 gates)
-    const fourthSetZ = 200; // Z position for the second set of pillars
-
-    // Create 5 pillars with equal spacing between them
-    let pillar15 = await createPillar(
-      world,
-      scene,
-      leftmostX,
-      0,
-      fourthSetZ,
-      3,
-      8,
-      7
-    );
-
-    let pillar16 = await createPillar(
-      world,
-      scene,
-      leftmostX - pillarSpacing,
-      0,
-      fourthSetZ,
-      3,
-      8,
-      7
-    );
-
-    let pillar17 = await createPillar(
-      world,
-      scene,
-      leftmostX - 2 * pillarSpacing,
-      0,
-      fourthSetZ,
-      3,
-      8,
-      7
-    );
-
-    let pillar18 = await createPillar(
-      world,
-      scene,
-      leftmostX - 3 * pillarSpacing,
-      0,
-      fourthSetZ,
-      3,
-      8,
-      7
-    );
-
-    let pillar19 = await createPillar(
-      world,
-      scene,
-      rightmostX,
-      0,
-      fourthSetZ,
-      3,
-      8,
-      7
-    );
-
-    // Moving gates between pillar 5 and 6
-    gates.push(
-      await createGate(
-        scene,
-        pillar15.position.x,
-        0,
-        pillar15.position.z,
-        8,
-        2,
-        pillar15,
-        pillar16
-      )
-    );
-
-    // Moving gates between pillar 6 and 7
-    gates.push(
-      await createGate(
-        scene,
-        pillar16.position.x,
-        -8,
-        pillar16.position.z,
-        8,
-        2,
-        pillar16,
-        pillar17
-      )
-    );
-
-    // Moving gates between pillar 7 and 8
-    gates.push(
-      await createGate(
-        scene,
-        pillar17.position.x,
-        0,
-        pillar17.position.z,
-        8,
-        2,
-        pillar17,
-        pillar18
-      )
-    );
-
-    // Moving gates between pillar 8 and 9
-    gates.push(
-      await createGate(
-        scene,
-        pillar18.position.x,
-        -8,
-        pillar18.position.z,
-        8,
-        2,
-        pillar18,
-        pillar19
-      )
-    );
-
-    //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, 30, 0, 198.5, 1, 6));
-    //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, -30, 0, 198.5, 1, 6));
-
-    //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, 20, 0, 208.5, 1, 6));
-    //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, -15, 0, 208.5, 1, 6));
-
-    AddVisualGateHelpers();
-    AddVisualCylinderHelpers();
-    resolve();
-  });
-}
-
-async function initRodObstacles() {
-  return new Promise(async (resolve) => {
-    //x, y, z, minX, maxX, radius, length
-    // let rod1 = createRod(scene, -29, 0, 280, -32, 32, 0.75, 15, 30);
-    // let rod2 = createRod(scene, 20, 0, 305, -25, 29, 0.75, 30, 40);
-    let rod3 = await createRod(scene, -29, 0, 333, -32, 32, 0.75, 15, 20);
-    let rod4 = await createRod(scene, 20, 0, 355, 0, 32, 0.75, 15, 10);
-    let rod5 = await createRod(scene, -10, 0, 355, -32, 0, 0.75, 15, 10);
-    let rod6 = await createRod(scene, 20, 0, 390, -32, 32, 0.75, 22, 30);
-    let rod7 = await createRod(scene, -20, 0, 415, -32, 0, 0.75, 20, 15);
-    // z moving rod
-    let rod8 = await createRod(scene, 15, 0, 450, 425, 485, 0.75, 30, 40);
-    //rotate rod8 in the X axis
-    rod8.rotation.z = Math.PI / 2;
-    let rod9 = await createRod(scene, -15, 0, 455, -32, 0, 0.75, 15, 30);
-
-    // rods.push(rod1);
-    // rods.push(rod2);
-    rods.push(rod3);
-    rods.push(rod4);
-    rods.push(rod5);
-    rods.push(rod6);
-    rods.push(rod7);
-    rodsZ.push(rod8);
-    rods.push(rod9);
-
-    addVisualRodHelpers();
-
-    resolve();
-  });
-}
-
-function initFanObstacles() {
-  let fan1 = createFan(scene, 15, 0, 250, 3, 30);
-  let fan2 = createFan(scene, -15, 0, 260, 3, 30);
-  let fan3 = createFan(scene, 15, 0, 290, 3, 30);
-  let fan4 = createFan(scene, -15, 0, 300, 3, 30);
-
-  fans.push(fan1.blade1);
-  fans.push(fan1.blade2);
-  fans.push(fan1.center);
-
-  fans.push(fan2.blade1);
-  fans.push(fan2.blade2);
-  fans.push(fan2.center);
-
-  fans.push(fan3.blade1);
-  fans.push(fan3.blade2);
-  fans.push(fan3.center);
-
-  fans.push(fan4.blade1);
-  fans.push(fan4.blade2);
-  fans.push(fan4.center);
-
-  fanHelpers.push(fan1.blade1Helper);
-  fanHelpers.push(fan1.blade2Helper);
-  fanHelpers.push(fan1.centerHelper);
-
-  fanHelpers.push(fan2.blade1Helper);
-  fanHelpers.push(fan2.blade2Helper);
-  fanHelpers.push(fan2.centerHelper);
-
-  fanHelpers.push(fan3.blade1Helper);
-  fanHelpers.push(fan3.blade2Helper);
-  fanHelpers.push(fan3.centerHelper);
-
-  fanHelpers.push(fan4.blade1Helper);
-  fanHelpers.push(fan4.blade2Helper);
-  fanHelpers.push(fan4.centerHelper);
-
-  console.log(fans);
-}
-
-function addVisualRodHelpers() {
-  rods.forEach((rod) => {
-    const helper = new THREE.BoxHelper(rod, "blue");
-    rodsHelpers.push(helper);
-    //scene.add(helper);
-  });
-  rodsZ.forEach((rod) => {
-    const helper = new THREE.BoxHelper(rod, "blue");
-    rodsZHelpers.push(helper);
-    //scene.add(helper);
-  });
-}
-
-function animateRodsX(deltaTime) {
-  //const moveSpeed = 20; // Movement speed
-  let waitTime = 0.5; // Seconds to wait at each position
-
-  rods.forEach((rod) => {
-    const maxX = rod.maxX;
-    const minX = rod.minX;
-    const moveSpeed = rod.speed; // Movement speed
-
-    // Initialize the rod direction if it doesn't exist
-    if (rod.moveDirection === undefined) {
-      rod.moveDirection = rod.position.x >= maxX ? -1 : 1;
-    }
-
-    if (rod.waitTimer === undefined) {
-      rod.waitTimer = 0; // Timer for waiting at bounds
-    }
-
-    // Check if the rod is waiting at the bounds
-    if (rod.waitTimer > 0) {
-      rod.waitTimer -= deltaTime; // Reduce the wait timer
-      return; // Skip the movement until wait time is over
-    }
-
-    // Clamp rod position to max/min bounds
-    if (rod.position.x > maxX) {
-      rod.position.x = maxX;
-      rod.moveDirection *= -1;
-      rod.waitTimer = waitTime; // Set wait timer before moving again
-    } else if (rod.position.x < minX) {
-      rod.position.x = minX;
-      rod.moveDirection *= -1;
-      rod.waitTimer = waitTime; // Set wait timer before moving again
-    }
-
-    rod.position.x += rod.moveDirection * moveSpeed * deltaTime;
-  });
-}
-
-function animateRodsZ(deltaTime) {
-  //const moveSpeed = 20; // Movement speed
-
-  let waitTime = 0.5; // Seconds to wait at each position
-
-  rodsZ.forEach((rod) => {
-    const maxZ = rod.maxX;
-    const minZ = rod.minX;
-    const moveSpeed = rod.speed; // Movement speed
-
-    // Initialize the rod direction if it doesn't exist
-    if (rod.moveDirection === undefined) {
-      rod.moveDirection = rod.position.z >= maxZ ? -1 : 1;
-    }
-
-    if (rod.waitTimer === undefined) {
-      rod.waitTimer = 0; // Timer for waiting at bounds
-    }
-
-    // Check if the rod is waiting at the bounds
-    if (rod.waitTimer > 0) {
-      rod.waitTimer -= deltaTime; // Reduce the wait timer
-      return; // Skip the movement until wait time is over
-    }
-
-    // Clamp rod position to max/min bounds
-    if (rod.position.z > maxZ) {
-      rod.position.z = maxZ;
-      rod.moveDirection *= -1;
-      rod.waitTimer = waitTime; // Set wait timer before moving again
-    } else if (rod.position.z < minZ) {
-      rod.position.z = minZ;
-      rod.moveDirection *= -1;
-      rod.waitTimer = waitTime; // Set wait timer before moving again
-    }
-
-    rod.position.z += rod.moveDirection * moveSpeed * deltaTime;
-  });
-}
-
 function AddVisualGateHelpers() {
   // Add visual helpers for the gates
   gates.forEach((gate) => {
@@ -1601,108 +954,7 @@ function AddVisualCylinderHelpers() {
   });
 }
 
-function animateGates(deltaTime) {
-  const moveSpeed = 20; // Movement speed
-  const waitTime = 1; // Seconds to wait at each position
-
-  gates.forEach((gate) => {
-    const pillar = gate.leftPillar;
-    const maxY =
-      pillar.position.y +
-      pillar.geometry.parameters.height / 2 -
-      gate.geometry.parameters.height / 2;
-    const minY = 0 - gate.geometry.parameters.height / 2 - 1;
-
-    // Initialize the gate direction if it doesn't exist
-    if (gate.moveDirection === undefined) {
-      gate.moveDirection = gate.position.y >= maxY ? -1 : 1;
-    }
-
-    // Initialize waiting state and last wait time if not set
-    if (gate.waiting === undefined) {
-      gate.waiting = false;
-      gate.lastWaitTime = 0;
-    }
-
-    // If gate is at max or min height, start waiting
-    if (!gate.waiting && (gate.position.y >= maxY || gate.position.y <= minY)) {
-      gate.waiting = true;
-      gate.lastWaitTime = clock.getElapsedTime(); // Record the time of the wait
-    }
-
-    // Handle the waiting period
-    if (gate.waiting) {
-      // Check how long the gate has been waiting
-      if (clock.getElapsedTime() - gate.lastWaitTime >= waitTime) {
-        gate.waiting = false; // Stop waiting and reverse direction
-        gate.moveDirection *= -1;
-      }
-    }
-
-    // Move the gate if not waiting
-    if (!gate.waiting) {
-      gate.position.y += gate.moveDirection * moveSpeed * deltaTime;
-
-      // Clamp gate position to max/min bounds
-      if (gate.position.y > maxY) {
-        gate.position.y = maxY;
-      } else if (gate.position.y < minY) {
-        gate.position.y = minY;
-      }
-    }
-  });
-}
-
-function animateFans(deltaTime) {
-  const fanSpinSpeed = 2;
-  fans.forEach((fan) => {
-    if (fan.name == "blade1") {
-      fan.rotation.y += fanSpinSpeed * deltaTime;
-    }
-    if (fan.name == "blade2") {
-      fan.rotation.z -= fanSpinSpeed * deltaTime;
-    }
-  });
-
-  fanHelpers.forEach((helper) => {
-    if (helper) {
-      helper.update();
-      helper.updateMatrixWorld(true);
-    }
-  });
-}
-
-function animateCylinders(deltaTime) {
-  //function to move cylinders right and left
-
-  const moveSpeed = 50; // Movement speed
-
-  cylinders.forEach((cylinder) => {
-    const maxX = 29;
-    const minX = -29;
-
-    // Initialize the cylinder direction if it doesn't exist
-    if (cylinder.moveDirection === undefined) {
-      cylinder.moveDirection = cylinder.position.x >= maxX ? -1 : 1;
-    }
-
-    // If cylinder is at max or min width, start waiting
-    if (cylinder.position.x >= maxX || cylinder.position.x <= minX) {
-      cylinder.moveDirection *= -1;
-    }
-    // Clamp cylinder position to max/min bounds
-    if (cylinder.position.x > maxX) {
-      cylinder.position.x = maxX;
-    } else if (cylinder.position.x < minX) {
-      cylinder.position.x = minX;
-    }
-
-    cylinder.position.x += cylinder.moveDirection * moveSpeed * deltaTime;
-  });
-}
-
 // Update the camera position to follow the player
-// Update the updateCamera function
 function updateCamera() {
   if (!model) return;
 
@@ -1880,99 +1132,6 @@ function animate() {
     //player bounding box
     const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
-    //gates bounding boxes
-    gates.forEach((gate) => {
-      const gateBoundingBox = new THREE.Box3().setFromObject(gate);
-
-      if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
-        const currentTime = Date.now();
-        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
-          isPlayerDead = true;
-          lastDeathTime = currentTime;
-          die();
-
-          // Reset the dead state after the cooldown
-          setTimeout(() => {
-            isPlayerDead = false;
-          }, deathCooldown);
-        }
-      }
-    });
-
-    //cylinders bounding boxes
-    cylinders.forEach((cylinder) => {
-      const cylinderBoundingBox = new THREE.Box3().setFromObject(cylinder);
-
-      if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
-        const currentTime = Date.now();
-        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
-          isPlayerDead = true;
-          lastDeathTime = currentTime;
-          die();
-
-          // Reset the dead state after the cooldown
-          setTimeout(() => {
-            isPlayerDead = false;
-          }, deathCooldown);
-        }
-      }
-    });
-
-    //rods bounding boxes
-    rods.forEach((rod) => {
-      const rodBoundingBox = new THREE.Box3().setFromObject(rod);
-
-      if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
-        //Reset the players position
-        const currentTime = Date.now();
-        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
-          isPlayerDead = true;
-          lastDeathTime = currentTime;
-          die();
-
-          // Reset the dead state after the cooldown
-          setTimeout(() => {
-            isPlayerDead = false;
-          }, deathCooldown);
-        }
-      }
-    });
-
-    rodsZ.forEach((rod) => {
-      const rodBoundingBox = new THREE.Box3().setFromObject(rod);
-
-      if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
-        const currentTime = Date.now();
-        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
-          isPlayerDead = true;
-          lastDeathTime = currentTime;
-          die();
-
-          // Reset the dead state after the cooldown
-          setTimeout(() => {
-            isPlayerDead = false;
-          }, deathCooldown);
-        }
-      }
-    });
-
-    // fans.forEach((fan) => {
-    //   fan.children.forEach((child) => {
-    //     const fanBoundingBox = new THREE.Box3().setFromObject(child);
-
-    //     if (playerBoundingBox.intersectsBox(fanBoundingBox)) {
-    //       //Reset the players position
-    //       playerBody.position.set(0, 10, 10);
-    //     }
-    //   });
-    //   // const fanBoundingBox = new THREE.Box3().setFromObject(fan);
-
-    //   // if (playerBoundingBox.intersectsBox(fanBoundingBox)) {
-    //   //   //Reset the players position
-    //   //   playerBody.position.set(0, 10, 10);
-    //   // }
-    // });
-
     /*Actual bounding boxes for the player and obstacles*/
 
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
@@ -1981,35 +1140,12 @@ function animate() {
     }
 
     //Update gate helpers
-    gateHelpers.forEach((helper) => {
-      if (helper) helper.update();
-    });
-
-    // fanHelpers.forEach((helper) => {
+    // gateHelpers.forEach((helper) => {
     //   if (helper) helper.update();
     // });
 
-    //Update cylinder helpers
-    cylinderHelpers.forEach((helper) => {
-      if (helper) helper.update();
-    });
-
-    //Update rod helpers
-    rodsHelpers.forEach((helper) => {
-      if (helper) helper.update();
-    });
-
-    rodsZHelpers.forEach((helper) => {
-      if (helper) helper.update();
-    });
-
-    /*HELPERS TO VISUALIZE BOUNDING BOXES */
-
     //Particle system
     if (particleSystem) {
-      // Remove rotation line
-      // particleSystem.rotation.y += 0.001; // Remove this line
-
       let positionArray = particleSystem.geometry.attributes.position.array;
       for (let i = 0; i < particleCount; i++) {
         positionArray[3 * i] += velocities[3 * i];
@@ -2039,11 +1175,11 @@ function animate() {
   // }
 
   //Animate the gates
-  animateGates(deltaTime);
-  animateCylinders(deltaTime);
-  animateFans(deltaTime);
-  animateRodsX(deltaTime);
-  animateRodsZ(deltaTime);
+  //   animateGates(deltaTime);
+  //   animateCylinders(deltaTime);
+  //   animateFans(deltaTime);
+  //   animateRodsX(deltaTime);
+  //   animateRodsZ(deltaTime);
 
   // cannonDebugger.update();
   renderer.render(scene, camera);
@@ -2353,5 +1489,3 @@ async function startGame() {
 }
 
 startGame();
-
-// init();

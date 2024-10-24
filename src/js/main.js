@@ -421,7 +421,7 @@ async function initScene() {
 
     //Create an axis
     const axesHelper = new THREE.AxesHelper(1000); // Size of the axes
-    scene.add(axesHelper);
+    // scene.add(axesHelper);
 
     //Start clock
     clock = new THREE.Clock();
@@ -1672,6 +1672,8 @@ function updateCamera() {
   if (!model) return;
 
   if (isFirstPerson) {
+    //hide model
+    model.visible = false; // Hide the model in first-person view
     const headPosition = model.position.clone().add(new THREE.Vector3(0, 2, 0)); // get the model's head position
     camera.position.copy(headPosition); // set the camera position to the model's head position
     camera.rotation.copy(controls.getObject().rotation); // set the camera rotation to the model's rotation

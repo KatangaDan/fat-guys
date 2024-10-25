@@ -55,13 +55,11 @@ let scene,
   previousTimestamp = 0,
   currentLives = 3,
   gameWon = false,
-  startingHeight = 0,
-  inclineStep = 0.5,
   zPosition = 0,
   zStep = 60,
   platformWidth = 60,
   platformDepth = 60,
-  numberOfPlatforms = 15;
+  numberOfPlatforms = 8;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -118,10 +116,11 @@ async function init() {
       await initAudio();
 
       console.log("Creating obstacles + particles...");
-      await createGroundPiece(0, startingHeight, zPosition, 60, 60); // Base ground
-
       // Increment height and z-position for each ground piece in a smooth, gradual way
-      await createGroundPiece(0, startingHeight += inclineStep, zPosition += zStep, 60, 60);
+      for (let i = 0; i < numberOfPlatforms; i++) {
+        await createGroundPiece(0, 0, zPosition, platformWidth, platformDepth);
+        zPosition += zStep;
+      }
       const crown = createCrown(scene, -10, 0, 10);
       const turnstile = createTurnstile(scene, 5, 0, 15, 2, 15);
       //const rotatingHammer = createRotatingHammer(scene, 0, 10, 65, 2, 40); // Moved up
@@ -745,6 +744,13 @@ function jump() {
       jumpSound.setVolume(1);
       jumpSound.play();
     });
+    const jumpland = new THREE.Audio(listener);
+    audioLoader.load(Pjumpland, function (buffer) {
+      jumpland.setBuffer(buffer);
+      jumpland.setLoop(false);
+      jumpland.setVolume(1);
+      jumpland.play();
+    });
 
     // Apply jump force
     playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
@@ -768,14 +774,6 @@ function jump() {
 
       if (intersects.length > 0 && intersects[0].distance <= 0.1) {
         isJumping = false;
-        // Play landing sound
-        const jumpland = new THREE.Audio(listener);
-        audioLoader.load(Pjumpland, function (buffer) {
-          jumpland.setBuffer(buffer);
-          jumpland.setLoop(false);
-          jumpland.setVolume(1);
-          jumpland.play();
-        });
         cancelAnimationFrame(groundCheckInterval);
       } else {
         groundCheckInterval = requestAnimationFrame(checkGroundCollision);

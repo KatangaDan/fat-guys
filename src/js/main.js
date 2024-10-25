@@ -24,6 +24,10 @@ import PjumpSound from "../sounds/jumpSound.wav";
 import Pjumpland from "../sounds/jumpland.wav";
 import Phitsound from "../sounds/hit.wav";
 import Pwinsound from "../sounds/winSound.wav";
+import countdownOne from "../sounds/1.mp3";
+import countdownTwo from "../sounds/2.mp3";
+import countdownThree from "../sounds/3.mp3";
+import countdownGo from "../sounds/GO.mp3";
 
 //Global variables
 let scene,
@@ -119,7 +123,7 @@ async function init() {
       await initBackground();
       await initPhysics();
       await initPlayer();
-      await initEventListeners();
+      // don't call init event listeners here - it gives the user control too early (they can move while in the laoding screena & before countdown)
       await initAudio();
 
       console.log("Creating obstacles + particles...");
@@ -290,6 +294,11 @@ function updateParticles(deltaTime) {
 async function die() {
   currentLives--;
 
+  isPlayerDead = true;
+
+  //stop the camera
+  controls.disconnect();
+
   // Create particle explosion at player's current position
   createParticleExplosion(model.position);
 
@@ -331,6 +340,7 @@ async function die() {
 
   // Make player visible again
   model.visible = true;
+  isPlayerDead = false;
 }
 
 async function initBackgroundParticleSystem() {
@@ -776,7 +786,10 @@ function handleKeyUp(event) {
 // Function to handle jumping
 function jump() {
   const currentTime = Date.now();
-  let startingY = playerBody.position.y - (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 - 0.1;
+  let startingY =
+    playerBody.position.y -
+    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+    0.1;
 
   // Multiple checks to ensure the jump is valid
   if (
@@ -1675,7 +1688,7 @@ function animateFans(deltaTime) {
 function animateCylinders(deltaTime) {
   //function to move cylinders right and left
 
-  const moveSpeed = 50; // Movement speed
+  const moveSpeed = 40; // Movement speed
 
   cylinders.forEach((cylinder) => {
     const maxX = 29;
@@ -1701,10 +1714,12 @@ function animateCylinders(deltaTime) {
   });
 }
 
+let timerInterval, countdownInterval;
+
 // Update the camera position to follow the player
 // Update the updateCamera function
 function updateCamera() {
-  if (!model) return;
+  if (!model || isPlayerDead) return;
 
   if (isFirstPerson) {
     //hide model
@@ -1734,14 +1749,89 @@ function updateCamera() {
     camera.rotateX(cameraRotation.x);
   }
 }
-// Start game timer
+
 function startGameTimer() {
-  startTime = Date.now(); // Get the current timestamp in milliseconds
-  elapsedTime = 0; // Reset elapsed time
+  startCountdown(); // Only start the countdown, don't start the timer yet
+}
+
+function startCountdown() {
+  const audioLoader = new THREE.AudioLoader();
+  let countdownAudio = new THREE.Audio(listener);
+
+  const mapCountdownSounds = {
+    3: countdownThree,
+    2: countdownTwo,
+    1: countdownOne,
+    GO: countdownGo,
+  };
+
+  function playCountdownSound(count) {
+    let soundFile = mapCountdownSounds[count];
+
+    // Stop any currently playing sound
+    if (countdownAudio.isPlaying) {
+      countdownAudio.stop();
+    }
+
+    audioLoader.load(soundFile, function (buffer) {
+      countdownAudio.setBuffer(buffer);
+      countdownAudio.setLoop(false);
+      countdownAudio.setVolume(0.5);
+      countdownAudio.play();
+    });
+  }
+
+  let count = 3;
+  let countdownDisplay = document.getElementById("countdown");
+  if (!countdownDisplay) {
+    countdownDisplay = document.createElement("div");
+    countdownDisplay.id = "countdown";
+    countdownDisplay.style.cssText = `
+            position: fixed;
+            top: 25%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 150px;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        `;
+    document.body.appendChild(countdownDisplay);
+  }
+
+  countdownDisplay.style.display = "block";
+  countdownInterval = setInterval(() => {
+    if (count > 0) {
+      playCountdownSound(count); // Play sound for the current countdown number
+      countdownDisplay.textContent = count;
+      countdownDisplay.style.transform = "translate(-50%, -50%) scale(1.2)";
+      setTimeout(() => {
+        countdownDisplay.style.transform = "translate(-50%, -50%) scale(1)";
+      }, 200);
+      count--;
+    } else {
+      countdownDisplay.textContent = "GO!";
+      playCountdownSound("GO"); // Play "GO.mp3" sound
+
+      // Start the timer and player control after the countdown ends
+      initEventListeners();
+      initializeTimer();
+
+      // Clear the interval and hide the countdown display after 1 second
+      clearInterval(countdownInterval);
+      setTimeout(() => {
+        countdownDisplay.style.display = "none";
+      }, 1000);
+    }
+  }, 1000);
+}
+
+function initializeTimer() {
+  startTime = Date.now();
+  elapsedTime = 0;
   timerRunning = true;
   updateTimerDisplay(0);
-  // Start the interval to update the timer every 100 ms (or your desired interval)
-  // timerInterval = setInterval(updateTimer, 100);
+  timerInterval = setInterval(updateTimer, 100);
 }
 
 // Update game timer
@@ -1772,7 +1862,7 @@ function showTimer() {
   timer.style.zIndex = "10000"; // Higher than other game elements
 
   // Initial timer content
-  timer.textContent = "0.000 s";
+  timer.textContent = "0.0 s";
 
   document.body.appendChild(timer);
 }
@@ -1806,7 +1896,7 @@ function animate() {
 
   //start timer on 2nd frame because theres a big time difference between the first frame and the second frame
   if (frame === 2) {
-    startGameTimer();
+    startCountdown();
     //showTimer;
   }
 
@@ -2327,8 +2417,10 @@ async function startGame() {
     startButton.addEventListener("click", async () => {
       showLoadingScreen();
       hideGameMenu();
+      //render the game
       await init();
-      //startGameTimer();
+
+      //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
       showTimer();
       hideLoadingScreen();
       createHeartsContainer();

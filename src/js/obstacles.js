@@ -122,33 +122,43 @@ export async function createCylinder(scene, x, y, z, radius, height) {
     });
   });
 }
-export async function createHorizontalCylinder(scene, x, y, z, radius, height) {
-  //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
 
+export async function createHorizontalCylinder(world,scene, x, y, z, radius, height) {
   return new Promise((resolve) => {
-    // load the texture
+    // Load the texture
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load(texture2, (texture) => {
-      //Create a simple plane for the ground
-      const cylinderGeometry = new THREE.CylinderGeometry(
-        radius,
-        radius,
-        height,
-        32
-      );
+      // Create a Three.js cylinder
+      const cylinderGeometry = new THREE.CylinderGeometry(radius, radius, height, 32);
       const cylinderMaterial = new THREE.MeshStandardMaterial({ map: texture });
       const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
-      cylinder.position.set(x, y, z+height/2);
+      cylinder.position.set(x, y, z + height / 2);
       cylinder.rotation.x = Math.PI / 2; // Rotate the cylinder by 90 degrees around the x-axis
       cylinder.castShadow = true;
       cylinder.receiveShadow = true;
       scene.add(cylinder);
 
-      //return the pillar position
+      // Create a Cannon.js body for the cylinder using half dimensions
+      const shape = new CANNON.Cylinder(radius / 2 +0.5, radius / 2 +0.5, height , 32);
+      const body = new CANNON.Body({
+        mass: 0, // Set mass to 0 to make it static
+        position: new CANNON.Vec3(x, y, z + height / 2)
+      });
+      body.addShape(shape);
+      body.quaternion.setFromEuler(Math.PI / 2, 0, 0, 'XYZ'); // Rotate the cylinder body
+
+      // Add the body to the Cannon.js physics world
+      world.addBody(body);
+
+      // Update the position and rotation of the Three.js mesh based on the Cannon.js body
+      cylinder.userData.physicsBody = body;
+
+      // Resolve the cylinder mesh
       resolve(cylinder);
     });
   });
 }
+
 
 
 export function createFan(scene, x, y, z, radius, lengthOfFans) {
@@ -277,45 +287,161 @@ export function createCannonBall(scene, radius) {
   return ballGroup;
 }
 
-export function createCrown(scene, x, y, z) {
+export async function createTurnstile(scene, x, y, z, radius, barLength) {  
+  // Create bar
+  const barWidth = barLength;
+  const barHeight = radius * 2.5; // Adjusted for proportions
+  const barDepth = radius * 0.2;
+  const barGeometry = new THREE.BoxGeometry(barWidth, barHeight, barDepth);
+  const barMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0xFF1493, // Hot pink
+    roughness: 0.2,
+    metalness: 0.1
+  });
+  const bar = new THREE.Mesh(barGeometry, barMaterial);
+  
+  // Create stripes on bar
+  const stripeCount = 6;
+  const stripeWidth = barWidth / stripeCount;
+  for (let i = 0; i < stripeCount; i++) {
+    if (i % 2 === 1) { // Only add light stripes
+      const stripeGeometry = new THREE.BoxGeometry(stripeWidth, barHeight + 0.01, barDepth + 0.01);
+      const stripeMaterial = new THREE.MeshStandardMaterial({
+        color: 0xFFB6C1, // Light pink
+        roughness: 0.2,
+        metalness: 0.1
+      });
+      const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
+      stripe.position.set(-barWidth / 2 + stripeWidth * (i + 0.5), 0, 0);
+      bar.add(stripe);
+    }
+  }
+  
+  // Create pole
+  const poleRadius = radius * 0.2;
+  const poleHeight = barHeight * 1.1; // Pole height now matches bar height
+  const poleGeometry = new THREE.CylinderGeometry(poleRadius, poleRadius, poleHeight, 32);
+  const pole = new THREE.Mesh(poleGeometry, barMaterial);
+  
+  // Create base ring
+  const ringRadius = poleRadius;
+  const ringTubeRadius = radius * 0.03;
+  const ringGeometry = new THREE.TorusGeometry(ringRadius, ringTubeRadius, 16, 32);
+  const ringMaterial = new THREE.MeshStandardMaterial({ color: 0x00BFFF, roughness: 0.2, metalness: 0.1 });
+  const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+  ring.position.set(0, -poleHeight / 2, 0);
+  ring.rotation.x = Math.PI / 2;
+  
+  // Group components
+  const turnstileGroup = new THREE.Group();
+  turnstileGroup.add(bar);
+  turnstileGroup.add(pole);
+  turnstileGroup.add(ring);
+  
+  // Position components
+  bar.position.set(0, 0, 0);
+  pole.position.set(0, 0, 0);
+  
+  // Set overall position
+  turnstileGroup.position.set(x, y + poleHeight / 2, z);
+  
+  scene.add(turnstileGroup);
+  
+  return {
+    group: turnstileGroup,
+    bar: bar
+  };
+}
+export function createRotatingHammer(scene, x, y, z, hammerLength, hammerHeight) {
+  const hammerGroup = new THREE.Group();
+  
+  // Create hammer head
+  const headGeometry = new THREE.BoxGeometry(hammerLength, hammerHeight, hammerHeight);
+  const headMaterial = new THREE.MeshStandardMaterial({ color: 0xff69b4 }); // Pink color
+  const hammerHead = new THREE.Mesh(headGeometry, headMaterial);
+  hammerHead.position.set(hammerLength / 2, 0, 0);
+  
+  // Create hammer handle
+  const handleGeometry = new THREE.CylinderGeometry(0.1, 0.1, hammerLength, 16);
+  const handleMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 }); // Brown color
+  const hammerHandle = new THREE.Mesh(handleGeometry, handleMaterial);
+  hammerHandle.rotation.z = Math.PI / 2;
+  hammerHandle.position.set(hammerLength / 2, 0, 0);
+  
+  hammerGroup.add(hammerHead);
+  hammerGroup.add(hammerHandle);
+  hammerGroup.position.set(x, y, z);
+  
+  scene.add(hammerGroup);
+  
+  return hammerGroup;
+}
+
+export function createConveyorBelt(scene, x, y, z, width, length, segments) {
+  const conveyorGroup = new THREE.Group();
+  
+  // Create belt
+  const beltGeometry = new THREE.PlaneGeometry(width, length, segments, 1);
+  const beltMaterial = new THREE.MeshStandardMaterial({
+    color: 0x444444,
+    roughness: 0.8,
+    metalness: 0.2,
+  });
+  const belt = new THREE.Mesh(beltGeometry, beltMaterial);
+  belt.rotation.x = -Math.PI / 2;
+  
+  // Create rollers
+  const rollerGeometry = new THREE.CylinderGeometry(0.2, 0.2, width, 16);
+  const rollerMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+  const rollerCount = 5;
+  for (let i = 0; i < rollerCount; i++) {
+    const roller = new THREE.Mesh(rollerGeometry, rollerMaterial);
+    roller.rotation.z = Math.PI / 2;
+    roller.position.set(0, 0.2, (i / (rollerCount - 1) - 0.5) * length);
+    conveyorGroup.add(roller);
+  }
+  
+  conveyorGroup.add(belt);
+  conveyorGroup.position.set(x, y, z);
+  scene.add(conveyorGroup);
+  
+  return conveyorGroup;
+}
+
+export async function createCrown(scene, x, y, z, radius = 1, spikeHeight = 0.9, spikeRadius = 0.1) {
   // Crown Base (cylinder)
   const crownMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.7, roughness: 0.4 });
-  const crownBase = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.5, 32), crownMaterial);
+  const crownBase = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.5, 32), crownMaterial);
   
-  // Position crown base at (x, y, z)
+  // Position crown base
   crownBase.position.set(x, y, z);
   scene.add(crownBase);
 
   // Crown Spikes (cones)
-  const spikeGeometry = new THREE.ConeGeometry(0.2, 1, 32);
+  const spikeGeometry = new THREE.ConeGeometry(spikeRadius, spikeHeight, 32);
   const spikes = []; // Store spikes for easy reference
   for (let i = 0; i < 8; i++) {
-      const spike = new THREE.Mesh(spikeGeometry, crownMaterial);
-      const angle = (i / 8) * Math.PI * 2;  // Evenly distribute spikes around the crown
-      
-      // Adjust the position to avoid showing the base under the crown
-      spike.scale.set(2, 2, 2); 
-      spike.position.set(Math.cos(angle) * 1.5, 0.75, Math.sin(angle) * 1.5);  // Move spikes up slightly (y = 0.75)
-      spike.lookAt(0, 1, 0);  // Make spike point upwards
-      
-      // Add each spike as a child of the crown base
-      crownBase.add(spike);
-      spikes.push(spike);
+    const spike = new THREE.Mesh(spikeGeometry, crownMaterial);
+    const angle = (i / 8) * Math.PI * 2;  // Evenly distribute spikes around the crown
+    
+    // Adjust the position to avoid showing the base under the crown
+    spike.scale.set(2, 2, 2); 
+    spike.position.set(Math.cos(angle) * radius, 0.75, Math.sin(angle) * radius);  // Move spikes up slightly (y = 0.75)
+    spike.lookAt(0, 1, 0);  // Make spike point upwards
+    
+    // Add each spike as a child of the crown base
+    crownBase.add(spike);
+    spikes.push(spike);
   }
 
   // Add Spheres (ornaments) to spikes (at the tip of each spike)
-  const sphereGeometry = new THREE.SphereGeometry(0.15, 32, 32);
+  const sphereGeometry = new THREE.SphereGeometry(spikeRadius * 0.75, 32, 32);
   for (let i = 0; i < 8; i++) {
-      const ornament = new THREE.Mesh(sphereGeometry, crownMaterial);
-      
-      // Get the spike position and set the ornament at the tip
-      const spike = spikes[i];
-      ornament.position.set(0, 1.05, 0);  // Slightly above the spike's tip
-      
-      // Add ornament as a child of the spike so it moves with the spike
-      spike.add(ornament);
+    const ornament = new THREE.Mesh(sphereGeometry, crownMaterial);
+    ornament.position.set(0, spikeHeight * 0.52, 0);  // Slightly above the spike's tip
+    spikes[i].add(ornament); // Attach the ornament to the tip of each spike
   }
-  
+
   return crownBase;
 }
 
@@ -328,3 +454,6 @@ export function createCrown(scene, x, y, z) {
 //  const cylinder = new THREE.Mesh(geometry, material);
 //  cylinder.position.set(0, height / 2, 5);
 //  scene.add(cylinder);
+
+// z for maze plane starts at 265
+// 

@@ -5,7 +5,13 @@ import * as CANNON from "cannon-es";
 import CannonDebugger from "cannon-es-debugger";
 import Stats from "stats.js";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
-import { createCrown, createCannonBall } from "./obstacles";
+import {
+  createCrown,
+  createCannonBall,
+  createTurnstile,
+  createRotatingHammer,
+  createConveyorBelt,
+} from "./obstacles";
 
 // Import assets
 import finish from "../img/finish.jpg";
@@ -61,6 +67,8 @@ let particleSpreadZ = 1000; //Based on how long our level is
 
 //Helpers to visualize intersection boxes
 let playerHelper;
+let crown;
+let turnstile;
 
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
@@ -103,8 +111,10 @@ async function init() {
 
       console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 60);
-      const crown = await createCrown(scene, 0, 0, 65);
-      const cannonBall = createCannonBall(scene, 2);
+      const crown = createCrown(scene, -10, 0, 10);
+      const turnstile = createTurnstile(scene, 5, 0, 15, 2, 15);
+      //const rotatingHammer = createRotatingHammer(scene, 0, 10, 65, 2, 40); // Moved up
+      //const conveyorBelt = createConveyorBelt(scene, 0, -10, 65, 2, 40); // Moved down
       // const cylinder3 = await createSpinningBeam(scene, 20, 0, 65, 2, 40);
 
       //Init particle background system
@@ -954,6 +964,19 @@ function AddVisualCylinderHelpers() {
   });
 }
 
+function animateCrown(deltaTime) {
+  if (crown) {
+    crown.rotation.y += deltaTime * 0.7; // Rotate the crown
+  }
+}
+
+function animateTurnstile(deltaTime) {
+  // rotate bars around the pole
+  if (turnstile) {
+    turnstile.bar.rotation.y += deltaTime * 2;
+  }
+}
+
 // Update the camera position to follow the player
 function updateCamera() {
   if (!model) return;
@@ -1129,64 +1152,77 @@ function animate() {
     }
     /*Actual bounding boxes for the player and obstacles*/
 
-    //player bounding box
-    const playerBoundingBox = new THREE.Box3().setFromObject(model);
+    // Check for collisions with new obstacles
+    // if (model && playerBody) {
+    //   const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
-    /*Actual bounding boxes for the player and obstacles*/
+    //   // Check collision with crown
+    //   const crownBoundingBox = new THREE.Box3().setFromObject(crown);
+    //   if (playerBoundingBox.intersectsBox(crownBoundingBox)) {
+    //     // Handle crown collision (e.g., increase score, play sound)
+    //   }
 
-    /*HELPERS TO VISUALIZE BOUNDING BOXES */
-    if (playerHelper) {
-      playerHelper.update();
-    }
+    //   // Check collision with turnstile
+    //   const turnstileBoundingBox = new THREE.Box3().setFromObject(turnstile);
+    //   if (playerBoundingBox.intersectsBox(turnstileBoundingBox)) {
+    //     // Handle turnstile collision (e.g., rotate player, play sound)
+    //   }
 
-    //Update gate helpers
-    // gateHelpers.forEach((helper) => {
-    //   if (helper) helper.update();
-    // });
-
-    //Particle system
-    if (particleSystem) {
-      let positionArray = particleSystem.geometry.attributes.position.array;
-      for (let i = 0; i < particleCount; i++) {
-        positionArray[3 * i] += velocities[3 * i];
-        positionArray[3 * i + 1] += velocities[3 * i + 1];
-        positionArray[3 * i + 2] += velocities[3 * i + 2];
-
-        // Reset position if it goes out of bounds
-        if (positionArray[3 * i] > 50 || positionArray[3 * i] < -50) {
-          velocities[3 * i] *= -1;
-        }
-        if (positionArray[3 * i + 1] > 50 || positionArray[3 * i + 1] < -50) {
-          velocities[3 * i + 1] *= -1;
-        }
-        if (positionArray[3 * i + 2] > 50 || positionArray[3 * i + 2] < -50) {
-          velocities[3 * i + 2] *= -1;
-        }
+      /*HELPERS TO VISUALIZE BOUNDING BOXES */
+      if (playerHelper) {
+        playerHelper.update();
       }
-      particleSystem.geometry.attributes.position.needsUpdate = true;
+
+      //Update gate helpers
+      // gateHelpers.forEach((helper) => {
+      //   if (helper) helper.update();
+      // });
+
+      //Particle system
+      if (particleSystem) {
+        let positionArray = particleSystem.geometry.attributes.position.array;
+        for (let i = 0; i < particleCount; i++) {
+          positionArray[3 * i] += velocities[3 * i];
+          positionArray[3 * i + 1] += velocities[3 * i + 1];
+          positionArray[3 * i + 2] += velocities[3 * i + 2];
+
+          // Reset position if it goes out of bounds
+          if (positionArray[3 * i] > 50 || positionArray[3 * i] < -50) {
+            velocities[3 * i] *= -1;
+          }
+          if (positionArray[3 * i + 1] > 50 || positionArray[3 * i + 1] < -50) {
+            velocities[3 * i + 1] *= -1;
+          }
+          if (positionArray[3 * i + 2] > 50 || positionArray[3 * i + 2] < -50) {
+            velocities[3 * i + 2] *= -1;
+          }
+        }
+        particleSystem.geometry.attributes.position.needsUpdate = true;
+      }
+
+      // Update camera
+      updateCamera();
     }
 
-    // Update camera
-    updateCamera();
+    // if (dieParticles) {
+    //   updateParticles();
+    // }
+
+    //Animate the obstacles
+    animateCrown(deltaTime);
+    animateTurnstile(deltaTime);
+    //   animateGates(deltaTime);
+    //   animateCylinders(deltaTime);
+    //   animateFans(deltaTime);
+    //   animateRodsX(deltaTime);
+    //   animateRodsZ(deltaTime);
+
+    // cannonDebugger.update();
+    renderer.render(scene, camera);
+    //controls.update();
+
+    stats.end();
   }
-
-  // if (dieParticles) {
-  //   updateParticles();
-  // }
-
-  //Animate the gates
-  //   animateGates(deltaTime);
-  //   animateCylinders(deltaTime);
-  //   animateFans(deltaTime);
-  //   animateRodsX(deltaTime);
-  //   animateRodsZ(deltaTime);
-
-  // cannonDebugger.update();
-  renderer.render(scene, camera);
-  //controls.update();
-
-  stats.end();
-}
 
 // Create a function to show the loading screen
 let loadingAnimationInterval;

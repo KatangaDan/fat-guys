@@ -76,6 +76,7 @@ let particleSpreadZ = 1000; //Based on how long our level is
 let playerHelper;
 let crown;
 let turnstile;
+let conveyor;
 
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
@@ -534,7 +535,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 10, 2);
+        model.position.set(0, 10, 10);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -975,15 +976,16 @@ function AddVisualCylinderHelpers() {
 }
 
 function animateCrown(deltaTime) {
-  if (crown) {
-    crown.rotation.y += deltaTime * 0.7; // Rotate the crown
+  if (crown && crown.mesh) {
+    crown.mesh.rotation.y += deltaTime * 0.5; // Rotate the crown
   }
 }
 
 function animateTurnstile(deltaTime) {
-  // rotate bars around the pole
-  if (turnstile) {
-    turnstile.bar.rotation.y += deltaTime * 2;
+  if (turnstile && turnstile.mesh && turnstile.body) {
+    const rotation = deltaTime * 1.0;
+    turnstile.mesh.rotation.y += rotation; // Rotate the turnstile mesh
+    turnstile.body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), turnstile.mesh.rotation.y); // Rotate the cannon body
   }
 }
 
@@ -1160,79 +1162,111 @@ function animate() {
     } else {
       model.position.copy(playerBody.position).add(worldOffset);
     }
-    /*Actual bounding boxes for the player and obstacles*/
-
     // Check for collisions with new obstacles
-    // if (model && playerBody) {
-    //   const playerBoundingBox = new THREE.Box3().setFromObject(model);
+    const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
-    //   // Check collision with crown
-    //   const crownBoundingBox = new THREE.Box3().setFromObject(crown);
-    //   if (playerBoundingBox.intersectsBox(crownBoundingBox)) {
-    //     // Handle crown collision (e.g., increase score, play sound)
-    //   }
-
-    //   // Check collision with turnstile
-    //   const turnstileBoundingBox = new THREE.Box3().setFromObject(turnstile);
-    //   if (playerBoundingBox.intersectsBox(turnstileBoundingBox)) {
-    //     // Handle turnstile collision (e.g., rotate player, play sound)
-    //   }
-
-      /*HELPERS TO VISUALIZE BOUNDING BOXES */
-      if (playerHelper) {
-        playerHelper.update();
+    // Check collision with crown
+    if (crown && crown.mesh) {
+      const crownBoundingBox = new THREE.Box3().setFromObject(crown.mesh);
+      if (playerBoundingBox.intersectsBox(crownBoundingBox)) {
+        console.log("Player won!");
+        showWinScreen(elapsedTime);
       }
-
-      //Update gate helpers
-      // gateHelpers.forEach((helper) => {
-      //   if (helper) helper.update();
-      // });
-
-      //Particle system
-      if (particleSystem) {
-        let positionArray = particleSystem.geometry.attributes.position.array;
-        for (let i = 0; i < particleCount; i++) {
-          positionArray[3 * i] += velocities[3 * i];
-          positionArray[3 * i + 1] += velocities[3 * i + 1];
-          positionArray[3 * i + 2] += velocities[3 * i + 2];
-
-          // Reset position if it goes out of bounds
-          if (positionArray[3 * i] > 50 || positionArray[3 * i] < -50) {
-            velocities[3 * i] *= -1;
-          }
-          if (positionArray[3 * i + 1] > 50 || positionArray[3 * i + 1] < -50) {
-            velocities[3 * i + 1] *= -1;
-          }
-          if (positionArray[3 * i + 2] > 50 || positionArray[3 * i + 2] < -50) {
-            velocities[3 * i + 2] *= -1;
-          }
-        }
-        particleSystem.geometry.attributes.position.needsUpdate = true;
-      }
-
-      // Update camera
-      updateCamera();
     }
 
-    // if (dieParticles) {
-    //   updateParticles();
-    // }
+    // Check collision with turnstile
+    if (turnstile && turnstile.mesh) {
+      const turnstileBoundingBox = new THREE.Box3().setFromObject(
+        turnstile.mesh
+      );
+      if (playerBoundingBox.intersectsBox(turnstileBoundingBox)) {
+        console.log("Player died from turnstile!");
+        if (!isPlayerDead) {
+          isPlayerDead = true;
+          die(); // Assuming you have a die() function
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
+      }
+    }
 
-    //Animate the obstacles
-    animateCrown(deltaTime);
-    animateTurnstile(deltaTime);
-    //   animateGates(deltaTime);
-    //   animateCylinders(deltaTime);
-    //   animateFans(deltaTime);
-    //   animateRodsX(deltaTime);
-    //   animateRodsZ(deltaTime);
+    // Check collision with conveyor belt
+    if (conveyor && conveyor.group) {
+      const conveyorBoundingBox = new THREE.Box3().setFromObject(
+        conveyor.group
+      );
+      if (playerBoundingBox.intersectsBox(conveyorBoundingBox)) {
+        console.log("On conveyor belt!");
+        // Apply conveyor belt effect
+        const conveyorSpeed = 5; // Adjust as needed
+        const conveyorDirection = new CANNON.Vec3(1, 0, 0); // Adjust based on conveyor direction
+        playerBody.velocity.vadd(conveyorDirection.scale(conveyorSpeed * deltaTime), playerBody.velocity);
+        
+        // Allow jumping on conveyor belt
+        if (isJumping && Date.now() - lastJumpTime > jumpCooldown) {
+          playerBody.velocity.y = 0; // Reset vertical velocity before applying jump
+          playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0));
+          lastJumpTime = Date.now();
+        }
+      }
+    }
 
-    // cannonDebugger.update();
-    renderer.render(scene, camera);
-    //controls.update();
+    /*HELPERS TO VISUALIZE BOUNDING BOXES */
+    if (playerHelper) {
+      playerHelper.update();
+    }
 
-    stats.end();
+    //Update gate helpers
+    // gateHelpers.forEach((helper) => {
+    //   if (helper) helper.update();
+    // });
+
+    //Particle system
+    if (particleSystem) {
+      let positionArray = particleSystem.geometry.attributes.position.array;
+      for (let i = 0; i < particleCount; i++) {
+        positionArray[3 * i] += velocities[3 * i];
+        positionArray[3 * i + 1] += velocities[3 * i + 1];
+        positionArray[3 * i + 2] += velocities[3 * i + 2];
+
+        // Reset position if it goes out of bounds
+        if (positionArray[3 * i] > 50 || positionArray[3 * i] < -50) {
+          velocities[3 * i] *= -1;
+        }
+        if (positionArray[3 * i + 1] > 50 || positionArray[3 * i + 1] < -50) {
+          velocities[3 * i + 1] *= -1;
+        }
+        if (positionArray[3 * i + 2] > 50 || positionArray[3 * i + 2] < -50) {
+          velocities[3 * i + 2] *= -1;
+        }
+      }
+      particleSystem.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // Update camera
+    updateCamera();
   }
+
+  // if (dieParticles) {
+  //   updateParticles();
+  // }
+
+  // Animate obstacles
+  animateCrown(deltaTime);
+  animateTurnstile(deltaTime);
+
+  // Update conveyor belt animation
+  if (conveyor && conveyor.setSpeed) {
+    conveyor.setSpeed(0.005); // Adjust speed as needed
+  }
+
+  cannonDebugger.update();
+  renderer.render(scene, camera);
+  //controls.update();
+
+  stats.end();
+}
 
 // Create a function to show the loading screen
 let loadingAnimationInterval;

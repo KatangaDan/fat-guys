@@ -1716,40 +1716,68 @@ function animateCylinders(deltaTime) {
 
 let timerInterval, countdownInterval;
 
-// Update the camera position to follow the player
-// Update the updateCamera function
+// Update the camera position to follow the player and initial panning
 function updateCamera() {
   if (!model || isPlayerDead) return;
 
+  // Handle panning animation
+  if (isPanning) {
+    const currentTime = Date.now();
+    const elapsed = currentTime - panStartTime;
+    panProgress = Math.min(elapsed / panDuration, 1);
+
+    // Use easing function for smooth motion
+    const easedProgress = easeInOutQuad(panProgress);
+
+    // Interpolate camera position
+    camera.position.lerpVectors(
+      panStartPosition,
+      panEndPosition,
+      easedProgress
+    );
+
+    //look at a point in front and under the camera
+    // Calculate look-at point: 50 units ahead and 20 units below camera
+    const lookAtPoint = camera.position.clone();
+    // lookAtPoint.z -= 50; // Look 50 units ahead
+    lookAtPoint.x += 70;
+    lookAtPoint.y -= 50; // Look 20 units down
+
+    camera.lookAt(lookAtPoint);
+
+    // Check if panning is complete
+    if (panProgress >= 1) {
+      isPanning = false;
+      panProgress = 0;
+    }
+
+    return; // Skip regular camera updates while panning
+  }
+
+  // Your existing camera update logic
   if (isFirstPerson) {
-    //hide model
-    model.visible = false; // Hide the model in first-person view
-    const headPosition = model.position.clone().add(new THREE.Vector3(0, 2, 0)); // get the model's head position
-    camera.position.copy(headPosition); // set the camera position to the model's head position
-    camera.rotation.copy(controls.getObject().rotation); // set the camera rotation to the model's rotation
+    model.visible = false;
+    const headPosition = model.position.clone().add(new THREE.Vector3(0, 2, 0));
+    camera.position.copy(headPosition);
+    camera.rotation.copy(controls.getObject().rotation);
   } else {
-    // Calculate camera position based on offset and rotation
     const cameraPosition = new THREE.Vector3(
       Math.sin(cameraRotation.y) * cameraOffset.z,
       cameraOffset.y,
       Math.cos(cameraRotation.y) * cameraOffset.z
     );
-
-    // Add player position to camera position
     cameraPosition.add(model.position);
-
-    // Update camera position with smooth lerp
     camera.position.lerp(cameraPosition, cameraLerpFactor);
-
-    // Calculate look target (slightly above player position)
     const lookTarget = model.position.clone().add(new THREE.Vector3(0, 2, 0));
     camera.lookAt(lookTarget);
-
-    // Apply pitch rotation after looking at target
     camera.rotateX(cameraRotation.x);
   }
 }
 
+// Easing function for smooth acceleration and deceleration
+function easeInOutQuad(t) {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
 function startGameTimer() {
   startCountdown(); // Only start the countdown, don't start the timer yet
 }
@@ -1884,6 +1912,36 @@ function resetTimer() {
   updateTimerDisplay(0);
 }
 
+// Add these variables to your global scope
+let isPanning = false;
+let panProgress = 0;
+let panStartPosition = null;
+let panEndPosition = null;
+let panStartTime = null;
+let panDuration = 5000; // 10 seconds
+
+// Modified panCameraToStart function
+async function panCameraToStart() {
+  return new Promise((resolve) => {
+    // Set initial camera position
+    camera.position.set(-70, 50, 350);
+    panStartPosition = new THREE.Vector3(-70, 50, 400);
+    panEndPosition = new THREE.Vector3(-70, 50, 10);
+    panStartTime = Date.now();
+    isPanning = true;
+
+    // Create an interval to check when panning is complete
+    const checkInterval = setInterval(() => {
+      if (!isPanning) {
+        clearInterval(checkInterval);
+        isFirstPerson = false;
+        updateCamera();
+        resolve();
+      }
+    }, 100);
+  });
+}
+
 let isPlayerDead = false;
 let deathCooldown = 2000; // 2 seconds in milliseconds
 let lastDeathTime = 0;
@@ -1896,7 +1954,6 @@ function animate() {
 
   //start timer on 2nd frame because theres a big time difference between the first frame and the second frame
   if (frame === 2) {
-    startCountdown();
     //showTimer;
   }
 
@@ -2426,8 +2483,9 @@ async function startGame() {
       createHeartsContainer();
       generateHearts(3);
       generateBestTime();
-
       renderer.setAnimationLoop(animate);
+      await panCameraToStart();
+      startCountdown();
 
       //Add pause event listener
       document.addEventListener("keydown", (event) => {

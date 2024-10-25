@@ -296,9 +296,6 @@ async function die() {
 
   isPlayerDead = true;
 
-  //stop the camera
-  controls.disconnect();
-
   // Create particle explosion at player's current position
   createParticleExplosion(model.position);
 
@@ -321,13 +318,39 @@ async function die() {
   // Wait for particle effect and then respawn
   await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
 
-  //true death
+  //true death - don't respawn: show a menu to restart the game
   if (currentLives <= 0) {
     playerBody.position.set(0, 10, 10);
-    currentLives = 3;
+    //request for mouse control
+    document.exitPointerLock();
+    removeEventListeners();
+
     generateHearts(currentLives);
-    //reset timer
+    //stop the timer
     resetTimer();
+    removeEventListeners();
+    toggleMenu();
+
+    //stop player moving if they die
+    moveForward = false;
+    moveBackward = false;
+    moveLeft = false;
+    moveRight = false;
+
+    //hide resume button from menu
+    document.getElementById("resumeButton").style.display = "none";
+
+    //add "You lost" message to gameMenu
+    const lostMessage = document.createElement("h1");
+    lostMessage.id = "lostMessage";
+    lostMessage.innerHTML = "You lost!";
+
+    document.getElementById("gameMenu").appendChild(lostMessage);
+
+    // currentLives = 3;
+    // generateHearts(currentLives);
+    // //reset timer
+    // resetTimer();
   } else {
     // Respawn at appropriate position
     playerBody.position.set(
@@ -684,33 +707,6 @@ async function initEventListeners() {
     resolve();
   });
 }
-// function to handle mouse movement
-// Update the onMouseMove function
-// function onMouseMove(event) {
-//   if (controls.isLocked) {
-//     // Update camera rotation
-//     cameraRotation.y -= event.movementX * mouseSensitivity;
-//     // cameraRotation.y = Math.max(
-//     //   -Math.PI / 2, // Limit looking up
-//     //   Math.min(
-//     //     Math.PI / 2, // Limit looking down
-//     //     cameraRotation.y - event.movementX * mouseSensitivity
-//     //   )
-//     // );
-
-//     // Rotate the player model to match camera direction
-//     if (playerBody && model) {
-//       // Set the quaternion of the physics body
-//       playerBody.quaternion.setFromAxisAngle(
-//         new CANNON.Vec3(0, 1, 0),
-//         cameraRotation.y
-//       );
-
-//       // model.rotation.y = cameraRotation.y;
-//     }
-//   }
-// }
-
 let targetRotationY = 0; // Store target rotation
 const rotationDamping = 0.2; // Damping factor
 
@@ -1782,7 +1778,16 @@ function startGameTimer() {
   startCountdown(); // Only start the countdown, don't start the timer yet
 }
 
+function removeEventListeners() {
+  //remove event listeners
+  window.removeEventListener("keydown", handleKeyDown);
+  window.removeEventListener("keyup", handleKeyUp);
+  window.removeEventListener("mousemove", onMouseMove, false);
+}
+
 function startCountdown() {
+  removeEventListeners(); // Remove any existing event listeners
+
   const audioLoader = new THREE.AudioLoader();
   let countdownAudio = new THREE.Audio(listener);
 
@@ -1809,12 +1814,18 @@ function startCountdown() {
     });
   }
 
-  let count = 3;
+  // clear existing countdown element if it exists
   let countdownDisplay = document.getElementById("countdown");
-  if (!countdownDisplay) {
-    countdownDisplay = document.createElement("div");
-    countdownDisplay.id = "countdown";
-    countdownDisplay.style.cssText = `
+  if (countdownDisplay) {
+    countdownDisplay.remove();
+  }
+
+  let count = 3;
+  countdownDisplay = document.getElementById("countdown");
+
+  countdownDisplay = document.createElement("div");
+  countdownDisplay.id = "countdown";
+  countdownDisplay.style.cssText = `
             position: fixed;
             top: 25%;
             left: 50%;
@@ -1824,8 +1835,7 @@ function startCountdown() {
             color: #ffffff;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
         `;
-    document.body.appendChild(countdownDisplay);
-  }
+  document.body.appendChild(countdownDisplay);
 
   countdownDisplay.style.display = "block";
   countdownInterval = setInterval(() => {
@@ -1906,9 +1916,8 @@ function updateTimerDisplay(timeInMs) {
 
 // Reset timer function (useful for restarts)
 function resetTimer() {
-  startTime = Date.now(); // Get the current timestamp in milliseconds
   elapsedTime = 0; // Reset elapsed time
-  timerRunning = true;
+  timerRunning = false;
   updateTimerDisplay(0);
 }
 
@@ -1951,12 +1960,6 @@ let frame = 0;
 function animate() {
   //console.log("Frame:", frame);
   frame++;
-
-  //start timer on 2nd frame because theres a big time difference between the first frame and the second frame
-  if (frame === 2) {
-    //showTimer;
-  }
-
   stats.begin();
 
   // update the game timer
@@ -2311,6 +2314,8 @@ function toggleMenu() {
     const winMessage = document.getElementById("winMessage");
     const congratsMessage = document.getElementById("congratsMessage");
     const bestTimeMessage = document.getElementById("bestTimeMessage");
+    //hide "You lost" message
+    const youLostMessage = document.getElementById("lostMessage");
 
     if (winMessage) {
       winMessage.remove();
@@ -2321,6 +2326,10 @@ function toggleMenu() {
     }
     if (bestTimeMessage) {
       bestTimeMessage.remove();
+    }
+
+    if (youLostMessage) {
+      youLostMessage.remove();
     }
 
     gameMenu.style.display = "block";
@@ -2432,6 +2441,21 @@ function resetGame() {
   console.log("Game is restarting...");
 }
 
+function restartGame() {
+  // do countdown again
+
+  //reset timer to 0
+  resetTimer();
+  startCountdown();
+
+  playerBody.position.set(0, 10, 10);
+  //restart timer
+  //resetTimer();
+  currentLives = 3;
+  generateHearts(currentLives);
+  gameWon = false;
+}
+
 //Main function to start the game
 async function startGame() {
   try {
@@ -2452,22 +2476,9 @@ async function startGame() {
     restartButton.addEventListener("click", () => {
       // window.location.reload();
       toggleMenu();
-
-      //if wasd dont have event listeners, add them back
-      window.addEventListener("keydown", handleKeyDown);
-
-      //Respawn the player(make it a function cause timer needs to be reset, etc)
-      playerBody.position.set(0, 10, 10);
-
-      //restart timer
-      resetTimer();
-
-      currentLives = 3;
-      generateHearts(currentLives);
-
-      gameWon = false;
-
       generateBestTime();
+
+      restartGame();
     });
 
     //Add event listener to the start button
@@ -2484,7 +2495,7 @@ async function startGame() {
       generateHearts(3);
       generateBestTime();
       renderer.setAnimationLoop(animate);
-      await panCameraToStart();
+      //await panCameraToStart();
       startCountdown();
 
       //Add pause event listener

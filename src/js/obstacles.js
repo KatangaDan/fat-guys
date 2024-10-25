@@ -287,72 +287,83 @@ export function createCannonBall(scene, radius) {
   return ballGroup;
 }
 
-export async function createTurnstile(scene, x, y, z, radius, barLength) {  
-  // Create bar
-  const barWidth = barLength;
-  const barHeight = radius * 2.5; // Adjusted for proportions
-  const barDepth = radius * 0.2;
-  const barGeometry = new THREE.BoxGeometry(barWidth, barHeight, barDepth);
-  const barMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0xFF1493, // Hot pink
-    roughness: 0.2,
-    metalness: 0.1
-  });
-  const bar = new THREE.Mesh(barGeometry, barMaterial);
-  
-  // Create stripes on bar
-  const stripeCount = 6;
-  const stripeWidth = barWidth / stripeCount;
-  for (let i = 0; i < stripeCount; i++) {
-    if (i % 2 === 1) { // Only add light stripes
-      const stripeGeometry = new THREE.BoxGeometry(stripeWidth, barHeight + 0.01, barDepth + 0.01);
-      const stripeMaterial = new THREE.MeshStandardMaterial({
-        color: 0xFFB6C1, // Light pink
-        roughness: 0.2,
-        metalness: 0.1
-      });
-      const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
-      stripe.position.set(-barWidth / 2 + stripeWidth * (i + 0.5), 0, 0);
-      bar.add(stripe);
+export async function createTurnstile(world, scene, x, y, z, radius, barLength) {  
+  return new Promise((resolve) => {
+    // Create bar
+    const barWidth = barLength;
+    const barHeight = radius * 2.5; // Adjusted for proportions
+    const barDepth = radius * 0.2;
+    const barGeometry = new THREE.BoxGeometry(barWidth, barHeight, barDepth);
+    const barMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xFF1493, // Hot pink
+      roughness: 0.2,
+      metalness: 0.1
+    });
+    const bar = new THREE.Mesh(barGeometry, barMaterial);
+    
+    // Create stripes on bar
+    const stripeCount = 6;
+    const stripeWidth = barWidth / stripeCount;
+    for (let i = 0; i < stripeCount; i++) {
+      if (i % 2 === 1) { // Only add light stripes
+        const stripeGeometry = new THREE.BoxGeometry(stripeWidth, barHeight + 0.01, barDepth + 0.01);
+        const stripeMaterial = new THREE.MeshStandardMaterial({
+          color: 0xFFB6C1, // Light pink
+          roughness: 0.2,
+          metalness: 0.1
+        });
+        const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
+        stripe.position.set(-barWidth / 2 + stripeWidth * (i + 0.5), 0, 0);
+        bar.add(stripe);
+      }
     }
-  }
-  
-  // Create pole
-  const poleRadius = radius * 0.2;
-  const poleHeight = barHeight * 1.1; // Pole height now matches bar height
-  const poleGeometry = new THREE.CylinderGeometry(poleRadius, poleRadius, poleHeight, 32);
-  const pole = new THREE.Mesh(poleGeometry, barMaterial);
-  
-  // Create base ring
-  const ringRadius = poleRadius;
-  const ringTubeRadius = radius * 0.03;
-  const ringGeometry = new THREE.TorusGeometry(ringRadius, ringTubeRadius, 16, 32);
-  const ringMaterial = new THREE.MeshStandardMaterial({ color: 0x00BFFF, roughness: 0.2, metalness: 0.1 });
-  const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-  ring.position.set(0, -poleHeight / 2, 0);
-  ring.rotation.x = Math.PI / 2;
-  
-  // Group components
-  const turnstileGroup = new THREE.Group();
-  turnstileGroup.add(bar);
-  turnstileGroup.add(pole);
-  turnstileGroup.add(ring);
-  
-  // Position components
-  bar.position.set(0, 0, 0);
-  pole.position.set(0, 0, 0);
-  
-  // Set overall position
-  turnstileGroup.position.set(x, y + poleHeight / 2, z);
-  
-  scene.add(turnstileGroup);
-  
-  return {
-    group: turnstileGroup,
-    bar: bar
-  };
+    
+    // Create pole
+    const poleRadius = radius * 0.2;
+    const poleHeight = barHeight * 1.1; // Pole height now matches bar height
+    const poleGeometry = new THREE.CylinderGeometry(poleRadius, poleRadius, poleHeight, 32);
+    const pole = new THREE.Mesh(poleGeometry, barMaterial);
+    
+    // Create base ring
+    const ringRadius = poleRadius;
+    const ringTubeRadius = radius * 0.03;
+    const ringGeometry = new THREE.TorusGeometry(ringRadius, ringTubeRadius, 16, 32);
+    const ringMaterial = new THREE.MeshStandardMaterial({ color: 0x00BFFF, roughness: 0.2, metalness: 0.1 });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.position.set(0, -poleHeight / 2, 0);
+    ring.rotation.x = Math.PI / 2;
+    
+    // Group components
+    const turnstileGroup = new THREE.Group();
+    turnstileGroup.add(bar);
+    turnstileGroup.add(pole);
+    turnstileGroup.add(ring);
+    
+    // Position components
+    bar.position.set(0, 0, 0);
+    pole.position.set(0, 0, 0);
+    
+    // Set overall position
+    turnstileGroup.position.set(x, y + poleHeight / 2, z);
+    
+    scene.add(turnstileGroup);
+    
+    // Create a cannon.js body for the turnstile
+    const poleShape = new CANNON.Cylinder(poleRadius, poleRadius, poleHeight, 32);
+    const barShape = new CANNON.Box(new CANNON.Vec3(barWidth / 2, barHeight / 2, barDepth / 2));
+    
+    const turnstileBody = new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC });
+    turnstileBody.addShape(poleShape);
+    turnstileBody.addShape(barShape, new CANNON.Vec3(0, 0, 0));
+    
+    turnstileBody.position.set(x, y + poleHeight / 2, z);
+    world.addBody(turnstileBody);
+
+    resolve({ mesh: turnstileGroup, body: turnstileBody });
+  });
 }
-export function createRotatingHammer(scene, x, y, z, hammerLength, hammerHeight) {
+
+export function createRotatingHammer(scene, x, y, z, hammerLength, hammerHeight, rotationSpeed = 1) {
   const hammerGroup = new THREE.Group();
   
   // Create hammer head
@@ -374,75 +385,219 @@ export function createRotatingHammer(scene, x, y, z, hammerLength, hammerHeight)
   
   scene.add(hammerGroup);
   
-  return hammerGroup;
+  let rotationAngle = 0;
+  
+  function updateRotation(deltaTime) {
+    rotationAngle += rotationSpeed * deltaTime;
+    
+    // Apply rotation to hammer head
+    hammerHead.quaternion.setFromEuler(
+      new THREE.Quaternion(),
+      0,
+      rotationAngle,
+      0
+    );
+    
+    // Reset rotation angle if it exceeds 360 degrees
+    if (rotationAngle >= Math.PI * 2) {
+      rotationAngle -= Math.PI * 2;
+    }
+  }
+  
+  return {
+    hammerGroup,
+    rotationSpeed,
+    updateRotation: updateRotation
+  };
 }
 
-export function createConveyorBelt(scene, x, y, z, width, length, segments) {
-  const conveyorGroup = new THREE.Group();
-  
-  // Create belt
-  const beltGeometry = new THREE.PlaneGeometry(width, length, segments, 1);
-  const beltMaterial = new THREE.MeshStandardMaterial({
-    color: 0x444444,
-    roughness: 0.8,
-    metalness: 0.2,
+export function createConveyorBelt(world, scene, x, y, z, width, length, segments) {
+  return new Promise((resolve) => {
+    const conveyorGroup = new THREE.Group();
+
+    // Create base frame
+    const frameGeometry = new THREE.BoxGeometry(width + 0.4, 0.2, length + 0.4);
+    const frameMaterial = new THREE.MeshStandardMaterial({
+      color: 0xF4D03F,
+      metalness: 0.3,
+      roughness: 0.4,
+    });
+    const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+    frame.position.y = -0.1;
+    conveyorGroup.add(frame);
+
+    // Create arrow texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    // Fill background with lighter orange
+    ctx.fillStyle = '#FFA07A';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw arrows
+    ctx.fillStyle = '#FF7F50';
+    const arrowCount = 3;
+    const arrowHeight = canvas.height / arrowCount;
+    
+    for (let i = 0; i < arrowCount; i++) {
+      const y = i * arrowHeight;
+      
+      ctx.beginPath();
+      ctx.moveTo(canvas.width * 0.2, y + arrowHeight * 0.5);
+      ctx.lineTo(canvas.width * 0.5, y + arrowHeight * 0.2);
+      ctx.lineTo(canvas.width * 0.8, y + arrowHeight * 0.5);
+      ctx.lineTo(canvas.width * 0.5, y + arrowHeight * 0.8);
+      ctx.closePath();
+      ctx.fill();
+
+      // Add subtle gradient overlay
+      const gradient = ctx.createLinearGradient(0, y, 0, y + arrowHeight);
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+      gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+      gradient.addColorStop(1, 'rgba(255, 255, 255, 0.2)');
+      ctx.fillStyle = gradient;
+      ctx.fill();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(2, 4);
+
+    // Create main belt with arrow texture
+    const beltGeometry = new THREE.PlaneGeometry(width, length, segments * 2, segments * 2);
+    const beltMaterial = new THREE.MeshPhysicalMaterial({
+      map: texture,
+      metalness: 0.1,
+      roughness: 0.6,
+      clearcoat: 0.3,
+      clearcoatRoughness: 0.2,
+    });
+
+    const belt = new THREE.Mesh(beltGeometry, beltMaterial);
+    belt.rotation.x = -Math.PI / 2;
+    belt.position.y = 0.01;
+    conveyorGroup.add(belt);
+
+    // Side rails
+    const railGeometry = new THREE.BoxGeometry(0.1, 0.3, length);
+    const railMaterial = new THREE.MeshStandardMaterial({
+      color: 0xFFA07A,
+      metalness: 0.2,
+      roughness: 0.6,
+    });
+
+    const leftRail = new THREE.Mesh(railGeometry, railMaterial);
+    leftRail.position.set(-width/2 - 0.05, 0.15, 0);
+    conveyorGroup.add(leftRail);
+
+    const rightRail = new THREE.Mesh(railGeometry, railMaterial);
+    rightRail.position.set(width/2 + 0.05, 0.15, 0);
+    conveyorGroup.add(rightRail);
+
+    // Support rollers (made smaller and less visible)
+    const rollerCount = Math.ceil(length / 0.8); // Increased spacing
+    const rollerGeometry = new THREE.CylinderGeometry(0.05, 0.05, width + 0.1, 16);
+    const rollerMaterial = new THREE.MeshStandardMaterial({
+      color: 0xFFB6C1,
+      metalness: 0.2,
+      roughness: 0.6,
+    });
+
+    for (let i = 0; i < rollerCount; i++) {
+      const roller = new THREE.Mesh(rollerGeometry, rollerMaterial);
+      roller.rotation.z = Math.PI / 2;
+      roller.position.set(0, -0.05, (i / (rollerCount - 1) - 0.5) * length);
+      conveyorGroup.add(roller);
+    }
+
+    // Subtle shadow
+    const shadowGeometry = new THREE.PlaneGeometry(width + 1, length + 1);
+    const shadowMaterial = new THREE.MeshBasicMaterial({
+      color: 0xFFA07A,
+      transparent: true,
+      opacity: 0.1,
+    });
+    const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.y = -0.19;
+    conveyorGroup.add(shadow);
+
+    // Position the entire group
+    conveyorGroup.position.set(x, y, z);
+    scene.add(conveyorGroup);
+
+    // Animation loop for smooth scrolling
+    const animate = () => {
+      texture.offset.y += 0.005;
+      requestAnimationFrame(animate);
+    };
+    animate();
+
+    // Create a cannon.js body for the conveyor belt
+    const conveyorShape = new CANNON.Box(new CANNON.Vec3(width / 2, 0.1, length / 2));
+    const conveyorBody = new CANNON.Body({ mass: 0, shape: conveyorShape });
+    conveyorBody.position.set(x, y, z);
+    world.addBody(conveyorBody);
+
+    resolve({
+      group: conveyorGroup,
+      body: conveyorBody,
+      setSpeed: (speed) => {
+        texture.offset.y += speed;
+      },
+      setColor: (color) => {
+        beltMaterial.color.set(color);
+      }
+    });
   });
-  const belt = new THREE.Mesh(beltGeometry, beltMaterial);
-  belt.rotation.x = -Math.PI / 2;
-  
-  // Create rollers
-  const rollerGeometry = new THREE.CylinderGeometry(0.2, 0.2, width, 16);
-  const rollerMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
-  const rollerCount = 5;
-  for (let i = 0; i < rollerCount; i++) {
-    const roller = new THREE.Mesh(rollerGeometry, rollerMaterial);
-    roller.rotation.z = Math.PI / 2;
-    roller.position.set(0, 0.2, (i / (rollerCount - 1) - 0.5) * length);
-    conveyorGroup.add(roller);
-  }
-  
-  conveyorGroup.add(belt);
-  conveyorGroup.position.set(x, y, z);
-  scene.add(conveyorGroup);
-  
-  return conveyorGroup;
 }
 
-export async function createCrown(scene, x, y, z, radius = 1, spikeHeight = 0.9, spikeRadius = 0.1) {
-  // Crown Base (cylinder)
-  const crownMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.7, roughness: 0.4 });
-  const crownBase = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.5, 32), crownMaterial);
-  
-  // Position crown base
-  crownBase.position.set(x, y, z);
-  scene.add(crownBase);
-
-  // Crown Spikes (cones)
-  const spikeGeometry = new THREE.ConeGeometry(spikeRadius, spikeHeight, 32);
-  const spikes = []; // Store spikes for easy reference
-  for (let i = 0; i < 8; i++) {
-    const spike = new THREE.Mesh(spikeGeometry, crownMaterial);
-    const angle = (i / 8) * Math.PI * 2;  // Evenly distribute spikes around the crown
+export async function createCrown(world, scene, x, y, z, radius = 1, spikeHeight = 0.9, spikeRadius = 0.1) {
+  return new Promise((resolve) => {
+    // Crown Base (cylinder)
+    const crownMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.7, roughness: 0.4 });
+    const crownBase = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.5, 32), crownMaterial);
     
-    // Adjust the position to avoid showing the base under the crown
-    spike.scale.set(2, 2, 2); 
-    spike.position.set(Math.cos(angle) * radius, 0.75, Math.sin(angle) * radius);  // Move spikes up slightly (y = 0.75)
-    spike.lookAt(0, 1, 0);  // Make spike point upwards
-    
-    // Add each spike as a child of the crown base
-    crownBase.add(spike);
-    spikes.push(spike);
-  }
+    // Position crown base
+    crownBase.position.set(x, y, z);
+    scene.add(crownBase);
 
-  // Add Spheres (ornaments) to spikes (at the tip of each spike)
-  const sphereGeometry = new THREE.SphereGeometry(spikeRadius * 0.75, 32, 32);
-  for (let i = 0; i < 8; i++) {
-    const ornament = new THREE.Mesh(sphereGeometry, crownMaterial);
-    ornament.position.set(0, spikeHeight * 0.52, 0);  // Slightly above the spike's tip
-    spikes[i].add(ornament); // Attach the ornament to the tip of each spike
-  }
+    // Create a cannon.js body for the crown
+    const crownShape = new CANNON.Cylinder(radius, radius, 0.5, 32);
+    const crownBody = new CANNON.Body({ mass: 0, shape: crownShape });
+    crownBody.position.set(x, y, z);
+    world.addBody(crownBody);
 
-  return crownBase;
+    // Crown Spikes (cones)
+    const spikeGeometry = new THREE.ConeGeometry(spikeRadius, spikeHeight, 32);
+    const spikes = []; // Store spikes for easy reference
+    for (let i = 0; i < 8; i++) {
+      const spike = new THREE.Mesh(spikeGeometry, crownMaterial);
+      const angle = (i / 8) * Math.PI * 2;  // Evenly distribute spikes around the crown
+      
+      // Adjust the position to avoid showing the base under the crown
+      spike.scale.set(2, 2, 2); 
+      spike.position.set(Math.cos(angle) * radius, 0.75, Math.sin(angle) * radius);  // Move spikes up slightly (y = 0.75)
+      spike.lookAt(0, 1, 0);  // Make spike point upwards
+      
+      // Add each spike as a child of the crown base
+      crownBase.add(spike);
+      spikes.push(spike);
+    }
+
+    // Add Spheres (ornaments) to spikes (at the tip of each spike)
+    const sphereGeometry = new THREE.SphereGeometry(spikeRadius * 0.75, 32, 32);
+    for (let i = 0; i < 8; i++) {
+      const ornament = new THREE.Mesh(sphereGeometry, crownMaterial);
+      ornament.position.set(0, spikeHeight * 0.52, 0);  // Slightly above the spike's tip
+      spikes[i].add(ornament); // Attach the ornament to the tip of each spike
+    }
+
+    resolve({ mesh: crownBase, body: crownBody });
+  });
 }
 
 //  // Create a circular obstacle
@@ -455,5 +610,6 @@ export async function createCrown(scene, x, y, z, radius = 1, spikeHeight = 0.9,
 //  cylinder.position.set(0, height / 2, 5);
 //  scene.add(cylinder);
 
-// z for maze plane starts at 265
-// 
+
+
+

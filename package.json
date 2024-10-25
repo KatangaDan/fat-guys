@@ -7,7 +7,7 @@
     "three": "^0.168.0"
   },
   "devDependencies": {
-    "vite": "^5.4.9"
+    "vite": "^5.4.10"
   },
   "name": "fat-guys",
   "description": "2024 CGV Project",

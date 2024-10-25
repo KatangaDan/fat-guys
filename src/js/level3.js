@@ -54,7 +54,14 @@ let scene,
   timerRunning = false,
   previousTimestamp = 0,
   currentLives = 3,
-  gameWon = false;
+  gameWon = false,
+  startingHeight = 0,
+  inclineStep = 0.5,
+  zPosition = 0,
+  zStep = 60,
+  platformWidth = 60,
+  platformDepth = 60,
+  numberOfPlatforms = 15;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -110,7 +117,10 @@ async function init() {
       await initAudio();
 
       console.log("Creating obstacles + particles...");
-      await createGroundPiece(0, 0, 0, 60, 60);
+      await createGroundPiece(0, startingHeight, zPosition, 60, 60); // Base ground
+
+      // Increment height and z-position for each ground piece in a smooth, gradual way
+      await createGroundPiece(0, startingHeight += inclineStep, zPosition += zStep, 60, 60);
       const crown = createCrown(scene, -10, 0, 10);
       const turnstile = createTurnstile(scene, 5, 0, 15, 2, 15);
       //const rotatingHammer = createRotatingHammer(scene, 0, 10, 65, 2, 40); // Moved up

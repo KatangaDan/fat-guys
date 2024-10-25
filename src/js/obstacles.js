@@ -122,33 +122,43 @@ export async function createCylinder(scene, x, y, z, radius, height) {
     });
   });
 }
-export async function createHorizontalCylinder(scene, x, y, z, radius, height) {
-  //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
 
+export async function createHorizontalCylinder(world,scene, x, y, z, radius, height) {
   return new Promise((resolve) => {
-    // load the texture
+    // Load the texture
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load(texture2, (texture) => {
-      //Create a simple plane for the ground
-      const cylinderGeometry = new THREE.CylinderGeometry(
-        radius,
-        radius,
-        height,
-        32
-      );
+      // Create a Three.js cylinder
+      const cylinderGeometry = new THREE.CylinderGeometry(radius, radius, height, 32);
       const cylinderMaterial = new THREE.MeshStandardMaterial({ map: texture });
       const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
-      cylinder.position.set(x, y, z+height/2);
+      cylinder.position.set(x, y, z + height / 2);
       cylinder.rotation.x = Math.PI / 2; // Rotate the cylinder by 90 degrees around the x-axis
       cylinder.castShadow = true;
       cylinder.receiveShadow = true;
       scene.add(cylinder);
 
-      //return the pillar position
+      // Create a Cannon.js body for the cylinder using half dimensions
+      const shape = new CANNON.Cylinder(radius / 2 +0.5, radius / 2 +0.5, height , 32);
+      const body = new CANNON.Body({
+        mass: 0, // Set mass to 0 to make it static
+        position: new CANNON.Vec3(x, y, z + height / 2)
+      });
+      body.addShape(shape);
+      body.quaternion.setFromEuler(Math.PI / 2, 0, 0, 'XYZ'); // Rotate the cylinder body
+
+      // Add the body to the Cannon.js physics world
+      world.addBody(body);
+
+      // Update the position and rotation of the Three.js mesh based on the Cannon.js body
+      cylinder.userData.physicsBody = body;
+
+      // Resolve the cylinder mesh
       resolve(cylinder);
     });
   });
 }
+
 
 
 export function createFan(scene, x, y, z, radius, lengthOfFans) {
@@ -445,3 +455,5 @@ export async function createCrown(scene, x, y, z, radius = 1, spikeHeight = 0.9,
 //  cylinder.position.set(0, height / 2, 5);
 //  scene.add(cylinder);
 
+// z for maze plane starts at 265
+// 

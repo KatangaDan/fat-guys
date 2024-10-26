@@ -325,7 +325,7 @@ async function die() {
     removeEventListeners();
     generateHearts(currentLives);
     //stop the timer
-    resetTimer();
+    timerRunning = false;
     removeEventListeners();
     toggleMenu();
     //stop player moving if they die
@@ -1326,12 +1326,12 @@ function showTimer() {
 
   // Style the timer
   timer.style.position = "fixed";
-  timer.style.top = "10px";
-  timer.style.right = "10px";
+  timer.style.top = "12px";
+  timer.style.right = "150px";
   timer.style.color = "white";
   timer.style.padding = "10px";
   timer.style.borderRadius = "5px";
-  timer.style.fontSize = "24px";
+  timer.style.fontSize = "30px";
   timer.style.zIndex = "10000"; // Higher than other game elements
 
   // Initial timer content
@@ -1672,7 +1672,7 @@ function generateHearts(currentLives) {
   for (let i = 0; i < currentLives; i++) {
     const heartImg = document.createElement("img");
     heartImg.src = heart; // Use the imported heart image
-    heartImg.style.width = "30px"; // Adjust size as needed
+    heartImg.style.width = "40px"; // Adjust size as needed
     heartImg.style.marginLeft = "5px"; // Space between hearts
     heartImg.style.position = "relative";
     heartImg.style.zIndex = "10001"; // Higher than other game elements
@@ -1686,10 +1686,9 @@ function createHeartsContainer() {
   heartsContainer.id = "hearts-container";
   heartsContainer.style.position = "fixed";
   heartsContainer.style.top = "20px";
-  heartsContainer.style.right = "100px"; // Adjust based on timer position
+  heartsContainer.style.right = "10px"; // Adjust based on timer position
   heartsContainer.style.display = "flex";
   heartsContainer.style.zIndex = "10000"; // Higher than other game elements
-
   //add a thick border around this container
   //heartsContainer.style.border = "2px solid white";
   document.body.appendChild(heartsContainer);
@@ -1813,10 +1812,10 @@ function generateBestTime() {
 
   // Style the best time container
   bestTimeContainer.style.position = "fixed";
-  bestTimeContainer.style.top = "50px"; // Adjust to position it below the timer
-  bestTimeContainer.style.right = "10px"; // Same right alignment as the timer
+  bestTimeContainer.style.top = "60px"; // Adjust to position it below the timer
+  bestTimeContainer.style.right = "15px"; // Same right alignment as the timer
   bestTimeContainer.style.color = "white"; // Text color
-  bestTimeContainer.style.fontSize = "20px"; // Font size
+  bestTimeContainer.style.fontSize = "30px"; // Font size
   bestTimeContainer.style.zIndex = "10000"; // Higher than other game elements
 
   // Retrieve the best time from localStorage
@@ -1825,7 +1824,7 @@ function generateBestTime() {
   // Format the display message
   if (bestTime) {
     bestTimeContainer.textContent = `Best Time: ${parseFloat(bestTime).toFixed(
-      3
+      1
     )} s`; // Show best time formatted to 3 decimal places
   } else {
     bestTimeContainer.textContent = "Best Time: N/A"; // Default message if no best time

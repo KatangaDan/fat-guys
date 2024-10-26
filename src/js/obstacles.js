@@ -411,8 +411,8 @@ export function createRotatingHammer(scene, x, y, z, hammerLength, hammerHeight,
   };
 }
 
-export function createConveyorBelt(world, scene, x, y, z, width, length, segments) {
-  return new Promise((resolve) => {
+export async function createConveyorBelt(world, scene, x, y, z, width, length, segments) {
+  return new Promise(async (resolve) => {
     const conveyorGroup = new THREE.Group();
 
     // Create base frame
@@ -599,17 +599,74 @@ export async function createCrown(world, scene, x, y, z, radius = 1, spikeHeight
     resolve({ mesh: crownBase, body: crownBody });
   });
 }
+// Add this new function at the end of the file
 
-//  // Create a circular obstacle
-//  const radius = 5;
-//  const height = 2;
-//  const segments = 32;
-//  const geometry = new THREE.CylinderGeometry(radius, radius, height, segments);
-//  const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-//  const cylinder = new THREE.Mesh(geometry, material);
-//  cylinder.position.set(0, height / 2, 5);
-//  scene.add(cylinder);
+export async function createStartingPlatform(world, scene, x, y, z, width, height, depth) {
+  return new Promise((resolve) => {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(tile, (texture) => {
+      // Create the platform mesh
+      const platformGeometry = new THREE.BoxGeometry(width, height, depth);
+      const platformMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+      platform.position.set(x, y + height / 2, z);
+      platform.castShadow = true;
+      platform.receiveShadow = true;
+      scene.add(platform);
 
+      // Create the physics body for the platform
+      const platformShape = new CANNON.Box(new CANNON.Vec3(width / 2, height / 2, depth / 2));
+      const platformBody = new CANNON.Body({ mass: 0, shape: platformShape });
+      platformBody.position.set(x, y + height / 2, z);
+      world.addBody(platformBody);
 
+      // Create fences
+      const fenceHeight = 2;
+      const fenceThickness = 0.1;
+      const fenceMaterial = new THREE.MeshStandardMaterial({ color: 0xFFC0CB });
 
+      // Left fence
+      const leftFenceGeometry = new THREE.BoxGeometry(fenceThickness, fenceHeight, depth);
+      const leftFence = new THREE.Mesh(leftFenceGeometry, fenceMaterial);
+      leftFence.position.set(x - width / 2, y + height / 2 + fenceHeight / 2, z);
+      scene.add(leftFence);
 
+      // Right fence
+      const rightFenceGeometry = new THREE.BoxGeometry(fenceThickness, fenceHeight, depth);
+      const rightFence = new THREE.Mesh(rightFenceGeometry, fenceMaterial);
+      rightFence.position.set(x + width / 2, y + height / 2 + fenceHeight / 2, z);
+      scene.add(rightFence);
+
+      // Back fence
+      const backFenceGeometry = new THREE.BoxGeometry(width, fenceHeight, fenceThickness);
+      const backFence = new THREE.Mesh(backFenceGeometry, fenceMaterial);
+      backFence.position.set(x, y + height / 2 + fenceHeight / 2, z - depth / 2);
+      scene.add(backFence);
+
+      // Create physics bodies for fences
+      const fenceShape = new CANNON.Box(new CANNON.Vec3(fenceThickness / 2, fenceHeight / 2, depth / 2));
+      const leftFenceBody = new CANNON.Body({ mass: 0, shape: fenceShape });
+      leftFenceBody.position.copy(leftFence.position);
+      world.addBody(leftFenceBody);
+
+      const rightFenceBody = new CANNON.Body({ mass: 0, shape: fenceShape });
+      rightFenceBody.position.copy(rightFence.position);
+      world.addBody(rightFenceBody);
+
+      const backFenceShape = new CANNON.Box(new CANNON.Vec3(width / 2, fenceHeight / 2, fenceThickness / 2));
+      const backFenceBody = new CANNON.Body({ mass: 0, shape: backFenceShape });
+      backFenceBody.position.copy(backFence.position);
+      world.addBody(backFenceBody);
+
+      resolve({ 
+        mesh: platform, 
+        body: platformBody,
+        fences: {
+          left: { mesh: leftFence, body: leftFenceBody },
+          right: { mesh: rightFence, body: rightFenceBody },
+          back: { mesh: backFence, body: backFenceBody }
+        }
+      });
+    });
+  });
+}

@@ -11,6 +11,7 @@ import {
   createTurnstile,
   createRotatingHammer,
   createConveyorBelt,
+  createStartingPlatform,
 } from "./obstacles";
 
 // Import assets
@@ -23,6 +24,10 @@ import PjumpSound from "../sounds/jumpSound.wav";
 import Pjumpland from "../sounds/jumpland.wav";
 import Phitsound from "../sounds/hit.wav";
 import Pwinsound from "../sounds/winSound.wav";
+import countdownOne from "../sounds/1.mp3";
+import countdownTwo from "../sounds/2.mp3";
+import countdownThree from "../sounds/3.mp3";
+import countdownGo from "../sounds/GO.mp3";
 
 //Global variables
 let scene,
@@ -59,7 +64,11 @@ let scene,
   zStep = 60,
   platformWidth = 60,
   platformDepth = 60,
-  numberOfPlatforms = 8;
+  numberOfPlatforms = 8,
+  timerInterval,
+  countdownInterval,
+  backgroundMusic,
+  isPaused = false;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -73,8 +82,9 @@ let particleSpreadZ = 1000; //Based on how long our level is
 //Helpers to visualize intersection boxes
 let playerHelper;
 let crown;
-let turnstile;
-let conveyor;
+let turnstiles = [];
+let conveyors = [];
+let hammers = [];
 
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
@@ -105,6 +115,11 @@ const audioLoader = new THREE.AudioLoader();
 async function init() {
   return new Promise(async (resolve, reject) => {
     try {
+      // Reset arrays
+      hammers = [];
+      conveyors = [];
+      turnstiles = [];
+
       console.log("Initializing the game...");
       await initStats();
       await initScene();
@@ -117,15 +132,29 @@ async function init() {
 
       console.log("Creating obstacles + particles...");
       // Increment height and z-position for each ground piece in a smooth, gradual way
-      for (let i = 0; i < numberOfPlatforms; i++) {
-        await createGroundPiece(0, 0, zPosition, platformWidth, platformDepth);
-        zPosition += zStep;
-      }
-      const crown = createCrown(scene, -10, 0, 10);
-      const turnstile = createTurnstile(scene, 5, 0, 15, 2, 15);
-      //const rotatingHammer = createRotatingHammer(scene, 0, 10, 65, 2, 40); // Moved up
-      //const conveyorBelt = createConveyorBelt(scene, 0, -10, 65, 2, 40); // Moved down
-      // const cylinder3 = await createSpinningBeam(scene, 20, 0, 65, 2, 40);
+      // for (let i = 0; i < numberOfPlatforms; i++) {
+      //   //await createGroundPiece(0, 0, zPosition, platformWidth, platformDepth);
+      //   if (i === 0) {
+      //     await createStartingPlatform(world, scene, 0, 0, zPosition, 60, 0.1, 30);
+      //   } else {
+      //     const platform = await createStartingPlatform(world, scene, 0, 0, zPosition, 60, 0.1, 60);
+      //     // Remove the back fence
+      //     scene.remove(platform.fences.back.mesh);
+      //     world.removeBody(platform.fences.back.body);
+      //   }
+      //   zPosition += zStep;
+      // }
+      //crown = await createCrown(world, scene, -10, 0, 10);
+
+      //First set of obstacles
+      //await initTurnstiles();
+      //conveyor = await createConveyorBelt(world, scene, 10, 2, 10, 10, 20, 32);
+      //const hammer = createRotatingHammer(scene, 20, 5, 5, 1, 1);
+      // Create forked platforms and obstacles
+      await createLevel3Layout();
+      await initTurnstiles();
+      await createHammersAndConveyors();
+      await createCheckpoints();
 
       //Init particle background system
       await initBackgroundParticleSystem();
@@ -145,13 +174,12 @@ async function init() {
 
 async function initAudio() {
   return new Promise((resolve) => {
-    const backGroundMusic = new THREE.Audio(listener);
+    backgroundMusic = new THREE.Audio(listener);
     audioLoader.load(PbackGroundMusic, function (buffer) {
-      backGroundMusic.setBuffer(buffer);
-      backGroundMusic.setLoop(true);
-      backGroundMusic.setVolume(0.2);
-      backGroundMusic.play();
-
+      backgroundMusic.setBuffer(buffer);
+      backgroundMusic.setLoop(true);
+      backgroundMusic.setVolume(0.2);
+      backgroundMusic.play();
       resolve();
     });
   });
@@ -290,13 +318,33 @@ async function die() {
   // Wait for particle effect and then respawn
   await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
 
-  //true death
+  //true death - don't respawn: show a menu to restart the game
   if (currentLives <= 0) {
     playerBody.position.set(0, 10, 10);
-    currentLives = 3;
+    //request for mouse control
+    document.exitPointerLock();
+    removeEventListeners();
     generateHearts(currentLives);
-    //reset timer
+    //stop the timer
     resetTimer();
+    removeEventListeners();
+    toggleMenu();
+    //stop player moving if they die
+    moveForward = false;
+    moveBackward = false;
+    moveLeft = false;
+    moveRight = false;
+    //hide resume button from menu
+    document.getElementById("resumeButton").style.display = "none";
+    //add "You lost" message to gameMenu
+    const lostMessage = document.createElement("h1");
+    lostMessage.id = "lostMessage";
+    lostMessage.innerHTML = "You lost!";
+    document.getElementById("gameMenu").appendChild(lostMessage);
+    // currentLives = 3;
+    // generateHearts(currentLives);
+    // //reset timer
+    // resetTimer()
   } else {
     // Respawn at appropriate position
     playerBody.position.set(
@@ -534,7 +582,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 10, 10);
+        model.position.set(0, 10, 0);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -597,7 +645,7 @@ async function initPlayer() {
 
         // Create a Cannon Box shape using the bounding box dimensions
         const playerShape = new CANNON.Box(
-          new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)
+          new CANNON.Vec3(size.x / 4, size.y / 2, size.z / 2)
         );
 
         // Create the player body using the Box shape
@@ -800,6 +848,7 @@ function crossfadeAction(fromAction, toAction, duration) {
     fromAction.fadeOut(duration); // Fade out th  e old action
   }
 }
+
 function checkIdleState() {
   // If no movement keys are pressed and the current action isn't idle, switch to idle
   if (
@@ -922,6 +971,106 @@ function updateMovement(delta) {
   }
 }
 
+async function initTurnstiles() {
+  // Section 1 - Fork path
+  turnstiles.push(await createTurnstile(world, scene, -15, 0, 50, 2, 15)); // Left path
+  turnstiles.push(await createTurnstile(world, scene, 15, 0, 50, 2, 15));  // Right path
+  
+  // Section 2 - After first checkpoint
+  turnstiles.push(await createTurnstile(world, scene, -20, 0, 200, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 0, 0, 220, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 20, 0, 200, 2, 15));
+  
+  // Section 3 - Final stretch
+  turnstiles.push(await createTurnstile(world, scene, 0, 0, 400, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, -15, 0, 420, 2, 15));
+}
+
+async function createLevel3Layout() {
+  // Starting platform with back fence
+  const startPlatform = await createStartingPlatform(world, scene, 0, 0, 0, 60, 0.1, 30);
+  
+  // Left path (no back fences)
+  const leftPath1 = await createStartingPlatform(world, scene, -30, 0, 60, 30, 0.1, 60);
+  scene.remove(leftPath1.fences.back.mesh);
+  world.removeBody(leftPath1.fences.back.body);
+  
+  const leftPath2 = await createStartingPlatform(world, scene, -30, 0, 120, 30, 0.1, 60);
+  scene.remove(leftPath2.fences.back.mesh);
+  world.removeBody(leftPath2.fences.back.body);
+  
+  // Right path (no back fences)
+  const rightPath1 = await createStartingPlatform(world, scene, 30, 0, 60, 30, 0.1, 60);
+  scene.remove(rightPath1.fences.back.mesh);
+  world.removeBody(rightPath1.fences.back.body);
+  
+  const rightPath2 = await createStartingPlatform(world, scene, 30, 0, 120, 30, 0.1, 60);
+  scene.remove(rightPath2.fences.back.mesh);
+  world.removeBody(rightPath2.fences.back.body);
+  
+  // Rest of platforms (no back fences)
+  const platforms = [
+    await createStartingPlatform(world, scene, 0, 0, 180, 60, 0.1, 30),    // Checkpoint 1
+    await createStartingPlatform(world, scene, -20, 0, 240, 40, 0.1, 60),  // Section 2
+    await createStartingPlatform(world, scene, 20, 0, 300, 40, 0.1, 60),
+    await createStartingPlatform(world, scene, 0, 0, 360, 60, 0.1, 30),    // Checkpoint 2
+    await createStartingPlatform(world, scene, 0, 0, 420, 60, 0.1, 60),    // Section 3
+    await createStartingPlatform(world, scene, 0, 0, 480, 60, 0.1, 30),    // Final platform
+  ];
+
+  // Remove back fences from all remaining platforms
+  platforms.forEach(platform => {
+    scene.remove(platform.fences.back.mesh);
+    world.removeBody(platform.fences.back.body);
+  });
+}
+
+async function createHammersAndConveyors() {
+  // Section 1 obstacles - Fork paths
+  const hammer1 = createRotatingHammer(scene, -25, 5, 80, 1, 1);    // Left path hammer
+  const hammer2 = createRotatingHammer(scene, 25, 5, 80, 1, 1);     // Right path hammer
+  hammers.push(hammer1, hammer2);
+  
+  // Conveyors for first section
+  const conveyor1 = await createConveyorBelt(world, scene, -30, 2, 140, 10, 20, 32); // Left path
+  const conveyor2 = await createConveyorBelt(world, scene, 30, 2, 140, 10, 20, 32);  // Right path
+  conveyors.push(conveyor1, conveyor2);
+  
+  // Section 2 obstacles - Zigzag section
+  const hammer3 = createRotatingHammer(scene, -15, 5, 260, 1, 1);
+  const hammer4 = createRotatingHammer(scene, 15, 5, 320, 1, 1);
+  hammers.push(hammer3, hammer4);
+  
+  const conveyor3 = await createConveyorBelt(world, scene, 0, 2, 290, 10, 20, 32);
+  conveyors.push(conveyor3);
+  
+  // Section 3 obstacles - Final stretch
+  const hammer5 = createRotatingHammer(scene, 0, 5, 440, 1, 1);
+  hammers.push(hammer5);
+  
+  const conveyor4 = await createConveyorBelt(world, scene, 0, 2, 460, 10, 20, 32);
+  conveyors.push(conveyor4);
+}
+
+async function createCheckpoints() {
+  // Create checkpoint markers (you can use custom models or simple geometries)
+  const checkpointGeometry = new THREE.BoxGeometry(60, 5, 2);
+  const checkpointMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x00ff00,
+    transparent: true,
+    opacity: 0.5 
+  });
+
+  // Checkpoint 1
+  const checkpoint1 = new THREE.Mesh(checkpointGeometry, checkpointMaterial);
+  checkpoint1.position.set(0, 2.5, 180);
+  scene.add(checkpoint1);
+
+  // Checkpoint 2
+  const checkpoint2 = new THREE.Mesh(checkpointGeometry, checkpointMaterial);
+  checkpoint2.position.set(0, 2.5, 360);
+  scene.add(checkpoint2);
+}
 async function createGroundPiece(x, y, z, width, length) {
   return new Promise((resolve) => {
     //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
@@ -973,58 +1122,190 @@ function AddVisualCylinderHelpers() {
   });
 }
 
-function animateCrown(deltaTime) {
-  if (crown && crown.mesh) {
-    crown.mesh.rotation.y += deltaTime * 0.5; // Rotate the crown
-  }
+async function animateCrown(deltaTime) {
+  return new Promise((resolve) => {
+    if (crown && crown.mesh) {
+      crown.mesh.rotation.y += deltaTime * 0.5; // Rotate the crown
+    }
+    resolve();
+  });
 }
 
-function animateTurnstile(deltaTime) {
-  if (turnstile && turnstile.mesh && turnstile.body) {
-    const rotation = deltaTime * 1.0;
-    turnstile.mesh.rotation.y += rotation; // Rotate the turnstile mesh
-    turnstile.body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), turnstile.mesh.rotation.y); // Rotate the cannon body
-  }
+async function animateTurnstile(deltaTime) {
+  return new Promise((resolve) => {
+    turnstiles.forEach((turnstile) => {
+      if (turnstile.mesh && turnstile.body) {
+        const rotation = deltaTime * 1.0;
+        turnstile.mesh.rotation.y += rotation; // Rotate the turnstile mesh
+        turnstile.body.quaternion.setFromAxisAngle(
+          new CANNON.Vec3(0, 1, 0),
+          turnstile.mesh.rotation.y
+        ); // Rotate the cannon body
+      }
+    });
+    resolve();
+  });
 }
 
-// Update the camera position to follow the player
+// Update the camera position to follow the player and initial panning
 function updateCamera() {
-  if (!model) return;
+  if (!model || isPlayerDead) return;
 
+  // Handle panning animation
+  if (isPanning) {
+    const currentTime = Date.now();
+    const elapsed = currentTime - panStartTime;
+    panProgress = Math.min(elapsed / panDuration, 1);
+
+    // Use easing function for smooth motion
+    const easedProgress = easeInOutQuad(panProgress);
+
+    // Interpolate camera position
+    camera.position.lerpVectors(
+      panStartPosition,
+      panEndPosition,
+      easedProgress
+    );
+
+    //look at a point in front and under the camera
+    // Calculate look-at point: 50 units ahead and 20 units below camera
+    const lookAtPoint = camera.position.clone();
+    // lookAtPoint.z -= 50; // Look 50 units ahead
+    lookAtPoint.x += 70;
+    lookAtPoint.y -= 50; // Look 20 units down
+
+    camera.lookAt(lookAtPoint);
+
+    // Check if panning is complete
+    if (panProgress >= 1) {
+      isPanning = false;
+      panProgress = 0;
+    }
+
+    return; // Skip regular camera updates while panning
+  }
+
+  // Your existing camera update logic
   if (isFirstPerson) {
-    const headPosition = model.position.clone().add(new THREE.Vector3(0, 2, 0)); // get the model's head position
-    camera.position.copy(headPosition); // set the camera position to the model's head position
-    camera.rotation.copy(controls.getObject().rotation); // set the camera rotation to the model's rotation
+    model.visible = false;
+    const headPosition = model.position.clone().add(new THREE.Vector3(0, 2, 0));
+    camera.position.copy(headPosition);
+    camera.rotation.copy(controls.getObject().rotation);
   } else {
-    // Calculate camera position based on offset and rotation
     const cameraPosition = new THREE.Vector3(
       Math.sin(cameraRotation.y) * cameraOffset.z,
       cameraOffset.y,
       Math.cos(cameraRotation.y) * cameraOffset.z
     );
-
-    // Add player position to camera position
     cameraPosition.add(model.position);
-
-    // Update camera position with smooth lerp
     camera.position.lerp(cameraPosition, cameraLerpFactor);
-
-    // Calculate look target (slightly above player position)
     const lookTarget = model.position.clone().add(new THREE.Vector3(0, 2, 0));
     camera.lookAt(lookTarget);
-
-    // Apply pitch rotation after looking at target
     camera.rotateX(cameraRotation.x);
   }
 }
-// Start game timer
+
+// Easing function for smooth acceleration and deceleration
+function easeInOutQuad(t) {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
+
 function startGameTimer() {
-  startTime = Date.now(); // Get the current timestamp in milliseconds
-  elapsedTime = 0; // Reset elapsed time
+  startCountdown(); // Only start the countdown, don't start the timer yet
+}
+
+function removeEventListeners() {
+  //remove event listeners
+  window.removeEventListener("keydown", handleKeyDown);
+  window.removeEventListener("keyup", handleKeyUp);
+  window.removeEventListener("mousemove", onMouseMove, false);
+}
+
+function startCountdown() {
+  removeEventListeners(); // Remove any existing event listeners
+
+  const audioLoader = new THREE.AudioLoader();
+  let countdownAudio = new THREE.Audio(listener);
+
+  const mapCountdownSounds = {
+    3: countdownThree,
+    2: countdownTwo,
+    1: countdownOne,
+    GO: countdownGo,
+  };
+
+  function playCountdownSound(count) {
+    let soundFile = mapCountdownSounds[count];
+
+    // Stop any currently playing sound
+    if (countdownAudio.isPlaying) {
+      countdownAudio.stop();
+    }
+
+    audioLoader.load(soundFile, function (buffer) {
+      countdownAudio.setBuffer(buffer);
+      countdownAudio.setLoop(false);
+      countdownAudio.setVolume(0.5);
+      countdownAudio.play();
+    });
+  }
+
+  // clear existing countdown element if it exists
+  let countdownDisplay = document.getElementById("countdown");
+  if (countdownDisplay) {
+    countdownDisplay.remove();
+  }
+
+  let count = 3;
+  countdownDisplay = document.getElementById("countdown");
+
+  countdownDisplay = document.createElement("div");
+  countdownDisplay.id = "countdown";
+  countdownDisplay.style.cssText = `
+            position: fixed;
+            top: 25%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 150px;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        `;
+  document.body.appendChild(countdownDisplay);
+
+  countdownDisplay.style.display = "block";
+  countdownInterval = setInterval(() => {
+    if (count > 0) {
+      playCountdownSound(count); // Play sound for the current countdown number
+      countdownDisplay.textContent = count;
+      countdownDisplay.style.transform = "translate(-50%, -50%) scale(1.2)";
+      setTimeout(() => {
+        countdownDisplay.style.transform = "translate(-50%, -50%) scale(1)";
+      }, 200);
+      count--;
+    } else {
+      countdownDisplay.textContent = "GO!";
+      playCountdownSound("GO"); // Play "GO.mp3" sound
+
+      // Start the timer and player control after the countdown ends
+      initEventListeners();
+      initializeTimer();
+
+      // Clear the interval and hide the countdown display after 1 second
+      clearInterval(countdownInterval);
+      setTimeout(() => {
+        countdownDisplay.style.display = "none";
+      }, 1000);
+    }
+  }, 1000);
+}
+
+function initializeTimer() {
+  startTime = Date.now();
+  elapsedTime = 0;
   timerRunning = true;
   updateTimerDisplay(0);
-  // Start the interval to update the timer every 100 ms (or your desired interval)
-  // timerInterval = setInterval(updateTimer, 100);
+  timerInterval = setInterval(updateTimer, 100);
 }
 
 // Update game timer
@@ -1055,7 +1336,7 @@ function showTimer() {
   timer.style.zIndex = "10000"; // Higher than other game elements
 
   // Initial timer content
-  timer.textContent = "0.000 s";
+  timer.textContent = "0.0 s";
 
   document.body.appendChild(timer);
 }
@@ -1071,10 +1352,42 @@ function updateTimerDisplay(timeInMs) {
 
 // Reset timer function (useful for restarts)
 function resetTimer() {
-  startTime = Date.now(); // Get the current timestamp in milliseconds
-  elapsedTime = 0; // Reset elapsed time
-  timerRunning = true;
+  if (timerInterval) {
+    clearInterval(timerInterval);
+  }
+  elapsedTime = 0;
+  timerRunning = false;
   updateTimerDisplay(0);
+}
+
+// Add these variables to your global scope
+let isPanning = false;
+let panProgress = 0;
+let panStartPosition = null;
+let panEndPosition = null;
+let panStartTime = null;
+let panDuration = 5000; // 10 seconds
+
+// Modified panCameraToStart function
+async function panCameraToStart() {
+  return new Promise((resolve) => {
+    // Set initial camera position
+    camera.position.set(-70, 50, 350);
+    panStartPosition = new THREE.Vector3(-70, 50, 400);
+    panEndPosition = new THREE.Vector3(-70, 50, 10);
+    panStartTime = Date.now();
+    isPanning = true;
+
+    // Create an interval to check when panning is complete
+    const checkInterval = setInterval(() => {
+      if (!isPanning) {
+        clearInterval(checkInterval);
+        isFirstPerson = false;
+        updateCamera();
+        resolve();
+      }
+    }, 100);
+  });
 }
 
 let isPlayerDead = false;
@@ -1084,15 +1397,7 @@ let lastDeathTime = 0;
 //display game timer
 let frame = 0;
 function animate() {
-  //console.log("Frame:", frame);
   frame++;
-
-  //start timer on 2nd frame because theres a big time difference between the first frame and the second frame
-  if (frame === 2) {
-    startGameTimer();
-    //showTimer;
-  }
-
   stats.begin();
 
   // update the game timer
@@ -1160,86 +1465,107 @@ function animate() {
     } else {
       model.position.copy(playerBody.position).add(worldOffset);
     }
+
     // Check for collisions with new obstacles
     const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
     // Check collision with crown
-    if (crown && crown.mesh) {
+    if (crown && crown.mesh && !gameWon) {
       const crownBoundingBox = new THREE.Box3().setFromObject(crown.mesh);
       if (playerBoundingBox.intersectsBox(crownBoundingBox)) {
         console.log("Player won!");
+        gameWon = true;
         showWinScreen(elapsedTime);
-      }
-    }
-
-    // Check collision with turnstile
-    if (turnstile && turnstile.mesh) {
-      const turnstileBoundingBox = new THREE.Box3().setFromObject(
-        turnstile.mesh
-      );
-      if (playerBoundingBox.intersectsBox(turnstileBoundingBox)) {
-        console.log("Player died from turnstile!");
-        if (!isPlayerDead) {
-          isPlayerDead = true;
-          die(); // Assuming you have a die() function
-          setTimeout(() => {
-            isPlayerDead = false;
-          }, deathCooldown);
+        // Hide the crown instead of removing it
+        crown.mesh.visible = false;
+        if (crown.body && world.removeBody) {
+          world.removeBody(crown.body);
         }
       }
     }
+
+    // Reset crown visibility when game restarts
+    if (!gameWon && crown && crown.mesh && !crown.mesh.visible) {
+      crown.mesh.visible = true;
+      if (crown.body && !world.bodies.includes(crown.body)) {
+        world.addBody(crown.body);
+      }
+    }
+
+    // Check collision with turnstiles
+    turnstiles.forEach((turnstile) => {
+      if (turnstile.mesh) {
+        const turnstileBoundingBox = new THREE.Box3().setFromObject(
+          turnstile.mesh
+        );
+        if (playerBoundingBox.intersectsBox(turnstileBoundingBox)) {
+          console.log("Player died from turnstile!");
+          if (!isPlayerDead) {
+            isPlayerDead = true;
+            die(); // Assuming you have a die() function
+            setTimeout(() => {
+              isPlayerDead = false;
+            }, deathCooldown);
+          }
+        }
+      }
+    });
 
     // Check collision with conveyor belt
-    if (conveyor && conveyor.group) {
-      const conveyorBoundingBox = new THREE.Box3().setFromObject(
-        conveyor.group
-      );
-      if (playerBoundingBox.intersectsBox(conveyorBoundingBox)) {
-        console.log("On conveyor belt!");
-        // Apply conveyor belt effect
-        const conveyorSpeed = 5; // Adjust as needed
-        const conveyorDirection = new CANNON.Vec3(1, 0, 0); // Adjust based on conveyor direction
-        playerBody.velocity.vadd(conveyorDirection.scale(conveyorSpeed * deltaTime), playerBody.velocity);
-        
-        // Allow jumping on conveyor belt
-        if (isJumping && Date.now() - lastJumpTime > jumpCooldown) {
-          playerBody.velocity.y = 0; // Reset vertical velocity before applying jump
-          playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0));
-          lastJumpTime = Date.now();
-        }
+    // if (conveyor && conveyor.group) {
+    //   const conveyorBoundingBox = new THREE.Box3().setFromObject(
+    //     conveyor.group
+    //   );
+    //   if (playerBoundingBox.intersectsBox(conveyorBoundingBox)) {
+    //     console.log("On conveyor belt!");
+    //     // Apply conveyor belt effect
+    //     const conveyorSpeed = 5; // Adjust as needed
+    //     const conveyorDirection = new CANNON.Vec3(1, 0, 0); // Adjust based on conveyor direction
+    //     playerBody.velocity.vadd(
+    //       conveyorDirection.scale(conveyorSpeed * deltaTime),
+    //       playerBody.velocity
+    //     );
+
+    //     // Allow jumping on conveyor belt
+    //     if (isJumping && Date.now() - lastJumpTime > jumpCooldown) {
+    //       playerBody.velocity.y = 0; // Reset vertical velocity before applying jump
+    //       playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0));
+    //       lastJumpTime = Date.now();
+    //     }
+    //   }
+    // }
+
+    // Check for collisions with fences and prevent player from going through
+    const platforms = scene.children.filter(child => child.userData.isPlatform);
+    platforms.forEach(platform => {
+      if (platform.userData.fences) {
+        Object.values(platform.userData.fences).forEach(fence => {
+          if (fence.body && fence.mesh) {
+            // Check for collision with player
+            const fenceBoundingBox = new THREE.Box3().setFromObject(fence.mesh);
+            if (playerBoundingBox.intersectsBox(fenceBoundingBox)) {
+              // Calculate push-back direction
+              const pushDirection = new THREE.Vector3()
+                .subVectors(playerBody.position, fence.body.position)
+                .normalize();
+              
+              // Apply a small force to push the player away from the fence
+              playerBody.applyForce(
+                new CANNON.Vec3(pushDirection.x, 0, pushDirection.z).scale(500),
+                playerBody.position
+              );
+              
+              // Optionally, you can add a small bounce effect
+              playerBody.velocity.y = Math.max(playerBody.velocity.y, 2);
+            }
+          }
+        });
       }
-    }
+    });
 
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
     if (playerHelper) {
       playerHelper.update();
-    }
-
-    //Update gate helpers
-    // gateHelpers.forEach((helper) => {
-    //   if (helper) helper.update();
-    // });
-
-    //Particle system
-    if (particleSystem) {
-      let positionArray = particleSystem.geometry.attributes.position.array;
-      for (let i = 0; i < particleCount; i++) {
-        positionArray[3 * i] += velocities[3 * i];
-        positionArray[3 * i + 1] += velocities[3 * i + 1];
-        positionArray[3 * i + 2] += velocities[3 * i + 2];
-
-        // Reset position if it goes out of bounds
-        if (positionArray[3 * i] > 50 || positionArray[3 * i] < -50) {
-          velocities[3 * i] *= -1;
-        }
-        if (positionArray[3 * i + 1] > 50 || positionArray[3 * i + 1] < -50) {
-          velocities[3 * i + 1] *= -1;
-        }
-        if (positionArray[3 * i + 2] > 50 || positionArray[3 * i + 2] < -50) {
-          velocities[3 * i + 2] *= -1;
-        }
-      }
-      particleSystem.geometry.attributes.position.needsUpdate = true;
     }
 
     // Update camera
@@ -1255,8 +1581,26 @@ function animate() {
   animateTurnstile(deltaTime);
 
   // Update conveyor belt animation
-  if (conveyor && conveyor.setSpeed) {
-    conveyor.setSpeed(0.005); // Adjust speed as needed
+  // if (conveyor && conveyor.setSpeed) {
+  //   conveyor.setSpeed(0.005); // Adjust speed as needed
+  // }
+
+  // Update conveyor animations with safety checks
+  if (conveyors && conveyors.length > 0) {
+    conveyors.forEach(conveyor => {
+      if (conveyor && conveyor.setSpeed && typeof conveyor.setSpeed === 'function') {
+        conveyor.setSpeed(0.005);
+      }
+    });
+  }
+
+  // Update hammer animations with safety checks
+  if (hammers && hammers.length > 0) {
+    hammers.forEach(hammer => {
+      if (hammer && hammer.rotation !== undefined) {
+        hammer.rotation.z += 0.02;
+      }
+    });
   }
 
   cannonDebugger.update();
@@ -1355,14 +1699,38 @@ function createHeartsContainer() {
   document.body.appendChild(heartsContainer);
 }
 
-// Example usage: generateHearts(3);
+// pause/resume functions
+function pauseGame() {
+  isPaused = true;
+  if (backgroundMusic) {
+    backgroundMusic.pause();
+  }
+  if (timerInterval) {
+    clearInterval(timerInterval);
+  }
+  timerRunning = false;
+  // Store the elapsed time when pausing
+  previousTimestamp = Date.now();
+}
+
+function resumeGame() {
+  isPaused = false;
+  if (backgroundMusic) {
+    backgroundMusic.play();
+  }
+  if (!timerInterval && !gameWon) {
+    // Adjust the start time to account for the pause duration
+    startTime = Date.now() - elapsedTime;
+    timerInterval = setInterval(updateTimer, 100);
+    timerRunning = true;
+  }
+}
 
 function toggleMenu() {
   const gameMenu = document.getElementById("gameMenu");
   if (gameMenu.style.display === "block") {
     gameMenu.style.display = "none";
-
-    // unpauseGame();
+    resumeGame();
   } else {
     const resumeButton = document.getElementById("resumeButton");
     const startButton = document.getElementById("startButton");
@@ -1372,25 +1740,15 @@ function toggleMenu() {
     resumeButton.style.display = "block";
     restartButton.style.display = "block";
 
-    //if win and congration message is displayed, hide it
-    const winMessage = document.getElementById("winMessage");
-    const congratsMessage = document.getElementById("congratsMessage");
-    const bestTimeMessage = document.getElementById("bestTimeMessage");
-
-    if (winMessage) {
-      winMessage.remove();
-    }
-
-    if (congratsMessage) {
-      congratsMessage.remove();
-    }
-    if (bestTimeMessage) {
-      bestTimeMessage.remove();
-    }
+    // Clear existing messages
+    const messages = ["winMessage", "congratsMessage", "bestTimeMessage", "lostMessage"];
+    messages.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) element.remove();
+    });
 
     gameMenu.style.display = "block";
-
-    // pauseGame();
+    pauseGame();
   }
 }
 
@@ -1497,6 +1855,19 @@ function resetGame() {
   console.log("Game is restarting...");
 }
 
+function restartGame() {
+  // do countdown again
+  //reset timer to 0
+  resetTimer();
+  startCountdown();
+  playerBody.position.set(0, 10, 0);
+  //restart timer
+  //resetTimer();
+  currentLives = 3;
+  generateHearts(currentLives);
+  gameWon = false;
+}
+
 //Main function to start the game
 async function startGame() {
   try {
@@ -1517,37 +1888,27 @@ async function startGame() {
     restartButton.addEventListener("click", () => {
       // window.location.reload();
       toggleMenu();
-
-      //if wasd dont have event listeners, add them back
-      window.addEventListener("keydown", handleKeyDown);
-
-      //Respawn the player(make it a function cause timer needs to be reset, etc)
-      playerBody.position.set(0, 10, 10);
-
-      //restart timer
-      resetTimer();
-
-      currentLives = 3;
-      generateHearts(currentLives);
-
-      gameWon = false;
-
       generateBestTime();
+
+      restartGame();
     });
 
     //Add event listener to the start button
     startButton.addEventListener("click", async () => {
       showLoadingScreen();
       hideGameMenu();
+      //render the game
       await init();
-      //startGameTimer();
+
+      //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
       showTimer();
       hideLoadingScreen();
       createHeartsContainer();
       generateHearts(3);
       generateBestTime();
-
       renderer.setAnimationLoop(animate);
+      //await panCameraToStart();
+      startCountdown();
 
       //Add pause event listener
       document.addEventListener("keydown", (event) => {

@@ -66,9 +66,7 @@ let scene,
   platformDepth = 60,
   numberOfPlatforms = 8,
   timerInterval,
-  countdownInterval,
-  backgroundMusic,
-  isPaused = false;
+  countdownInterval;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -174,12 +172,13 @@ async function init() {
 
 async function initAudio() {
   return new Promise((resolve) => {
-    backgroundMusic = new THREE.Audio(listener);
+    const backGroundMusic = new THREE.Audio(listener);
     audioLoader.load(PbackGroundMusic, function (buffer) {
-      backgroundMusic.setBuffer(buffer);
-      backgroundMusic.setLoop(true);
-      backgroundMusic.setVolume(0.2);
-      backgroundMusic.play();
+      backGroundMusic.setBuffer(buffer);
+      backGroundMusic.setLoop(true);
+      backGroundMusic.setVolume(0.2);
+      backGroundMusic.play();
+
       resolve();
     });
   });
@@ -1352,10 +1351,7 @@ function updateTimerDisplay(timeInMs) {
 
 // Reset timer function (useful for restarts)
 function resetTimer() {
-  if (timerInterval) {
-    clearInterval(timerInterval);
-  }
-  elapsedTime = 0;
+  elapsedTime = 0; // Reset elapsed time
   timerRunning = false;
   updateTimerDisplay(0);
 }
@@ -1699,38 +1695,12 @@ function createHeartsContainer() {
   document.body.appendChild(heartsContainer);
 }
 
-// pause/resume functions
-function pauseGame() {
-  isPaused = true;
-  if (backgroundMusic) {
-    backgroundMusic.pause();
-  }
-  if (timerInterval) {
-    clearInterval(timerInterval);
-  }
-  timerRunning = false;
-  // Store the elapsed time when pausing
-  previousTimestamp = Date.now();
-}
-
-function resumeGame() {
-  isPaused = false;
-  if (backgroundMusic) {
-    backgroundMusic.play();
-  }
-  if (!timerInterval && !gameWon) {
-    // Adjust the start time to account for the pause duration
-    startTime = Date.now() - elapsedTime;
-    timerInterval = setInterval(updateTimer, 100);
-    timerRunning = true;
-  }
-}
-
 function toggleMenu() {
   const gameMenu = document.getElementById("gameMenu");
   if (gameMenu.style.display === "block") {
     gameMenu.style.display = "none";
-    resumeGame();
+
+    // unpauseGame();
   } else {
     const resumeButton = document.getElementById("resumeButton");
     const startButton = document.getElementById("startButton");
@@ -1740,15 +1710,31 @@ function toggleMenu() {
     resumeButton.style.display = "block";
     restartButton.style.display = "block";
 
-    // Clear existing messages
-    const messages = ["winMessage", "congratsMessage", "bestTimeMessage", "lostMessage"];
-    messages.forEach(id => {
-      const element = document.getElementById(id);
-      if (element) element.remove();
-    });
+    //if win and congration message is displayed, hide it
+    const winMessage = document.getElementById("winMessage");
+    const congratsMessage = document.getElementById("congratsMessage");
+    const bestTimeMessage = document.getElementById("bestTimeMessage");
+    //hide "You lost" message
+    const youLostMessage = document.getElementById("lostMessage");
+
+    if (winMessage) {
+      winMessage.remove();
+    }
+
+    if (congratsMessage) {
+      congratsMessage.remove();
+    }
+    if (bestTimeMessage) {
+      bestTimeMessage.remove();
+    }
+
+    if (youLostMessage) {
+      youLostMessage.remove();
+    }
 
     gameMenu.style.display = "block";
-    pauseGame();
+
+    // pauseGame();
   }
 }
 

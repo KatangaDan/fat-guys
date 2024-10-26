@@ -129,7 +129,10 @@ async function init() {
         if (i === 0) {
           await createStartingPlatform(world, scene, 0, 0, zPosition, 60, 0.1, 30);
         } else {
-          await createStartingPlatform(world, scene, 0, 0, zPosition, 60, 0.1, 60);
+          const platform = await createStartingPlatform(world, scene, 0, 0, zPosition, 60, 0.1, 60);
+          // Remove the back fence
+          scene.remove(platform.fences.back.mesh);
+          world.removeBody(platform.fences.back.body);
         }
         zPosition += zStep;
       }
@@ -1350,6 +1353,7 @@ function animate() {
     } else {
       model.position.copy(playerBody.position).add(worldOffset);
     }
+
     // Check for collisions with new obstacles
     const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
@@ -1418,6 +1422,34 @@ function animate() {
         }
       }
     }
+
+    // Check for collisions with fences and prevent player from going through
+    const platforms = scene.children.filter(child => child.userData.isPlatform);
+    platforms.forEach(platform => {
+      if (platform.userData.fences) {
+        Object.values(platform.userData.fences).forEach(fence => {
+          if (fence.body && fence.mesh) {
+            // Check for collision with player
+            const fenceBoundingBox = new THREE.Box3().setFromObject(fence.mesh);
+            if (playerBoundingBox.intersectsBox(fenceBoundingBox)) {
+              // Calculate push-back direction
+              const pushDirection = new THREE.Vector3()
+                .subVectors(playerBody.position, fence.body.position)
+                .normalize();
+              
+              // Apply a small force to push the player away from the fence
+              playerBody.applyForce(
+                new CANNON.Vec3(pushDirection.x, 0, pushDirection.z).scale(500),
+                playerBody.position
+              );
+              
+              // Optionally, you can add a small bounce effect
+              playerBody.velocity.y = Math.max(playerBody.velocity.y, 2);
+            }
+          }
+        });
+      }
+    });
 
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
     if (playerHelper) {
@@ -1691,7 +1723,7 @@ function restartGame() {
   //reset timer to 0
   resetTimer();
   startCountdown();
-  playerBody.position.set(0, 10, 10);
+  playerBody.position.set(0, 10, 0);
   //restart timer
   //resetTimer();
   currentLives = 3;

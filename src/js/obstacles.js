@@ -620,7 +620,53 @@ export async function createStartingPlatform(world, scene, x, y, z, width, heigh
       platformBody.position.set(x, y + height / 2, z);
       world.addBody(platformBody);
 
-      resolve({ mesh: platform, body: platformBody });
+      // Create fences
+      const fenceHeight = 2;
+      const fenceThickness = 0.1;
+      const fenceMaterial = new THREE.MeshStandardMaterial({ color: 0xFFC0CB });
+
+      // Left fence
+      const leftFenceGeometry = new THREE.BoxGeometry(fenceThickness, fenceHeight, depth);
+      const leftFence = new THREE.Mesh(leftFenceGeometry, fenceMaterial);
+      leftFence.position.set(x - width / 2, y + height / 2 + fenceHeight / 2, z);
+      scene.add(leftFence);
+
+      // Right fence
+      const rightFenceGeometry = new THREE.BoxGeometry(fenceThickness, fenceHeight, depth);
+      const rightFence = new THREE.Mesh(rightFenceGeometry, fenceMaterial);
+      rightFence.position.set(x + width / 2, y + height / 2 + fenceHeight / 2, z);
+      scene.add(rightFence);
+
+      // Back fence
+      const backFenceGeometry = new THREE.BoxGeometry(width, fenceHeight, fenceThickness);
+      const backFence = new THREE.Mesh(backFenceGeometry, fenceMaterial);
+      backFence.position.set(x, y + height / 2 + fenceHeight / 2, z - depth / 2);
+      scene.add(backFence);
+
+      // Create physics bodies for fences
+      const fenceShape = new CANNON.Box(new CANNON.Vec3(fenceThickness / 2, fenceHeight / 2, depth / 2));
+      const leftFenceBody = new CANNON.Body({ mass: 0, shape: fenceShape });
+      leftFenceBody.position.copy(leftFence.position);
+      world.addBody(leftFenceBody);
+
+      const rightFenceBody = new CANNON.Body({ mass: 0, shape: fenceShape });
+      rightFenceBody.position.copy(rightFence.position);
+      world.addBody(rightFenceBody);
+
+      const backFenceShape = new CANNON.Box(new CANNON.Vec3(width / 2, fenceHeight / 2, fenceThickness / 2));
+      const backFenceBody = new CANNON.Body({ mass: 0, shape: backFenceShape });
+      backFenceBody.position.copy(backFence.position);
+      world.addBody(backFenceBody);
+
+      resolve({ 
+        mesh: platform, 
+        body: platformBody,
+        fences: {
+          left: { mesh: leftFence, body: leftFenceBody },
+          right: { mesh: rightFence, body: rightFenceBody },
+          back: { mesh: backFence, body: backFenceBody }
+        }
+      });
     });
   });
 }

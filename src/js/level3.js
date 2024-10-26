@@ -66,7 +66,9 @@ let scene,
   platformDepth = 60,
   numberOfPlatforms = 8,
   timerInterval,
-  countdownInterval;
+  countdownInterval,
+  backgroundMusic,
+  isPaused = false;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -81,7 +83,8 @@ let particleSpreadZ = 1000; //Based on how long our level is
 let playerHelper;
 let crown;
 let turnstiles = [];
-let conveyor;
+let conveyors = [];
+let hammers = [];
 
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
@@ -112,6 +115,11 @@ const audioLoader = new THREE.AudioLoader();
 async function init() {
   return new Promise(async (resolve, reject) => {
     try {
+      // Reset arrays
+      hammers = [];
+      conveyors = [];
+      turnstiles = [];
+
       console.log("Initializing the game...");
       await initStats();
       await initScene();
@@ -124,24 +132,29 @@ async function init() {
 
       console.log("Creating obstacles + particles...");
       // Increment height and z-position for each ground piece in a smooth, gradual way
-      for (let i = 0; i < numberOfPlatforms; i++) {
-        //await createGroundPiece(0, 0, zPosition, platformWidth, platformDepth);
-        if (i === 0) {
-          await createStartingPlatform(world, scene, 0, 0, zPosition, 60, 0.1, 30);
-        } else {
-          const platform = await createStartingPlatform(world, scene, 0, 0, zPosition, 60, 0.1, 60);
-          // Remove the back fence
-          scene.remove(platform.fences.back.mesh);
-          world.removeBody(platform.fences.back.body);
-        }
-        zPosition += zStep;
-      }
+      // for (let i = 0; i < numberOfPlatforms; i++) {
+      //   //await createGroundPiece(0, 0, zPosition, platformWidth, platformDepth);
+      //   if (i === 0) {
+      //     await createStartingPlatform(world, scene, 0, 0, zPosition, 60, 0.1, 30);
+      //   } else {
+      //     const platform = await createStartingPlatform(world, scene, 0, 0, zPosition, 60, 0.1, 60);
+      //     // Remove the back fence
+      //     scene.remove(platform.fences.back.mesh);
+      //     world.removeBody(platform.fences.back.body);
+      //   }
+      //   zPosition += zStep;
+      // }
       //crown = await createCrown(world, scene, -10, 0, 10);
 
       //First set of obstacles
-      await initTurnstiles();
+      //await initTurnstiles();
       //conveyor = await createConveyorBelt(world, scene, 10, 2, 10, 10, 20, 32);
       //const hammer = createRotatingHammer(scene, 20, 5, 5, 1, 1);
+      // Create forked platforms and obstacles
+      await createLevel3Layout();
+      await initTurnstiles();
+      await createHammersAndConveyors();
+      await createCheckpoints();
 
       //Init particle background system
       await initBackgroundParticleSystem();
@@ -161,13 +174,12 @@ async function init() {
 
 async function initAudio() {
   return new Promise((resolve) => {
-    const backGroundMusic = new THREE.Audio(listener);
+    backgroundMusic = new THREE.Audio(listener);
     audioLoader.load(PbackGroundMusic, function (buffer) {
-      backGroundMusic.setBuffer(buffer);
-      backGroundMusic.setLoop(true);
-      backGroundMusic.setVolume(0.2);
-      backGroundMusic.play();
-
+      backgroundMusic.setBuffer(buffer);
+      backgroundMusic.setLoop(true);
+      backgroundMusic.setVolume(0.2);
+      backgroundMusic.play();
       resolve();
     });
   });
@@ -836,6 +848,7 @@ function crossfadeAction(fromAction, toAction, duration) {
     fromAction.fadeOut(duration); // Fade out th  e old action
   }
 }
+
 function checkIdleState() {
   // If no movement keys are pressed and the current action isn't idle, switch to idle
   if (
@@ -959,9 +972,104 @@ function updateMovement(delta) {
 }
 
 async function initTurnstiles() {
-  turnstiles.push(await createTurnstile(world, scene, 0, 0, 50, 2, 15));
-  turnstiles.push(await createTurnstile(world, scene, 20, 0, 40, 2, 15));
-  turnstiles.push(await createTurnstile(world, scene, -20, 0, 40, 2, 15));
+  // Section 1 - Fork path
+  turnstiles.push(await createTurnstile(world, scene, -15, 0, 50, 2, 15)); // Left path
+  turnstiles.push(await createTurnstile(world, scene, 15, 0, 50, 2, 15));  // Right path
+  
+  // Section 2 - After first checkpoint
+  turnstiles.push(await createTurnstile(world, scene, -20, 0, 200, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 0, 0, 220, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 20, 0, 200, 2, 15));
+  
+  // Section 3 - Final stretch
+  turnstiles.push(await createTurnstile(world, scene, 0, 0, 400, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, -15, 0, 420, 2, 15));
+}
+
+async function createLevel3Layout() {
+  // Starting platform with back fence
+  const startPlatform = await createStartingPlatform(world, scene, 0, 0, 0, 60, 0.1, 30);
+  
+  // Left path (no back fences)
+  const leftPath1 = await createStartingPlatform(world, scene, -30, 0, 60, 30, 0.1, 60);
+  scene.remove(leftPath1.fences.back.mesh);
+  world.removeBody(leftPath1.fences.back.body);
+  
+  const leftPath2 = await createStartingPlatform(world, scene, -30, 0, 120, 30, 0.1, 60);
+  scene.remove(leftPath2.fences.back.mesh);
+  world.removeBody(leftPath2.fences.back.body);
+  
+  // Right path (no back fences)
+  const rightPath1 = await createStartingPlatform(world, scene, 30, 0, 60, 30, 0.1, 60);
+  scene.remove(rightPath1.fences.back.mesh);
+  world.removeBody(rightPath1.fences.back.body);
+  
+  const rightPath2 = await createStartingPlatform(world, scene, 30, 0, 120, 30, 0.1, 60);
+  scene.remove(rightPath2.fences.back.mesh);
+  world.removeBody(rightPath2.fences.back.body);
+  
+  // Rest of platforms (no back fences)
+  const platforms = [
+    await createStartingPlatform(world, scene, 0, 0, 180, 60, 0.1, 30),    // Checkpoint 1
+    await createStartingPlatform(world, scene, -20, 0, 240, 40, 0.1, 60),  // Section 2
+    await createStartingPlatform(world, scene, 20, 0, 300, 40, 0.1, 60),
+    await createStartingPlatform(world, scene, 0, 0, 360, 60, 0.1, 30),    // Checkpoint 2
+    await createStartingPlatform(world, scene, 0, 0, 420, 60, 0.1, 60),    // Section 3
+    await createStartingPlatform(world, scene, 0, 0, 480, 60, 0.1, 30),    // Final platform
+  ];
+
+  // Remove back fences from all remaining platforms
+  platforms.forEach(platform => {
+    scene.remove(platform.fences.back.mesh);
+    world.removeBody(platform.fences.back.body);
+  });
+}
+
+async function createHammersAndConveyors() {
+  // Section 1 obstacles - Fork paths
+  const hammer1 = createRotatingHammer(scene, -25, 5, 80, 1, 1);    // Left path hammer
+  const hammer2 = createRotatingHammer(scene, 25, 5, 80, 1, 1);     // Right path hammer
+  hammers.push(hammer1, hammer2);
+  
+  // Conveyors for first section
+  const conveyor1 = await createConveyorBelt(world, scene, -30, 2, 140, 10, 20, 32); // Left path
+  const conveyor2 = await createConveyorBelt(world, scene, 30, 2, 140, 10, 20, 32);  // Right path
+  conveyors.push(conveyor1, conveyor2);
+  
+  // Section 2 obstacles - Zigzag section
+  const hammer3 = createRotatingHammer(scene, -15, 5, 260, 1, 1);
+  const hammer4 = createRotatingHammer(scene, 15, 5, 320, 1, 1);
+  hammers.push(hammer3, hammer4);
+  
+  const conveyor3 = await createConveyorBelt(world, scene, 0, 2, 290, 10, 20, 32);
+  conveyors.push(conveyor3);
+  
+  // Section 3 obstacles - Final stretch
+  const hammer5 = createRotatingHammer(scene, 0, 5, 440, 1, 1);
+  hammers.push(hammer5);
+  
+  const conveyor4 = await createConveyorBelt(world, scene, 0, 2, 460, 10, 20, 32);
+  conveyors.push(conveyor4);
+}
+
+async function createCheckpoints() {
+  // Create checkpoint markers (you can use custom models or simple geometries)
+  const checkpointGeometry = new THREE.BoxGeometry(60, 5, 2);
+  const checkpointMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x00ff00,
+    transparent: true,
+    opacity: 0.5 
+  });
+
+  // Checkpoint 1
+  const checkpoint1 = new THREE.Mesh(checkpointGeometry, checkpointMaterial);
+  checkpoint1.position.set(0, 2.5, 180);
+  scene.add(checkpoint1);
+
+  // Checkpoint 2
+  const checkpoint2 = new THREE.Mesh(checkpointGeometry, checkpointMaterial);
+  checkpoint2.position.set(0, 2.5, 360);
+  scene.add(checkpoint2);
 }
 async function createGroundPiece(x, y, z, width, length) {
   return new Promise((resolve) => {
@@ -1101,6 +1209,7 @@ function updateCamera() {
 function easeInOutQuad(t) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
+
 function startGameTimer() {
   startCountdown(); // Only start the countdown, don't start the timer yet
 }
@@ -1243,7 +1352,10 @@ function updateTimerDisplay(timeInMs) {
 
 // Reset timer function (useful for restarts)
 function resetTimer() {
-  elapsedTime = 0; // Reset elapsed time
+  if (timerInterval) {
+    clearInterval(timerInterval);
+  }
+  elapsedTime = 0;
   timerRunning = false;
   updateTimerDisplay(0);
 }
@@ -1400,28 +1512,28 @@ function animate() {
     });
 
     // Check collision with conveyor belt
-    if (conveyor && conveyor.group) {
-      const conveyorBoundingBox = new THREE.Box3().setFromObject(
-        conveyor.group
-      );
-      if (playerBoundingBox.intersectsBox(conveyorBoundingBox)) {
-        console.log("On conveyor belt!");
-        // Apply conveyor belt effect
-        const conveyorSpeed = 5; // Adjust as needed
-        const conveyorDirection = new CANNON.Vec3(1, 0, 0); // Adjust based on conveyor direction
-        playerBody.velocity.vadd(
-          conveyorDirection.scale(conveyorSpeed * deltaTime),
-          playerBody.velocity
-        );
+    // if (conveyor && conveyor.group) {
+    //   const conveyorBoundingBox = new THREE.Box3().setFromObject(
+    //     conveyor.group
+    //   );
+    //   if (playerBoundingBox.intersectsBox(conveyorBoundingBox)) {
+    //     console.log("On conveyor belt!");
+    //     // Apply conveyor belt effect
+    //     const conveyorSpeed = 5; // Adjust as needed
+    //     const conveyorDirection = new CANNON.Vec3(1, 0, 0); // Adjust based on conveyor direction
+    //     playerBody.velocity.vadd(
+    //       conveyorDirection.scale(conveyorSpeed * deltaTime),
+    //       playerBody.velocity
+    //     );
 
-        // Allow jumping on conveyor belt
-        if (isJumping && Date.now() - lastJumpTime > jumpCooldown) {
-          playerBody.velocity.y = 0; // Reset vertical velocity before applying jump
-          playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0));
-          lastJumpTime = Date.now();
-        }
-      }
-    }
+    //     // Allow jumping on conveyor belt
+    //     if (isJumping && Date.now() - lastJumpTime > jumpCooldown) {
+    //       playerBody.velocity.y = 0; // Reset vertical velocity before applying jump
+    //       playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0));
+    //       lastJumpTime = Date.now();
+    //     }
+    //   }
+    // }
 
     // Check for collisions with fences and prevent player from going through
     const platforms = scene.children.filter(child => child.userData.isPlatform);
@@ -1469,8 +1581,26 @@ function animate() {
   animateTurnstile(deltaTime);
 
   // Update conveyor belt animation
-  if (conveyor && conveyor.setSpeed) {
-    conveyor.setSpeed(0.005); // Adjust speed as needed
+  // if (conveyor && conveyor.setSpeed) {
+  //   conveyor.setSpeed(0.005); // Adjust speed as needed
+  // }
+
+  // Update conveyor animations with safety checks
+  if (conveyors && conveyors.length > 0) {
+    conveyors.forEach(conveyor => {
+      if (conveyor && conveyor.setSpeed && typeof conveyor.setSpeed === 'function') {
+        conveyor.setSpeed(0.005);
+      }
+    });
+  }
+
+  // Update hammer animations with safety checks
+  if (hammers && hammers.length > 0) {
+    hammers.forEach(hammer => {
+      if (hammer && hammer.rotation !== undefined) {
+        hammer.rotation.z += 0.02;
+      }
+    });
   }
 
   cannonDebugger.update();
@@ -1569,14 +1699,38 @@ function createHeartsContainer() {
   document.body.appendChild(heartsContainer);
 }
 
-// Example usage: generateHearts(3);
+// pause/resume functions
+function pauseGame() {
+  isPaused = true;
+  if (backgroundMusic) {
+    backgroundMusic.pause();
+  }
+  if (timerInterval) {
+    clearInterval(timerInterval);
+  }
+  timerRunning = false;
+  // Store the elapsed time when pausing
+  previousTimestamp = Date.now();
+}
+
+function resumeGame() {
+  isPaused = false;
+  if (backgroundMusic) {
+    backgroundMusic.play();
+  }
+  if (!timerInterval && !gameWon) {
+    // Adjust the start time to account for the pause duration
+    startTime = Date.now() - elapsedTime;
+    timerInterval = setInterval(updateTimer, 100);
+    timerRunning = true;
+  }
+}
 
 function toggleMenu() {
   const gameMenu = document.getElementById("gameMenu");
   if (gameMenu.style.display === "block") {
     gameMenu.style.display = "none";
-
-    // unpauseGame();
+    resumeGame();
   } else {
     const resumeButton = document.getElementById("resumeButton");
     const startButton = document.getElementById("startButton");
@@ -1586,32 +1740,15 @@ function toggleMenu() {
     resumeButton.style.display = "block";
     restartButton.style.display = "block";
 
-    //if win and congration message is displayed, hide it
-    const winMessage = document.getElementById("winMessage");
-    const congratsMessage = document.getElementById("congratsMessage");
-    const bestTimeMessage = document.getElementById("bestTimeMessage");
-    //hide "You lost" message
-    const youLostMessage = document.getElementById("lostMessage");
-
-    if (winMessage) {
-      winMessage.remove();
-    }
-
-    if (congratsMessage) {
-      congratsMessage.remove();
-    }
-
-    if (bestTimeMessage) {
-      bestTimeMessage.remove();
-    }
-
-    if (youLostMessage) {
-      youLostMessage.remove();
-    }
+    // Clear existing messages
+    const messages = ["winMessage", "congratsMessage", "bestTimeMessage", "lostMessage"];
+    messages.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) element.remove();
+    });
 
     gameMenu.style.display = "block";
-
-    // pauseGame();
+    pauseGame();
   }
 }
 

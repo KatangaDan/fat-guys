@@ -411,8 +411,8 @@ export function createRotatingHammer(scene, x, y, z, hammerLength, hammerHeight,
   };
 }
 
-export function createConveyorBelt(world, scene, x, y, z, width, length, segments) {
-  return new Promise((resolve) => {
+export async function createConveyorBelt(world, scene, x, y, z, width, length, segments) {
+  return new Promise(async (resolve) => {
     const conveyorGroup = new THREE.Group();
 
     // Create base frame
@@ -599,17 +599,28 @@ export async function createCrown(world, scene, x, y, z, radius = 1, spikeHeight
     resolve({ mesh: crownBase, body: crownBody });
   });
 }
+// Add this new function at the end of the file
 
-//  // Create a circular obstacle
-//  const radius = 5;
-//  const height = 2;
-//  const segments = 32;
-//  const geometry = new THREE.CylinderGeometry(radius, radius, height, segments);
-//  const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-//  const cylinder = new THREE.Mesh(geometry, material);
-//  cylinder.position.set(0, height / 2, 5);
-//  scene.add(cylinder);
+export async function createStartingPlatform(world, scene, x, y, z, width, height, depth) {
+  return new Promise((resolve) => {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(tile, (texture) => {
+      // Create the platform mesh
+      const platformGeometry = new THREE.BoxGeometry(width, height, depth);
+      const platformMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+      platform.position.set(x, y + height / 2, z);
+      platform.castShadow = true;
+      platform.receiveShadow = true;
+      scene.add(platform);
 
+      // Create the physics body for the platform
+      const platformShape = new CANNON.Box(new CANNON.Vec3(width / 2, height / 2, depth / 2));
+      const platformBody = new CANNON.Body({ mass: 0, shape: platformShape });
+      platformBody.position.set(x, y + height / 2, z);
+      world.addBody(platformBody);
 
-
-
+      resolve({ mesh: platform, body: platformBody });
+    });
+  });
+}

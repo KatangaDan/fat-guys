@@ -564,7 +564,7 @@ async function initBackground() {
 
       // // Enable texture matrix transformation
       // texture.center.set(0.5, 0.5); // Set the center of rotation to the center of the texture
-      // texture.rotation = Math.PI/2; // Rotate the texture by 45 degrees (π/4 radians)
+      // texture.rotation = Math.PI/2; // Rotate the texture by 45 degrees (?/4 radians)
     });
 
     const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);

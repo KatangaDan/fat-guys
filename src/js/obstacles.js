@@ -5,6 +5,8 @@ import texture2 from "../textures/pink.jpg";
 import texture3 from "../textures/texture 3.jpg";
 import tile from "../textures/hexagon-tile.jpg";
 import stripes from "../textures/texture 4.png";
+import { createParticleExplosion } from './level2';
+
 
 export async function createPillar(
   world,
@@ -95,6 +97,123 @@ export async function createGate(
     });
   });
 }
+
+export async function createGate2(
+  world,
+  scene,
+  x,
+  y,
+  z,
+  height,
+  length,
+  leftPillar,
+  rightPillar
+) {
+  // X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
+
+  return new Promise((resolve) => {
+    // load the texture
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(stripes, (texture) => {
+      // Calculate the exact width of gate using the positions of the pillars
+      let leftPillarPosition =
+        leftPillar.position.x - leftPillar.geometry.parameters.width / 2;
+      let rightPillarPosition =
+        rightPillar.position.x + rightPillar.geometry.parameters.width / 2;
+
+      const width = Math.abs(leftPillarPosition - rightPillarPosition);
+      let newX = leftPillarPosition - width / 2;
+
+      // Create the gate mesh in Three.js
+      const gateGeometry = new THREE.BoxGeometry(width, height, length);
+      const gateMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const gate = new THREE.Mesh(gateGeometry, gateMaterial);
+      gate.position.set(newX, y + height / 2, z);
+      gate.castShadow = true;
+      gate.receiveShadow = true;
+
+      // Initialize gate movement properties
+      gate.moveDirection = 1; // Initial direction: 1 (up), -1 (down)
+      gate.waiting = false; // Not waiting initially
+      gate.lastWaitTime = 0; // Initialize the wait timer
+
+      // Attach reference to the left and right pillars
+      gate.leftPillar = leftPillar;
+      gate.rightPillar = rightPillar;
+
+      scene.add(gate);
+
+      // Create the Cannon.js body for the gate
+      const shape = new CANNON.Box(new CANNON.Vec3(width / 2 +1.8, height / 2+1.8, length / 2+1.8));
+      const body = new CANNON.Body({
+        mass: 0, // Set mass to 0 if the gate should be static, otherwise set it to a higher value
+        position: new CANNON.Vec3(newX, y + height / 2, z),
+      });
+      body.addShape(shape);
+
+      // Add the body to the Cannon.js physics world
+      world.addBody(body);
+
+      // Link the Cannon.js body to the Three.js mesh for later synchronization
+      gate.userData.physicsBody = body;
+
+      resolve(gate);
+    });
+  });
+}
+
+export async function createGateExplosion(
+  scene,
+  model, // The player model
+  x,
+  y,
+  z,
+  height,
+  length,
+  leftPillar,
+  rightPillar
+) {
+  return new Promise((resolve) => {
+    // Load the texture
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(stripes, (texture) => {
+      // Calculate the exact width of the gate using the positions of the pillars
+      let leftPillarPosition =
+        leftPillar.position.x - leftPillar.geometry.parameters.width / 2;
+      let rightPillarPosition =
+        rightPillar.position.x + rightPillar.geometry.parameters.width / 2;
+
+      const width = Math.abs(leftPillarPosition - rightPillarPosition);
+      let newX = leftPillarPosition - width / 2;
+
+      // Create the gate mesh in Three.js
+      const gateGeometry = new THREE.BoxGeometry(width, height, length);
+      const gateMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const gate = new THREE.Mesh(gateGeometry, gateMaterial);
+      gate.position.set(newX, y + height / 2, z);
+      gate.castShadow = true;
+      gate.receiveShadow = true;
+
+      // Attach reference to the left and right pillars
+      gate.leftPillar = leftPillar;
+      gate.rightPillar = rightPillar;
+
+      scene.add(gate);
+
+      
+
+      // Add an event listener or use an update loop to check the player position
+      // Example: if you're using an animation loop:
+      // animationLoop() { 
+      //   checkPlayerPosition();
+      // }
+
+      resolve(gate);
+    });
+  });
+}
+
+
 
 export async function createCylinder(scene, x, y, z, radius, height) {
   //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER

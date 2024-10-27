@@ -9,6 +9,8 @@ import { PointerLockControls } from "three/examples/jsm/controls/PointerLockCont
 import {
   createPillar,
   createGate,
+  createGate2,
+  createGateExplosion,
   createCylinder,
   createFan,
   createRod,
@@ -216,7 +218,7 @@ const particleMaterial = new THREE.MeshBasicMaterial({
   opacity: 0.8,
 });
 
-function createParticleExplosion(position) {
+export function createParticleExplosion(position) {
   // Clear any existing particles
   particles.forEach((particle) => {
     scene.remove(particle.mesh);
@@ -282,6 +284,25 @@ function updateParticles(deltaTime) {
     }
   });
 }
+
+// Check if the player has passed through the gate
+/*function checkPlayerPosition() {
+  const playerPosition = model.position; // Assuming model has a position property
+
+  // Determine the gate boundaries
+  const gateMinX = newX - width / 2;
+  const gateMaxX = newX + width / 2;
+
+  // Check if the player is within the gate's bounds
+  if (playerPosition.x > gateMinX && playerPosition.x < gateMaxX) {
+    // Create the explosion at the gate's position
+    createParticleExplosion();
+    console.log("AAAAAAAAAAAAAAAAAIIIIIIIIIIIIIIIIDDDDDDDDDDDDDSSSSSSSSSSSSSSSSSS");
+
+    // Remove the gate from the scene after explosion
+    scene.remove(gate);
+  }
+}*/
 
 async function die() {
   currentLives--;
@@ -559,10 +580,10 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 10, 2);
+        model.position.set(0, 10, 280);
         model.scale.set(0.4, 0.4, 0.4);
 
-        // Enable shadows for all meshes in the model
+        // Enable shadows for all meshes in the moasdel
         model.traverse((node) => {
           if (node.isMesh) {
             node.castShadow = true;
@@ -1005,7 +1026,8 @@ async function initGateObstacles() {
 
     //moving gates between pillar 1 and 2
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         x1,
         0,
@@ -1017,9 +1039,26 @@ async function initGateObstacles() {
       )
     );
 
+
+    gates.push(
+      await createGateExplosion(
+        scene,
+        model,
+        pillar2.position.x,
+        0,
+        pillar3.position.z,
+        8,
+        2,
+        pillar2,
+        pillar3
+      )
+    );
+    
+
     //moving gates between pillar 3 and 4
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         x3,
         0,
@@ -1087,10 +1126,11 @@ async function initGateObstacles() {
 
     // Moving gates between pillar 6 and 7
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         pillar6.position.x,
-        -8,
+        0,
         pillar6.position.z,
         8,
         2,
@@ -1100,7 +1140,8 @@ async function initGateObstacles() {
     );
     // Moving gates between pillar 7 and 8
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         pillar7.position.x,
         0,
@@ -1160,10 +1201,11 @@ async function initGateObstacles() {
 
     // Moving gates between pillar 10 and 11
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         pillar10.position.x,
-        -8,
+        0,
         pillar10.position.z,
         8,
         2,
@@ -1173,7 +1215,8 @@ async function initGateObstacles() {
     );
     // Moving gates between pillar 11 and 12
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         pillar11.position.x,
         0,
@@ -1233,10 +1276,11 @@ async function initGateObstacles() {
 
     // Moving gates between pillar 13 and 14
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         pillar13.position.x,
-        -8,
+        0,
         pillar13.position.z,
         8,
         2,
@@ -1246,7 +1290,8 @@ async function initGateObstacles() {
     );
     // Moving gates between pillar 14 and 15
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         pillar14.position.x,
         0,
@@ -1306,10 +1351,11 @@ async function initGateObstacles() {
 
     // Moving gates between pillar 17 and 18
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         pillar17.position.x,
-        -8,
+        0,
         pillar17.position.z,
         8,
         2,
@@ -1319,7 +1365,8 @@ async function initGateObstacles() {
     );
     // Moving gates between pillar 19 and 20
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         pillar19.position.x,
         0,
@@ -1379,10 +1426,11 @@ async function initGateObstacles() {
 
     // Moving gates between pillar 21 and 22
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         pillar21.position.x,
-        -8,
+        0,
         pillar21.position.z,
         8,
         2,
@@ -1392,7 +1440,8 @@ async function initGateObstacles() {
     );
     // Moving gates between pillar 22 and 23
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         pillar22.position.x,
         0,
@@ -1452,10 +1501,11 @@ async function initGateObstacles() {
 
     // Moving gates between pillar 26 and 27
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         pillar26.position.x,
-        -8,
+        0,
         pillar26.position.z,
         8,
         2,
@@ -1465,7 +1515,8 @@ async function initGateObstacles() {
     );
     // Moving gates between pillar 27 and 28
     gates.push(
-      await createGate(
+      await createGate2(
+        world,
         scene,
         pillar27.position.x,
         0,
@@ -1957,7 +2008,7 @@ function animate() {
     const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
     //gates bounding boxes
-    gates.forEach((gate) => {
+    /*gates.forEach((gate) => {
       const gateBoundingBox = new THREE.Box3().setFromObject(gate);
 
       if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
@@ -1973,7 +2024,7 @@ function animate() {
           }, deathCooldown);
         }
       }
-    });
+    });*/
 
     //cylinders bounding boxes
     cylinders.forEach((cylinder) => {
@@ -2115,7 +2166,7 @@ function animate() {
   // }
 
   //Animate the gates
-  animateGates(deltaTime);
+  //animateGates(deltaTime);
   animateCylinders(deltaTime);
   animateFans(deltaTime);
   animateRodsX(deltaTime);

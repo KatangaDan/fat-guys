@@ -338,37 +338,53 @@ export async function createGate2(
 }
 
 // level 3 obstacles
-export function createCannonBall(scene, radius) {
+export function createCannonBall(scene, world, radius, startPosition, direction, speedMultiplier = 1) {
   const ballGroup = new THREE.Group();
 
-  // Create main sphere with detailed material
-  const ballGeometry = new THREE.SphereGeometry(radius, 32, 32);
+  // Create main sphere
+  const ballGeometry = new THREE.SphereGeometry(radius * 2, 32, 32);
   const ballMaterial = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
+    color: 0xff0000,
     roughness: 0.3,
     metalness: 0.9,
+    emissive: 0xff0000,
+    emissiveIntensity: 0.5
   });
   const ball = new THREE.Mesh(ballGeometry, ballMaterial);
-
-  // Add surface details (dents and imperfections)
-  for (let i = 0; i < 25; i++) {
-    const dentGeometry = new THREE.SphereGeometry(radius * 0.2, 8, 8);
-    const dent = new THREE.Mesh(dentGeometry, ballMaterial);
-    dent.position.setFromSpherical(
-      new THREE.Spherical(
-        radius,
-        Math.random() * Math.PI,
-        Math.random() * Math.PI * 2
-      )
-    );
-    ball.add(dent);
-  }
-
-  ballGroup.add(ball);
   ball.castShadow = true;
+  ballGroup.add(ball);
+
+  // Create physics body
+  const shape = new CANNON.Sphere(radius * 2);
+  const body = new CANNON.Body({
+    mass: 5,
+    position: new CANNON.Vec3(startPosition.x, startPosition.y, startPosition.z),
+    shape: shape,
+    material: new CANNON.Material({
+      friction: 0.3,
+      restitution: 0.6
+    })
+  });
+
+  // Apply initial velocity with adjusted trajectory and speed
+  const baseSpeed = 40;
+  const speed = baseSpeed * speedMultiplier;
+  const upwardForce = 15 * speedMultiplier;
+  body.velocity.set(
+    direction.x * speed,
+    direction.y * speed + upwardForce,
+    direction.z * speed
+  );
+
+  world.addBody(body);
   scene.add(ballGroup);
 
-  return ballGroup;
+  ball.userData.physicsBody = body;
+
+  return {
+    mesh: ballGroup,
+    body: body
+  };
 }
 
 export async function createTurnstile(
@@ -480,67 +496,127 @@ export async function createTurnstile(
     turnstileBody.position.set(x, y + poleHeight / 2, z);
     world.addBody(turnstileBody);
 
-    resolve({ mesh: turnstileGroup, body: turnstileBody });
+    resolve({ mesh: turnstileGroup, body: turnstileBody, bar: bar });
   });
 }
 
 export function createRotatingHammer(
+  world,
   scene,
   x,
   y,
   z,
-  hammerLength,
-  hammerHeight,
+  hammerLength = 4,
   rotationSpeed = 1
 ) {
   const hammerGroup = new THREE.Group();
 
-  // Create hammer head
-  const headGeometry = new THREE.BoxGeometry(
-    hammerLength,
-    hammerHeight,
-    hammerHeight
-  );
-  const headMaterial = new THREE.MeshStandardMaterial({ color: 0xff69b4 }); // Pink color
-  const hammerHead = new THREE.Mesh(headGeometry, headMaterial);
-  hammerHead.position.set(hammerLength / 2, 0, 0);
+  // Create stationary pole
+  const poleRadius = 0.5;
+  const poleHeight = 3;
+  const poleGeometry = new THREE.CylinderGeometry(poleRadius, poleRadius, poleHeight, 32);
+  const poleMaterial = new THREE.MeshStandardMaterial({
+    color: 0xff69b4,
+    metalness: 0.3,
+    roughness: 0.4
+  });
+  const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+  pole.position.set(0, poleHeight/2, 0);
+  pole.castShadow = true;
+  pole.receiveShadow = true;
+
+  // Create a group for the hammer components
+  const hammerParts = new THREE.Group();
 
   // Create hammer handle
-  const handleGeometry = new THREE.CylinderGeometry(0.1, 0.1, hammerLength, 16);
-  const handleMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 }); // Brown color
-  const hammerHandle = new THREE.Mesh(handleGeometry, handleMaterial);
-  hammerHandle.rotation.z = Math.PI / 2;
-  hammerHandle.position.set(hammerLength / 2, 0, 0);
+  const handleRadius = 0.3;
+  const handleLength = 3;
+  const handleGeometry = new THREE.CylinderGeometry(handleRadius, handleRadius, handleLength, 32);
+  const handleMaterial = new THREE.MeshStandardMaterial({
+    color: 0xff69b4,
+    metalness: 0.2,
+    roughness: 0.5
+  });
+  const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+  handle.rotation.z = Math.PI/2;
+  handle.position.set(handleLength/2, 0, 0);
+  handle.castShadow = true;
+  handle.receiveShadow = true;
+  hammerParts.add(handle);
 
-  hammerGroup.add(hammerHead);
-  hammerGroup.add(hammerHandle);
+  // Create hammer head
+  const headRadius = 1.7;
+  const headHeight = 2.5;
+  const headGeometry = new THREE.CylinderGeometry(headRadius, headRadius, headHeight, 32);
+  const headMaterial = new THREE.MeshStandardMaterial({
+    color: 0xff69b4,
+    metalness: 0.3,
+    roughness: 0.4
+  });
+  const hammerHead = new THREE.Mesh(headGeometry, headMaterial);
+  hammerHead.rotation.y = Math.PI/2;
+  hammerHead.position.set(handleLength + headHeight/2, 0, 0);
+  hammerHead.castShadow = true;
+  hammerHead.receiveShadow = true;
+  hammerParts.add(hammerHead);
+
+  // Position hammer parts at correct height
+  hammerParts.position.set(0, poleHeight * 0.8, 0);
+
+  // Create rotating group
+  const rotatingGroup = new THREE.Group();
+  rotatingGroup.add(hammerParts);
+
+  // Add everything to main group
+  hammerGroup.add(pole);
+  hammerGroup.add(rotatingGroup);
   hammerGroup.position.set(x, y, z);
 
   scene.add(hammerGroup);
+
+  // Create CANNON.js bodies
+  const poleShape = new CANNON.Cylinder(poleRadius, poleRadius, poleHeight, 32);
+  const handleShape = new CANNON.Cylinder(handleRadius, handleRadius, handleLength, 32);
+  const headShape = new CANNON.Cylinder(headRadius, headRadius, headHeight, 32);
+
+  const hammerBody = new CANNON.Body({
+    mass: 0,
+    type: CANNON.Body.KINEMATIC
+  });
+
+  // Add shapes with proper positioning
+  hammerBody.addShape(poleShape, new CANNON.Vec3(0, poleHeight/2, 0));
+  
+  // Add handle and head shapes to match the visual positioning
+  const handleOffset = new CANNON.Vec3(handleLength/2, poleHeight * 0.8, 0);
+  const headOffset = new CANNON.Vec3(handleLength + headHeight/2, poleHeight * 0.8, 0);
+  
+  hammerBody.addShape(handleShape, handleOffset, new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0, 0, 1), Math.PI/2));
+  hammerBody.addShape(headShape, headOffset, new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI/2));
+
+  hammerBody.position.set(x, y, z);
+  world.addBody(hammerBody);
 
   let rotationAngle = 0;
 
   function updateRotation(deltaTime) {
     rotationAngle += rotationSpeed * deltaTime;
+    rotatingGroup.rotation.y = rotationAngle;
+    
+    // Update CANNON body rotation
+    hammerBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), rotationAngle);
 
-    // Apply rotation to hammer head
-    hammerHead.quaternion.setFromEuler(
-      new THREE.Quaternion(),
-      0,
-      rotationAngle,
-      0
-    );
-
-    // Reset rotation angle if it exceeds 360 degrees
     if (rotationAngle >= Math.PI * 2) {
       rotationAngle -= Math.PI * 2;
     }
   }
 
   return {
-    hammerGroup,
-    rotationSpeed,
-    updateRotation: updateRotation,
+    mesh: hammerGroup,
+    body: hammerBody,
+    rotatingGroup, // Export the rotating group for external control
+    updateRotation,
+    rotationSpeed
   };
 }
 
@@ -805,8 +881,8 @@ export async function createStartingPlatform(
       world.addBody(platformBody);
 
       // Create fences
-      const fenceHeight = 2;
-      const fenceThickness = 0.1;
+      const fenceHeight = 5;
+      const fenceThickness = 0.2;
       const fenceMaterial = new THREE.MeshStandardMaterial({ color: 0xffc0cb });
 
       // Left fence
@@ -882,3 +958,4 @@ export async function createStartingPlatform(
     });
   });
 }
+

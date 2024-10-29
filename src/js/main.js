@@ -59,7 +59,10 @@ let scene,
   timerRunning = false,
   previousTimestamp = 0,
   currentLives = 3,
-  gameWon = false;
+  gameWon = false,
+  gameVolume = 0.5,
+  isGamePaused = false,
+  backGroundMusic;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -171,16 +174,22 @@ async function init() {
 
 async function initAudio() {
   return new Promise((resolve) => {
-    const backGroundMusic = new THREE.Audio(listener);
+    backGroundMusic = new THREE.Audio(listener);
     audioLoader.load(PbackGroundMusic, function (buffer) {
       backGroundMusic.setBuffer(buffer);
       backGroundMusic.setLoop(true);
-      backGroundMusic.setVolume(0.2);
+      backGroundMusic.setVolume(gameVolume / 2);
       backGroundMusic.play();
 
       resolve();
     });
   });
+}
+
+function updateGameVolume() {
+  if (backGroundMusic) {
+    backGroundMusic.setVolume(gameVolume / 2);
+  }
 }
 
 async function initFinishLine() {
@@ -311,7 +320,7 @@ async function die() {
   audioLoader.load(Phitsound, function (buffer) {
     hitsound.setBuffer(buffer);
     hitsound.setLoop(false);
-    hitsound.setVolume(1);
+    hitsound.setVolume(gameVolume);
     hitsound.play();
   });
 
@@ -330,6 +339,8 @@ async function die() {
     timerRunning = false;
     removeEventListeners();
     toggleMenu();
+    //hide volume slider
+    document.getElementById("volume-control").style.display = "none";
 
     //stop player moving if they die
     moveForward = false;
@@ -470,12 +481,16 @@ async function initScene() {
 
 function checkForWin() {
   if (
-    playerBody.position.z > 487 &&
+    playerBody.position.z > 492 &&
     playerBody.position.y > 0 &&
     gameWon == false
   ) {
     gameWon = true;
-    console.log("You win!");
+    //set all movement flags to false
+    moveForward = false;
+    moveBackward = false;
+    moveLeft = false;
+    moveRight = false;
     showWinScreen(elapsedTime);
     //Stop the timer
     timerRunning = false;
@@ -497,9 +512,10 @@ function toggleView() {
 // for pointer lock controls
 function setupControls() {
   controls = new PointerLockControls(camera, renderer.domElement);
-
   document.addEventListener("click", () => {
-    controls.lock();
+    if (!isGamePaused) {
+      controls.lock(); // Lock pointer only when the game is not paused
+    }
   });
 
   controls.addEventListener("lock", () => {
@@ -747,6 +763,10 @@ function handleKeyDown(event) {
     case "ArrowRight":
       moveRight = true;
       break;
+    case "p" || "P":
+      // Pause the game
+      toggleMenu();
+      break;
     case " ":
       // Jump when spacebar is pressed
       console.log("Jumping");
@@ -779,70 +799,69 @@ function handleKeyUp(event) {
   }
 }
 
-// Function to handle jumping
-function jump() {
-  const currentTime = Date.now();
+// Move checkJumpState outside the jump function so it persists
+let isPlayingJumpAnimation = false;
+
+function checkJumpState() {
   let startingY =
     playerBody.position.y -
     (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
     0.1;
 
-  // Multiple checks to ensure the jump is valid
-  if (
-    startingY < 0.1 && // Ground check
-    !isJumping && // Not already in a jump
-    currentTime - lastJumpTime >= jumpCooldown && // Cooldown check
-    Math.abs(playerBody.velocity.y) < 0.1 // Ensure player is not moving vertically
-  ) {
-    isJumping = true;
-    lastJumpTime = currentTime;
-
-    // Play jump sound
-    const jumpSound = new THREE.Audio(listener);
-    audioLoader.load(PjumpSound, function (buffer) {
-      jumpSound.setBuffer(buffer);
-      jumpSound.setLoop(false);
-      jumpSound.setVolume(1);
-      jumpSound.play();
-    });
-
-    // Apply jump force
-    playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
-    crossfadeAction(currentAction, jumpAction, fadeDuration);
-    currentAction = jumpAction;
-
-    // Set up ground detection
-    const raycaster = new THREE.Raycaster();
-    const rayDirection = new THREE.Vector3(0, -1, 0);
-
-    let groundCheckInterval;
-
-    function checkGroundCollision() {
-      if (!isJumping) {
-        cancelAnimationFrame(groundCheckInterval);
-        return;
-      }
-
-      raycaster.set(playerBody.position, rayDirection);
-      const intersects = raycaster.intersectObjects(scene.children, true);
-
-      if (intersects.length > 0 && intersects[0].distance <= 0.1) {
-        isJumping = false;
-        // Play landing sound
+  // Reset isJumping as soon as we start falling and near ground
+  if (playerBody.velocity.y < 0 && startingY < 0.15) {
+    if (isJumping) {
+      isJumping = false;
+      // Play landing sound
+      try {
         const jumpland = new THREE.Audio(listener);
         audioLoader.load(Pjumpland, function (buffer) {
           jumpland.setBuffer(buffer);
           jumpland.setLoop(false);
-          jumpland.setVolume(1);
+          jumpland.setVolume(gameVolume);
           jumpland.play();
         });
-        cancelAnimationFrame(groundCheckInterval);
-      } else {
-        groundCheckInterval = requestAnimationFrame(checkGroundCollision);
+      } catch (e) {
+        console.warn("Landing sound failed to play:", e);
       }
     }
+  }
+}
 
-    checkGroundCollision();
+function jump() {
+  let startingY =
+    playerBody.position.y -
+    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+    0.1;
+  const GROUND_THRESHOLD = 0.15;
+
+  if (
+    startingY < GROUND_THRESHOLD &&
+    !isJumping &&
+    Math.abs(playerBody.velocity.y) < 0.2
+  ) {
+    isJumping = true;
+    isPlayingJumpAnimation = true;
+
+    // Play jump sound
+    try {
+      const jumpSound = new THREE.Audio(listener);
+      audioLoader.load(PjumpSound, function (buffer) {
+        jumpSound.setBuffer(buffer);
+        jumpSound.setLoop(false);
+        jumpSound.setVolume(gameVolume);
+        jumpSound.play();
+      });
+    } catch (e) {
+      console.warn("Jump sound failed to play:", e);
+    }
+
+    // Apply jump force
+    playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
+
+    // Ensure jump animation plays
+    crossfadeAction(currentAction, jumpAction, fadeDuration);
+    currentAction = jumpAction;
   }
 }
 
@@ -1415,11 +1434,10 @@ async function initGateObstacles() {
     cylinders.push(await createCylinder(scene, 30, 0, 198.5, 1, 6));
     //create cylinder obstacle
     cylinders.push(await createCylinder(scene, -30, 0, 198.5, 1, 6));
-
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, 20, 0, 208.5, 1, 6));
+    cylinders.push(await createCylinder(scene, 30, 0, 208.5, 1, 6));
     //create cylinder obstacle
-    cylinders.push(await createCylinder(scene, -15, 0, 208.5, 1, 6));
+    cylinders.push(await createCylinder(scene, -30, 0, 208.5, 1, 6));
 
     AddVisualGateHelpers();
     AddVisualCylinderHelpers();
@@ -1783,6 +1801,7 @@ function removeEventListeners() {
   window.removeEventListener("keydown", handleKeyDown);
   window.removeEventListener("keyup", handleKeyUp);
   window.removeEventListener("mousemove", onMouseMove, false);
+  //remove event listener for 'p' key
 }
 
 function startCountdown() {
@@ -1809,7 +1828,7 @@ function startCountdown() {
     audioLoader.load(soundFile, function (buffer) {
       countdownAudio.setBuffer(buffer);
       countdownAudio.setLoop(false);
-      countdownAudio.setVolume(0.5);
+      countdownAudio.setVolume(gameVolume);
       countdownAudio.play();
     });
   }
@@ -1976,6 +1995,8 @@ function animate() {
   //console.log("Frame:", frame);
   frame++;
   stats.begin();
+
+  checkJumpState();
 
   // update the game timer
   updateTimer();
@@ -2297,14 +2318,35 @@ function generateHearts(currentLives) {
 
 function toggleMenu() {
   const gameMenu = document.getElementById("gameMenu");
+
   if (gameMenu.style.display === "block") {
     gameMenu.style.display = "none";
 
+    //unpauseGame
+
+    isGamePaused = false;
+
+    //take control of mouse
+    document.body.requestPointerLock();
+
+    //click anywhere on the screen
+    document.body.click();
+
     // unpauseGame();
   } else {
+    //pauseGame
+    isGamePaused = true;
+
+    document.exitPointerLock();
+
     const resumeButton = document.getElementById("resumeButton");
     const startButton = document.getElementById("startButton");
     const restartButton = document.getElementById("restartButton");
+
+    //show volume slider
+    const volumeControl = document.getElementById("volume-control");
+    console.log("volumeControl", volumeControl);
+    if (volumeControl) volumeControl.style.display = "block";
 
     startButton.style.display = "none";
     resumeButton.style.display = "block";
@@ -2333,6 +2375,7 @@ function toggleMenu() {
     }
 
     gameMenu.style.display = "block";
+    //show the volume control
 
     // pauseGame();
   }
@@ -2346,11 +2389,13 @@ function showWinScreen(elapsedTime) {
   document.getElementById("resumeButton").style.display = "none";
   document.getElementById("restartButton").style.display = "block"; // Show restart button
 
+  document.getElementById("volume-control").style.display = "none";
+
   //show the game menu
   gameMenu.style.display = "block";
 
   //disable player movement by removing event listers for wasd
-  window.removeEventListener("keydown", handleKeyDown);
+  removeEventListeners();
 
   //exit pointer lock
   document.exitPointerLock();
@@ -2367,10 +2412,16 @@ function showWinScreen(elapsedTime) {
   winMessage.style.textAlign = "center"; // Center the text
   winMessage.style.color = "white";
 
+  //hide you lost message if it exists
+  const youLostMessage = document.getElementById("lostMessage");
+  if (youLostMessage) {
+    youLostMessage.remove();
+  }
+
   // Create the congratulatory message
   const congratsMessage = document.createElement("h2");
   congratsMessage.id = "congratsMessage";
-  congratsMessage.textContent = "Congratulations!";
+  congratsMessage.textContent = "Congratulations! ";
   winMessage.appendChild(congratsMessage);
 
   //store elapsed time in local storage as best time
@@ -2463,6 +2514,20 @@ async function startGame() {
     let resumeButton = document.getElementById("resumeButton");
     let restartButton = document.getElementById("restartButton");
 
+    // Add an event listener to the volume slider
+    function updateVolume() {
+      // Get the current slider value
+      const volume = volumeSlider.value;
+      // Update the game volume
+      gameVolume = volume;
+
+      updateGameVolume();
+    }
+
+    volumeSlider.addEventListener("input", updateVolume);
+    // Set the initial volume of the slider
+    volumeSlider.value = gameVolume;
+
     //Add event listener to the resume button
     resumeButton.addEventListener("click", () => {
       toggleMenu();
@@ -2497,15 +2562,6 @@ async function startGame() {
       renderer.setAnimationLoop(animate);
       //await panCameraToStart();
       startCountdown();
-
-      //Add pause event listener
-      document.addEventListener("keydown", (event) => {
-        if (event.key === "P" || event.key === "p") {
-          toggleMenu();
-
-          document.exitPointerLock();
-        }
-      });
     });
   } catch (error) {
     console.error("Error during initialization:", error);

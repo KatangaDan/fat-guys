@@ -15,9 +15,13 @@
 		<button id="startButton">Start Game</button>
 		<button id="resumeButton" style="display: none;">Resume Game</button>
 		<button id="restartButton" style="display: none;">Restart Game</button>
+		<div id="volume-control" class="volume-control" style="display: none;">
+			<label for="volumeSlider">Volume</label>
+			<input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5">
+		</div>
 	</div>
 	<div id="gameContainer"></div>
-	<script type="module" src="src/js/level3.js"></script>
+	<script type="module" src="src/js/main.js"></script>
 </body>
 
 </html>

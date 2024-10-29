@@ -1067,7 +1067,9 @@ async function initTurnstiles() {
   turnstiles.push(await createTurnstile(world, scene, 30, 0, 100, 2, 15)); // Right path
 
   // Section 2 - After first checkpoint
-  turnstiles.push(await createTurnstile(world, scene, -13, 0, 220, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, -10, 0, 210, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, -30, 0, 210, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, -10, 0, 240, 2, 15));
   turnstiles.push(await createTurnstile(world, scene, -30, 0, 240, 2, 15));
   //turnstiles.push(await createTurnstile(world, scene, 20, 0, 200, 2, 15));
 
@@ -1257,25 +1259,25 @@ async function initGates() {
 
 async function initHammers() {
   // Section 1 obstacles - Fork paths
-  const hammerr1 = createRotatingHammer(world, scene, -25, 0, 40, 1, 5); // Left path hammer
-  const hammerr2 = createRotatingHammer(world, scene, -40, 0, 40, 1, 5); // Right path hammer
-  const hammerl1 = createRotatingHammer(world, scene, 25, 0, 40, 1, 5); // Left path hammer
-  const hammerl2 = createRotatingHammer(world, scene, 40, 0, 40, 1, 5); // Right path hammer
-  const hammerr3 = createRotatingHammer(world, scene, -25, 0, 80, 1, 5); // Left path hammer
-  const hammerr4 = createRotatingHammer(world, scene, -40, 0, 80, 1, 5); // Right path hammer
-  const hammerl3 = createRotatingHammer(world, scene, 25, 0, 80, 1, 5); // Left path hammer
-  const hammerl4 = createRotatingHammer(world, scene, 40, 0, 80, 1, 5); // Right path hammer
-  const hammerr5 = createRotatingHammer(world, scene, -25, 0, 120, 1, 5); // Left path hammer
-  const hammerr6 = createRotatingHammer(world, scene, -40, 0, 120, 1, 5); // Right path hammer
-  const hammerl5 = createRotatingHammer(world, scene, 25, 0, 120, 1, 5); // Left path hammer
-  const hammerl6 = createRotatingHammer(world, scene, 40, 0, 120, 1, 5); // Right path hammer
+  const hammerr1 = createRotatingHammer(world, scene, -22, 0, 40, 1, 5); // Left path hammer
+  const hammerr2 = createRotatingHammer(world, scene, -38, 0, 40, 1, 5); // Right path hammer
+  const hammerl1 = createRotatingHammer(world, scene, 22, 0, 40, 1, 5); // Left path hammer
+  const hammerl2 = createRotatingHammer(world, scene, 38, 0, 40, 1, 5); // Right path hammer
+  const hammerr3 = createRotatingHammer(world, scene, -22, 0, 80, 1, 5); // Left path hammer
+  const hammerr4 = createRotatingHammer(world, scene, -38, 0, 80, 1, 5); // Right path hammer
+  const hammerl3 = createRotatingHammer(world, scene, 22, 0, 80, 1, 5); // Left path hammer
+  const hammerl4 = createRotatingHammer(world, scene, 38, 0, 80, 1, 5); // Right path hammer
+  const hammerr5 = createRotatingHammer(world, scene, -22, 0, 120, 1, 5); // Left path hammer
+  const hammerr6 = createRotatingHammer(world, scene, -38, 0, 120, 1, 5); // Right path hammer
+  const hammerl5 = createRotatingHammer(world, scene, 22, 0, 120, 1, 5); // Left path hammer
+  const hammerl6 = createRotatingHammer(world, scene, 38, 0, 120, 1, 5); // Right path hammer
   const hammer6 = createRotatingHammer(world, scene, 30, 0, 140, 1, 6); // Right path hammer
   const hammer7 = createRotatingHammer(world, scene, -30, 0, 140, 1, 6); // Right path hammer
   hammers.push(hammerr1, hammerr2, hammerl1, hammerl2, hammerr3, hammerr4, hammerl3, hammerl4, hammerr5, hammerr6, hammerl5, hammerl6, hammer6, hammer7);
 
   // Section 2 obstacles - Zigzag section
-  const hammer3 = createRotatingHammer(world, scene, -15, 0, 260, 1, 2);
-  const hammer4 = createRotatingHammer(world, scene, 15, 0, 320, 1, 2);
+  const hammer3 = createRotatingHammer(world, scene, -20, 0, 225, 1, 6); 
+  const hammer4 = createRotatingHammer(world, scene, -20, 0, 255, 1, 6);
   hammers.push(hammer3, hammer4);
 
   // Section 3 obstacles - Final stretch
@@ -1390,7 +1392,7 @@ async function updateCannonBalls(deltaTime) {
         if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
           isPlayerDead = true;
           lastDeathTime = currentTime;
-          die();
+          //die();
 
           // Remove the cannon ball after hit
           scene.remove(cannonBall.mesh);
@@ -1868,7 +1870,7 @@ async function animate() {
           if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
             isPlayerDead = true;
             lastDeathTime = currentTime;
-            die();
+            //die();
 
             // Reset the dead state after the cooldown
             setTimeout(() => {
@@ -1888,7 +1890,7 @@ async function animate() {
           if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
             isPlayerDead = true;
             lastDeathTime = currentTime;
-            die();
+            //die();
 
             // Reset the dead state after the cooldown
             setTimeout(() => {
@@ -1952,7 +1954,7 @@ async function animate() {
         if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
           isPlayerDead = true;
           lastDeathTime = currentTime;
-          die();
+          //die();
 
           // Reset the dead state after the cooldown
           setTimeout(() => {

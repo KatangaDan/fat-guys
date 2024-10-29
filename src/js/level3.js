@@ -1270,7 +1270,7 @@ async function initHammers() {
   const hammerl5 = createRotatingHammer(world, scene, 25, 0, 120, 1, 5); // Left path hammer
   const hammerl6 = createRotatingHammer(world, scene, 40, 0, 120, 1, 5); // Right path hammer
   const hammer6 = createRotatingHammer(world, scene, 40, 0, 140, 1, 6); // Right path hammer
-  hammers.push(hammerr1, hammerr2, hammerl1, hammerl2, hammerr3, hammerr4, hammerl3, hammerl4, hammerr5, hammerr6, hammerl5, hammerl6, );
+  hammers.push(hammerr1, hammerr2, hammerl1, hammerl2, hammerr3, hammerr4, hammerl3, hammerl4, hammerr5, hammerr6, hammerl5, hammerl6, hammer6);
 
   // Section 2 obstacles - Zigzag section
   const hammer3 = createRotatingHammer(world, scene, -15, 0, 260, 1, 2);

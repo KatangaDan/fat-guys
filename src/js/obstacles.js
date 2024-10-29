@@ -270,6 +270,43 @@ export async function createRod(
   });
 }
 
+export async function createVertRod(
+  scene,
+  x,
+  y,
+  z,
+  minX,
+  maxX,
+  radiusOfRod,
+  lengthOfRod,
+  speed
+) {
+  return new Promise((resolve) => {
+    // load the texture
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(texture3, (texture) => {
+      const rodGeometry = new THREE.CylinderGeometry(
+        radiusOfRod,
+        radiusOfRod,
+        lengthOfRod,
+        32
+      );
+      const rodMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const rod = new THREE.Mesh(rodGeometry, rodMaterial);
+      rod.position.set(x, y + radiusOfRod, z);
+      rod.rotation.y = Math.PI / 2;
+      rod.castShadow = true;
+      rod.minX = minX;
+      rod.maxX = maxX;
+      rod.speed = speed;
+      rod.receiveShadow = true;
+      scene.add(rod);
+
+      resolve(rod);
+    });
+  });
+}
+
 //level 2 obstacles
 export async function createGate2(
   world,

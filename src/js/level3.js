@@ -16,6 +16,7 @@ import {
   createCylinder,
   createPillar,
   createRod,
+  createVertRod,
   createGate,
 } from "./obstacles";
 
@@ -1071,8 +1072,10 @@ async function initTurnstiles() {
   turnstiles.push(await createTurnstile(world, scene, -30, 0, 210, 2, 15));
   turnstiles.push(await createTurnstile(world, scene, -10, 0, 240, 2, 15));
   turnstiles.push(await createTurnstile(world, scene, -30, 0, 240, 2, 15));
-  //turnstiles.push(await createTurnstile(world, scene, 20, 0, 200, 2, 15));
-
+  turnstiles.push(await createTurnstile(world, scene, 10, 0, 280, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 30, 0, 280, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 10, 0, 310, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 30, 0, 310, 2, 15));
   // Section 3 - Final stretch
   // turnstiles.push(await createTurnstile(world, scene, 0, 0, 400, 2, 15));
   // turnstiles.push(await createTurnstile(world, scene, -15, 0, 420, 2, 15));
@@ -1088,22 +1091,43 @@ async function initHorizontalCylinders() {
 
   // Add moving rods on top of cylinders
   // Section 2 - left rods
+
   const rod1 = await createRod(scene, 10, 1, 220, 5, 30, 0.5, 10, 25);
   rod1.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
   rods.push(rod1);
 
-  const rod2 = await createRod(scene, 25, 1, 240, 5, 30, 0.5, 10, 30);
+  const rodz1 = await createVertRod(scene, 25, 1, 230, 5, 30, 0.5, 10, 20);
+  rodz1.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rodz1);
+
+  const rod2 = await createRod(scene, 10, 1, 240, 5, 30, 0.5, 10, 30);
   rod2.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
   rods.push(rod2);
+
+  const rodz2 = await createVertRod(scene, 25, 1, 250, 5, 30, 0.5, 10, 20);
+  rodz2.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rodz2);
+
+  const rod6 = await createRod(scene, 10, 1, 260, 5, 30, 0.5, 10, 30);
+  rod6.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rod6);
 
   // Section 2 - right rods
   const rod3 = await createRod(scene, -10, 1, 280, -30, -5, 0.5, 10, 20);
   rod3.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
   rods.push(rod3);
 
-  const rod4 = await createRod(scene, -25, 1, 300, -30, -5, 0.5, 10, 25);
+  const rodz3 = await createVertRod(scene, -25, 1, 290, -30, -5, 0.5, 10, 20);
+  rodz3.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rodz3);
+
+  const rod4 = await createRod(scene, -10, 1, 300, -30, -5, 0.5, 10, 25);
   rod4.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
   rods.push(rod4);
+
+  const rodz4 = await createVertRod(scene, -25, 1, 310, -30, -5, 0.5, 10, 20);
+  rodz4.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rodz4);
 
   const rod5 = await createRod(scene, -10, 1, 320, -30, -5, 0.5, 10, 20);
   rod5.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
@@ -1278,7 +1302,9 @@ async function initHammers() {
   // Section 2 obstacles - Zigzag section
   const hammer3 = createRotatingHammer(world, scene, -20, 0, 225, 1, 6); 
   const hammer4 = createRotatingHammer(world, scene, -20, 0, 255, 1, 6);
-  hammers.push(hammer3, hammer4);
+  const hammer5 = createRotatingHammer(world, scene, 20, 0, 295, 1, 6); 
+  const hammer8 = createRotatingHammer(world, scene, 20, 0, 325, 1, 6);
+  hammers.push(hammer3, hammer4, hammer5, hammer8);
 
   // Section 3 obstacles - Final stretch
   // const hammer5 = createRotatingHammer(world, scene, 0, 0, 440, 1, 2);

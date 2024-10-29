@@ -28,6 +28,7 @@ import countdownOne from "../sounds/1.mp3";
 import countdownTwo from "../sounds/2.mp3";
 import countdownThree from "../sounds/3.mp3";
 import countdownGo from "../sounds/GO.mp3";
+import runSound from "../sounds/running.mp3";
 
 //Global variables
 let scene,
@@ -62,7 +63,9 @@ let scene,
   gameWon = false,
   gameVolume = 0.5,
   isGamePaused = false,
-  backGroundMusic;
+  backGroundMusic,
+  runningAudio,
+  isRunningPlaying = false;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -126,8 +129,9 @@ async function init() {
       await initBackground();
       await initPhysics();
       await initPlayer();
+      //await initLoadAudio();
       // don't call init event listeners here - it gives the user control too early (they can move while in the laoding screena & before countdown)
-      await initAudio();
+      await initBackgroundAudio();
 
       console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 260);
@@ -172,7 +176,10 @@ async function init() {
   });
 }
 
-async function initAudio() {
+//function to load all game audio into buffers before the game starts
+async function loadAudio() {}
+
+async function initBackgroundAudio() {
   return new Promise((resolve) => {
     backGroundMusic = new THREE.Audio(listener);
     audioLoader.load(PbackGroundMusic, function (buffer) {
@@ -304,6 +311,9 @@ async function die() {
   currentLives--;
 
   isPlayerDead = true;
+
+  //stop run sound
+  // runningAudio.setVolume(0);
 
   // Create particle explosion at player's current position
   createParticleExplosion(model.position);
@@ -491,6 +501,19 @@ function checkForWin() {
     moveBackward = false;
     moveLeft = false;
     moveRight = false;
+
+    //stop run sound if playing
+    //runningAudio.setVolume(0);
+
+    //play win sound
+    const winsound = new THREE.Audio(listener);
+    audioLoader.load(Pwinsound, function (buffer) {
+      winsound.setBuffer(buffer);
+      winsound.setLoop(false);
+      winsound.setVolume(gameVolume);
+      winsound.play();
+    });
+
     showWinScreen(elapsedTime);
     //Stop the timer
     timerRunning = false;
@@ -612,7 +635,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 10, 10);
+        model.position.set(0, 2, 10);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -913,7 +936,9 @@ function checkIdleState() {
 function updateMovement(delta) {
   const speed = PLAYER_SPEED * delta;
 
+
   // Calculate forward and right vectors based on camera rotation
+
   let forward;
   let right;
 

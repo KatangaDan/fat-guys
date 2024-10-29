@@ -447,9 +447,16 @@ export function createCannonBall(scene, world, radius, startPosition, direction,
 
   ball.userData.physicsBody = body;
 
+  // Add lifetime property to the ball
+  const lifetime = 2; // 2 seconds lifetime
+  ball.userData.creationTime = Date.now();
+  ball.userData.lifetime = lifetime;
+
   return {
     mesh: ballGroup,
-    body: body
+    body: body,
+    lifetime: lifetime,
+    creationTime: Date.now()
   };
 }
 
@@ -915,7 +922,7 @@ export async function createCrown(
     resolve({ mesh: crownBase, body: crownBody });
   });
 }
-// Add this new function at the end of the file
+
 export async function createStartingPlatform(
   world,
   scene,

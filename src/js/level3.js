@@ -1255,9 +1255,11 @@ async function initGates() {
 
 async function initHammers() {
   // Section 1 obstacles - Fork paths
-  const hammer1 = createRotatingHammer(world, scene, -30, 0, 80, 1, 2); // Left path hammer
-  const hammer2 = createRotatingHammer(world, scene, 30, 0, 80, 1, 2); // Right path hammer
-  hammers.push(hammer1, hammer2);
+  const hammerr1 = createRotatingHammer(world, scene, -25, 0, 40, 1, 5); // Left path hammer
+  const hammerr2 = createRotatingHammer(world, scene, -40, 0, 40, 1, 5); // Right path hammer
+  const hammerl1 = createRotatingHammer(world, scene, 25, 0, 40, 1, 5); // Left path hammer
+  const hammerl2 = createRotatingHammer(world, scene, 40, 0, 40, 1, 5); // Right path hammer
+  hammers.push(hammerr1, hammerr2, hammerl1, hammerl2);
 
   // Section 2 obstacles - Zigzag section
   const hammer3 = createRotatingHammer(world, scene, -15, 0, 260, 1, 2);

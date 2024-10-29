@@ -337,6 +337,72 @@ export async function createGate2(
   });
 }
 
+export async function createWreckingBall(scene, x, y, z, ropeLength, ropeRadius, ballRadius) {
+  return new Promise((resolve) => {
+    const textureLoader = new THREE.TextureLoader();
+    
+    // Create a group to hold both the rope and ball
+    const wreckingBallGroup = new THREE.Group();
+    
+    // Load textures for both rope and ball
+    Promise.all([
+      new Promise(resolve => textureLoader.load(texture2, resolve)), // rope texture
+      new Promise(resolve => textureLoader.load(texture3, resolve))  // ball texture
+    ]).then(([ropeTexture, ballTexture]) => {
+      // Create the rope (cylinder)
+      const ropeGeometry = new THREE.CylinderGeometry(
+        ropeRadius,
+        ropeRadius,
+        ropeLength,
+        16
+      );
+      const ropeMaterial = new THREE.MeshStandardMaterial({ 
+        map: ropeTexture,
+        metalness: 0.7,
+        roughness: 0.3
+      });
+      const rope = new THREE.Mesh(ropeGeometry, ropeMaterial);
+      
+      // Position the rope - rotate it so it hangs down
+      rope.rotation.x = Math.PI / 2;
+      rope.position.set(0, 0, ropeLength / 2);
+      
+      // Create the ball (sphere)
+      const ballGeometry = new THREE.SphereGeometry(ballRadius, 32, 32);
+      const ballMaterial = new THREE.MeshStandardMaterial({ 
+        map: ballTexture,
+        metalness: 0.8,
+        roughness: 0.2
+      });
+      const ball = new THREE.Mesh(ballGeometry, ballMaterial);
+      
+      // Position the ball at the end of the rope
+      ball.position.set(0, 0, ropeLength);
+      
+      // Add both meshes to the group
+      wreckingBallGroup.add(rope);
+      wreckingBallGroup.add(ball);
+      
+      // Position the entire group
+      wreckingBallGroup.position.set(x, y, z);
+      wreckingBallGroup.rotateX(Math.PI / 2);
+      
+      // Set up shadows
+      rope.castShadow = true;
+      rope.receiveShadow = true;
+      ball.castShadow = true;
+      ball.receiveShadow = true;
+      
+      // Add the group to the scene
+      scene.add(wreckingBallGroup);
+      
+      // Resolve with the group to allow for future manipulation
+      resolve(wreckingBallGroup);
+    });
+  });
+}
+
+
 // level 3 obstacles
 export function createCannonBall(scene, world, radius, startPosition, direction, speedMultiplier = 1) {
   const ballGroup = new THREE.Group();
@@ -381,9 +447,16 @@ export function createCannonBall(scene, world, radius, startPosition, direction,
 
   ball.userData.physicsBody = body;
 
+  // Add lifetime property to the ball
+  const lifetime = 2; // 2 seconds lifetime
+  ball.userData.creationTime = Date.now();
+  ball.userData.lifetime = lifetime;
+
   return {
     mesh: ballGroup,
-    body: body
+    body: body,
+    lifetime: lifetime,
+    creationTime: Date.now()
   };
 }
 
@@ -849,7 +922,7 @@ export async function createCrown(
     resolve({ mesh: crownBase, body: crownBody });
   });
 }
-// Add this new function at the end of the file
+
 export async function createStartingPlatform(
   world,
   scene,

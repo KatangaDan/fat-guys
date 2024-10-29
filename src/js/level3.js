@@ -16,6 +16,7 @@ import {
   createCylinder,
   createPillar,
   createRod,
+  createGate,
 } from "./obstacles";
 
 // Import assets
@@ -64,6 +65,12 @@ let scene,
   previousTimestamp = 0,
   currentLives = 3,
   timerInterval,
+  isPanning = false,
+  panProgress = 0,
+  panStartPosition = null,
+  panEndPosition = null,
+  panStartTime = null,
+  panDuration = 5000, // 10 seconds
   countdownInterval;
 
 //Global variables for the background particle system
@@ -77,10 +84,15 @@ let particleSpreadZ = 1000; //Based on how long our level is
 
 //Helpers to visualize intersection boxes
 let playerHelper;
+
+// Obstacles
 let crown;
 let turnstiles = [];
 let hammers = [];
 let rods = [];
+let gates = [];
+let platforms = [];
+
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
 const cameraLerpFactor = 1.0;
@@ -109,16 +121,17 @@ const audioLoader = new THREE.AudioLoader();
 
 // Cannon ball management
 let cannonBalls = [];
+let hasLeftStartingPlatform = false;
 // Cannon positions array to cover the entire level
 const CANNON_POSITIONS = [
   // Section 1 - Fork paths
   { x: -30, y: 15, z: 120 }, // Left path
-  { x: 30, y: 15, z: 120 },  // Right path
-  
+  { x: 30, y: 15, z: 120 }, // Right path
+
   // // Section 2 - After first checkpoint
   // { x: -20, y: 15, z: 230 }, // Left side
   // { x: 20, y: 15, z: 300 },  // Right side
-  
+
   // // Section 3 - Final stretch
   // { x: -25, y: 15, z: 420 }, // Left path
   // { x: 0, y: 15, z: 420 },   // Center path
@@ -136,6 +149,10 @@ let rotationDamping = 0.1; // Controls how smoothly the rotation changes
 // Game state variables
 let isPaused = false;
 let gameWon = false;
+let loadingAnimationInterval;
+let deathCooldown = 2000; // 2 seconds in milliseconds
+let lastDeathTime = 0;
+let frame = 0; //display game timer
 let isPlayerDead = false;
 let canSpawnBalls = false;
 let spawnCooldown = false;
@@ -165,13 +182,14 @@ async function init() {
       await initTurnstiles();
       await initHorizontalCylinders();
       await initHammers();
+      await initGates();
       await initCheckpoints();
 
       //Init particle background system
       await initBackgroundParticleSystem();
 
       // Create finish line
-      await initFinishLine();
+      //await initFinishLine();
 
       console.log("Game initialized successfully!");
 
@@ -199,37 +217,37 @@ async function initAudio() {
   });
 }
 
-async function initFinishLine() {
-  return new Promise((resolve, reject) => {
-    const textureLoader = new THREE.TextureLoader();
+// async function initFinishLine() {
+//   return new Promise((resolve, reject) => {
+//     const textureLoader = new THREE.TextureLoader();
 
-    textureLoader.load(
-      finish,
-      async (texture) => {
-        const finishLineGeometry = new THREE.BoxGeometry(60, 0, 1); // Changed width to 60 to match platform
-        const finishLineMaterial = new THREE.MeshStandardMaterial({
-          map: texture,
-        });
-        const finishLine = new THREE.Mesh(
-          finishLineGeometry,
-          finishLineMaterial
-        );
-        finishLine.position.set(0, 0, 480);
-        finishLine.scale.z = 15;
-        scene.add(finishLine);
+//     textureLoader.load(
+//       finish,
+//       async (texture) => {
+//         const finishLineGeometry = new THREE.BoxGeometry(60, 0, 1); // Changed width to 60 to match platform
+//         const finishLineMaterial = new THREE.MeshStandardMaterial({
+//           map: texture,
+//         });
+//         const finishLine = new THREE.Mesh(
+//           finishLineGeometry,
+//           finishLineMaterial
+//         );
+//         finishLine.position.set(0, 0, 480);
+//         finishLine.scale.z = 15;
+//         scene.add(finishLine);
 
-        // Add crown at the finish line
-        crown = await createCrown(world, scene, 0, 5, 480); // Position crown above finish line
-        resolve();
-      },
-      undefined,
-      (error) => {
-        console.error("Error loading texture:", error);
-        reject(error);
-      }
-    );
-  });
-}
+//         // Add crown at the finish line
+//         crown = await createCrown(world, scene, 0, 5, 480); // Position crown above finish line
+//         resolve();
+//       },
+//       undefined,
+//       (error) => {
+//         console.error("Error loading texture:", error);
+//         reject(error);
+//       }
+//     );
+//   });
+// }
 
 // First, add these variables at the top with your other global variables
 let particles = [];
@@ -309,6 +327,7 @@ async function updateParticles(deltaTime) {
 }
 
 async function die() {
+  hasLeftStartingPlatform = false;  // Reset the flag when player dies
   canSpawnBalls = false; // Stop spawning while dead
   currentLives--;
 
@@ -325,7 +344,7 @@ async function die() {
   const checkpoints = {
     start: { x: 0, y: 10, z: 10 },
     checkpoint1: { x: 0, y: 10, z: 180 },
-    checkpoint2: { x: 0, y: 10, z: 360 }
+    checkpoint2: { x: 0, y: 10, z: 360 },
   };
 
   // Determine respawn position based on player's progress
@@ -387,9 +406,13 @@ async function die() {
 
   // After respawn position is set
   spawnCooldown = true;
+  canSpawnBalls = false;
   setTimeout(() => {
     spawnCooldown = false;
-    canSpawnBalls = true;
+    // Only enable cannon balls if player has left starting platform
+    if (hasLeftStartingPlatform) {
+      canSpawnBalls = true;
+    }
   }, SPAWN_COOLDOWN_TIME);
 }
 
@@ -490,20 +513,15 @@ async function initScene() {
 
 // Initialize the shooting system
 async function initCannonBallSystem() {
-  // Start the shooting interval
   setInterval(() => {
-    // Only shoot if:
-    // 1. Spawning is enabled
-    // 2. Game isn't paused
-    // 3. Player hasn't reached second checkpoint
-    // 4. Not in spawn cooldown
-    // 5. Game has started (after countdown)
-    // 6. Player isn't dead
-    if (canSpawnBalls && 
-        !isPaused && 
-        playerBody.position.z < SECOND_CHECKPOINT_Z && 
-        !spawnCooldown &&
-        !isPlayerDead) {
+    if (
+      canSpawnBalls &&
+      !isPaused &&
+      playerBody.position.z < SECOND_CHECKPOINT_Z &&
+      !spawnCooldown &&
+      !isPlayerDead &&
+      hasLeftStartingPlatform // New condition
+    ) {
       shootCannonBall();
     }
   }, SHOOT_INTERVAL);
@@ -517,7 +535,7 @@ async function checkForWin() {
     if (playerBoundingBox.intersectsBox(crownBoundingBox)) {
       gameWon = true;
       console.log("You win!");
-      
+
       // Play win sound
       const winsound = new THREE.Audio(listener);
       audioLoader.load(Pwinsound, function (buffer) {
@@ -1052,8 +1070,8 @@ async function initTurnstiles() {
   //turnstiles.push(await createTurnstile(world, scene, 20, 0, 200, 2, 15));
 
   // Section 3 - Final stretch
-  turnstiles.push(await createTurnstile(world, scene, 0, 0, 400, 2, 15));
-  turnstiles.push(await createTurnstile(world, scene, -15, 0, 420, 2, 15));
+  // turnstiles.push(await createTurnstile(world, scene, 0, 0, 400, 2, 15));
+  // turnstiles.push(await createTurnstile(world, scene, -15, 0, 420, 2, 15));
 }
 
 async function initHorizontalCylinders() {
@@ -1164,12 +1182,75 @@ async function initLevel3Layout() {
     await createStartingPlatform(world, scene, 0, 0, 420, 60, 0.1, 60), // Section 3
     await createStartingPlatform(world, scene, 0, 0, 480, 60, 0.1, 30), // Final platform
   ];
-
+  
   // Remove back fences from all remaining platforms
   platforms.forEach((platform) => {
     scene.remove(platform.fences.back.mesh);
     world.removeBody(platform.fences.back.body);
   });
+
+  // Add crown at the finish line
+  crown = await createCrown(world, scene, 0, 5, 480)
+}
+
+async function initGates() {
+  // Platform dimensions from your layout
+  const platformWidth = 60;
+  const platformDepth = 60;
+  const platformPosition = { x: 0, y: 0, z: 420 }; // Section 3 platform position
+
+  // Create three sets of double gates across the platform
+  const gateSetSpacing = platformDepth / 3;
+  const gateSpacing = 10; // Space between gates in a pair
+
+  for (let i = 0; i < 3; i++) {
+    const setZ =
+      platformPosition.z - platformDepth / 2 + gateSetSpacing * (i + 1);
+
+    // Create each pair of gates
+    for (let j = 0; j < 2; j++) {
+      const gateX = j === 0 ? -15 : 15; // Offset gates left and right
+
+      // Create pillars for this gate
+      const leftPillar = await createPillar(
+        world,
+        scene,
+        gateX - 5, // Adjust pillar position based on gate position
+        0,
+        setZ,
+        2, // width
+        8, // height
+        2 // depth
+      );
+
+      const rightPillar = await createPillar(
+        world,
+        scene,
+        gateX + 5, // Adjust pillar position based on gate position
+        0,
+        setZ,
+        2, // width
+        8, // height
+        2 // depth
+      );
+
+      // Create gate between pillars
+      const gate = await createGate(
+        scene,
+        gateX,
+        0,
+        setZ,
+        6, // height
+        2, // length
+        leftPillar,
+        rightPillar
+      );
+
+      // Add random initial phase to create alternating patterns
+      gate.phase = Math.random() * Math.PI * 2;
+      gates.push(gate);
+    }
+  }
 }
 
 async function initHammers() {
@@ -1184,8 +1265,8 @@ async function initHammers() {
   hammers.push(hammer3, hammer4);
 
   // Section 3 obstacles - Final stretch
-  const hammer5 = createRotatingHammer(world, scene, 0, 0, 440, 1, 2);
-  hammers.push(hammer5);
+  // const hammer5 = createRotatingHammer(world, scene, 0, 0, 440, 1, 2);
+  // hammers.push(hammer5);
 }
 
 async function initCheckpoints() {
@@ -1210,36 +1291,44 @@ async function initCheckpoints() {
 
 // Shoot a cannon ball from the end line towards the player
 async function shootCannonBall() {
-  // Don't shoot if: 
+  // Don't shoot if:
   // 1. No model/player
   // 2. Game won
   // 3. Past second checkpoint
   // 4. Game is paused
   // 5. In spawn cooldown
   // 6. Player is dead
-  if (!model || 
-      !playerBody || 
-      gameWon || 
-      playerBody.position.z >= SECOND_CHECKPOINT_Z || 
-      isPaused || 
-      spawnCooldown || 
-      isPlayerDead) return;
+  if (
+    !model ||
+    !playerBody ||
+    gameWon ||
+    playerBody.position.z >= SECOND_CHECKPOINT_Z ||
+    isPaused ||
+    spawnCooldown ||
+    isPlayerDead
+  )
+    return;
 
   // Randomly select a cannon position
-  const cannonPos = CANNON_POSITIONS[Math.floor(Math.random() * CANNON_POSITIONS.length)];
-  const startPosition = new THREE.Vector3(cannonPos.x, cannonPos.y, cannonPos.z);
-  
+  const cannonPos =
+    CANNON_POSITIONS[Math.floor(Math.random() * CANNON_POSITIONS.length)];
+  const startPosition = new THREE.Vector3(
+    cannonPos.x,
+    cannonPos.y,
+    cannonPos.z
+  );
+
   // Add some randomization to the x position for variety
   startPosition.x += (Math.random() - 0.5) * 20; // Random spread of ±10 units
 
   // Calculate direction towards player with adjusted aim
   const targetPos = model.position.clone();
   targetPos.y += 2; // Aim slightly above player
-  
+
   // Add some randomization to targeting
   targetPos.x += (Math.random() - 0.5) * 5; // Random targeting spread
   targetPos.z += (Math.random() - 0.5) * 5;
-  
+
   const direction = new THREE.Vector3()
     .subVectors(targetPos, startPosition)
     .normalize();
@@ -1250,14 +1339,14 @@ async function shootCannonBall() {
 
   // Create the cannon ball with adjusted parameters
   const cannonBall = await createCannonBall(
-    scene, 
-    world, 
-    1.0, 
-    startPosition, 
+    scene,
+    world,
+    1.0,
+    startPosition,
     direction,
     speedMultiplier
   );
-  
+
   cannonBalls.push(cannonBall);
 
   // Clean up old cannon balls after 8 seconds
@@ -1265,7 +1354,7 @@ async function shootCannonBall() {
     if (cannonBall.mesh && cannonBall.body) {
       scene.remove(cannonBall.mesh);
       world.removeBody(cannonBall.body);
-      cannonBalls = cannonBalls.filter(ball => ball !== cannonBall);
+      cannonBalls = cannonBalls.filter((ball) => ball !== cannonBall);
     }
   }, 8000);
 }
@@ -1292,7 +1381,7 @@ async function updateCannonBalls(deltaTime) {
           // Remove the cannon ball after hit
           scene.remove(cannonBall.mesh);
           world.removeBody(cannonBall.body);
-          cannonBalls = cannonBalls.filter(ball => ball !== cannonBall);
+          cannonBalls = cannonBalls.filter((ball) => ball !== cannonBall);
 
           setTimeout(() => {
             isPlayerDead = false;
@@ -1302,9 +1391,10 @@ async function updateCannonBalls(deltaTime) {
     }
   });
 }
+
 // function to remove all cannon balls
 async function removeAllCannonBalls() {
-  cannonBalls.forEach(ball => {
+  cannonBalls.forEach((ball) => {
     if (ball.mesh && ball.body) {
       scene.remove(ball.mesh);
       world.removeBody(ball.body);
@@ -1312,6 +1402,7 @@ async function removeAllCannonBalls() {
   });
   cannonBalls = [];
 }
+
 async function animateCrown(deltaTime) {
   return new Promise((resolve) => {
     if (crown && crown.mesh) {
@@ -1596,14 +1687,6 @@ async function resetTimer() {
   updateTimerDisplay(0);
 }
 
-// Add these variables to your global scope
-let isPanning = false;
-let panProgress = 0;
-let panStartPosition = null;
-let panEndPosition = null;
-let panStartTime = null;
-let panDuration = 5000; // 10 seconds
-
 // Modified panCameraToStart function
 async function panCameraToStart() {
   return new Promise((resolve) => {
@@ -1626,11 +1709,6 @@ async function panCameraToStart() {
   });
 }
 
-let deathCooldown = 2000; // 2 seconds in milliseconds
-let lastDeathTime = 0;
-
-//display game timer
-let frame = 0;
 async function animate() {
   frame++;
   stats.begin();
@@ -1719,6 +1797,40 @@ async function animate() {
       }
     }
 
+    // Update gates
+    gates.forEach((gate) => {
+      if (gate && gate.mesh) {
+        // Gate movement logic
+        const maxHeight = 8;
+        const minHeight = 0;
+        const moveSpeed = 0.05;
+
+        if (!gate.mesh.waiting) {
+          gate.mesh.position.y += moveSpeed * gate.mesh.moveDirection;
+
+          if (gate.mesh.position.y >= maxHeight) {
+            gate.mesh.moveDirection = -1;
+            gate.mesh.waiting = true;
+            gate.mesh.lastWaitTime = Date.now();
+          } else if (gate.mesh.position.y <= minHeight) {
+            gate.mesh.moveDirection = 1;
+            gate.mesh.waiting = true;
+            gate.mesh.lastWaitTime = Date.now();
+          }
+        } else {
+          if (Date.now() - gate.mesh.lastWaitTime > 1000) {
+            gate.mesh.waiting = false;
+          }
+        }
+
+        // Update physics body position
+        if (gate.body) {
+          gate.body.position.y = gate.mesh.position.y;
+          gate.body.position.copy(gate.mesh.position);
+        }
+      }
+    });
+
     // Reset crown visibility when game restarts
     if (!gameWon && crown && crown.mesh && !crown.mesh.visible) {
       crown.mesh.visible = true;
@@ -1730,76 +1842,24 @@ async function animate() {
     // Check collision with turnstiles
     turnstiles.forEach((turnstile) => {
       if (turnstile.mesh && turnstile.bar) {
-        // Create a bounding box just for the rotating bar
         const barWorldPosition = new THREE.Vector3();
-        const barWorldQuaternion = new THREE.Quaternion();
-        const barWorldScale = new THREE.Vector3();
-        
-        // Get the world transform of the bar
         turnstile.bar.getWorldPosition(barWorldPosition);
-        turnstile.bar.getWorldQuaternion(barWorldQuaternion);
-        turnstile.bar.getWorldScale(barWorldScale);
-        
-        // Create a temporary mesh for accurate collision detection
-        const barGeometry = turnstile.bar.geometry.clone();
-        const tempBar = new THREE.Mesh(barGeometry);
-        tempBar.position.copy(barWorldPosition);
-        tempBar.quaternion.copy(barWorldQuaternion);
-        tempBar.scale.copy(barWorldScale);
-        
-        // Get accurate bounding box for the turnstile bar
-        const turnstileBoundingBox = new THREE.Box3().setFromObject(tempBar);
-        
-        // Create a more precise player bounding box based on the model's dimensions
-        const playerBoundingBox = new THREE.Box3();
-        // Update player bounding box based on current position
-        playerBoundingBox.setFromObject(model);
-        
-        // Shrink the player bounding box slightly to match the physical body better
-        const playerSize = new THREE.Vector3();
-        playerBoundingBox.getSize(playerSize);
-        const shrinkFactor = 0.6; // Adjust this to match your player's CANNON.js body size
-        
-        const centerPoint = new THREE.Vector3();
-        playerBoundingBox.getCenter(centerPoint);
-        
-        // Shrink the bounding box while maintaining its center
-        playerBoundingBox.min.set(
-          centerPoint.x - (playerSize.x * shrinkFactor) / 2,
-          centerPoint.y - (playerSize.y * shrinkFactor) / 2,
-          centerPoint.z - (playerSize.z * shrinkFactor) / 2
+
+        const turnstileBoundingBox = new THREE.Box3().setFromObject(
+          turnstile.bar
         );
-        playerBoundingBox.max.set(
-          centerPoint.x + (playerSize.x * shrinkFactor) / 2,
-          centerPoint.y + (playerSize.y * shrinkFactor) / 2,
-          centerPoint.z + (playerSize.z * shrinkFactor) / 2
-        );
-        
+
         if (playerBoundingBox.intersectsBox(turnstileBoundingBox)) {
           const currentTime = Date.now();
           if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
-            // Calculate intersection volume
-            const intersection = new THREE.Box3();
-            intersection.copy(playerBoundingBox).intersect(turnstileBoundingBox);
-            
-            const intersectionSize = new THREE.Vector3();
-            intersection.getSize(intersectionSize);
-            
-            // Calculate intersection volume relative to player size
-            const intersectionVolume = intersectionSize.x * intersectionSize.y * intersectionSize.z;
-            const playerVolume = playerSize.x * playerSize.y * playerSize.z * Math.pow(shrinkFactor, 3);
-            const intersectionRatio = intersectionVolume / playerVolume;
-            
-            // Only kill if intersection is significant enough
-            if (intersectionRatio > 0.1) { // Adjust this threshold as needed
-              isPlayerDead = true;
-              lastDeathTime = currentTime;
-              die();
-              
-              setTimeout(() => {
-                isPlayerDead = false;
-              }, deathCooldown);
-            }
+            isPlayerDead = true;
+            lastDeathTime = currentTime;
+            die();
+
+            // Reset the dead state after the cooldown
+            setTimeout(() => {
+              isPlayerDead = false;
+            }, deathCooldown);
           }
         }
       }
@@ -1825,30 +1885,43 @@ async function animate() {
       }
     });
 
-    // Check for collisions with fences and prevent player from going through
-    const platforms = scene.children.filter(
-      (child) => child.userData.isPlatform
-    );
+    // Check for collisions with platforms
+    platforms.forEach((platform) => {
+      const platformBoundingBox = new THREE.Box3().setFromObject(platform);
+      if (playerBoundingBox.intersectsBox(platformBoundingBox)) {
+        // Ensure player stays on top of platform
+        if (playerBody.position.y > platform.position.y) {
+          playerBody.position.y = platform.position.y + 1;
+          playerBody.velocity.y = 0;
+        }
+      }
+    });
+
+    // Update fence collisions with stronger push-back
     platforms.forEach((platform) => {
       if (platform.userData.fences) {
         Object.values(platform.userData.fences).forEach((fence) => {
           if (fence.body && fence.mesh) {
-            // Check for collision with player
             const fenceBoundingBox = new THREE.Box3().setFromObject(fence.mesh);
             if (playerBoundingBox.intersectsBox(fenceBoundingBox)) {
-              // Calculate push-back direction
               const pushDirection = new THREE.Vector3()
                 .subVectors(playerBody.position, fence.body.position)
                 .normalize();
 
-              // Apply a small force to push the player away from the fence
+              // Increase push-back force significantly
               playerBody.applyForce(
-                new CANNON.Vec3(pushDirection.x, 0, pushDirection.z).scale(500),
+                new CANNON.Vec3(pushDirection.x, 0, pushDirection.z).scale(
+                  1000
+                ),
                 playerBody.position
               );
 
-              // add a small bounce effect
-              playerBody.velocity.y = Math.max(playerBody.velocity.y, 2);
+              // Add upward force to prevent clipping through
+              playerBody.velocity.y = Math.max(playerBody.velocity.y, 5);
+
+              // Add horizontal velocity dampening
+              playerBody.velocity.x *= 0.5;
+              playerBody.velocity.z *= 0.5;
             }
           }
         });
@@ -1899,11 +1972,34 @@ async function animate() {
   renderer.render(scene, camera);
   //controls.update();
 
+  
+  // Check if player has left starting platform
+  if (!hasLeftStartingPlatform && playerBody.position.z > 30) { // Adjust 30 based on your platform size
+    hasLeftStartingPlatform = true;
+  }
+  
+  // Update cannon balls with lifetime check
+  cannonBalls = cannonBalls.filter((ball, index) => {
+    if (!ball || !ball.mesh || !ball.body) return false;
+
+    const age = (Date.now() - ball.creationTime) / 1000; // Convert to seconds
+    if (age > ball.lifetime) {
+      scene.remove(ball.mesh);
+      world.removeBody(ball.body);
+      return false;
+    }
+    return true;
+  });
+  
+  // Check for checkpoint 2
+  if (playerBody.position.z >= SECOND_CHECKPOINT_Z) {
+    // Stop cannon balls and remove existing ones
+    canSpawnBalls = false;
+    removeAllCannonBalls();
+  }
+
   stats.end();
 }
-
-// Create a function to show the loading screen
-let loadingAnimationInterval;
 
 async function showLoadingScreen() {
   const loadingScreen = document.createElement("div");
@@ -2149,7 +2245,7 @@ async function restartGame() {
       world.addBody(crown.body);
     }
   }
-  
+
   // do countdown again
   resetTimer();
   // Start countdown will re-enable spawning when ready

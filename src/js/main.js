@@ -63,9 +63,18 @@ let scene,
   gameWon = false,
   gameVolume = 0.5,
   isGamePaused = false,
-  backGroundMusic,
   runningAudio,
   isRunningPlaying = false;
+
+let backGroundMusic,
+  jumpSound,
+  jumpland,
+  hitsound,
+  winsound,
+  countdownOneSound,
+  countdownTwoSound,
+  countdownThreeSound,
+  countdownGoSound;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -121,6 +130,8 @@ const audioLoader = new THREE.AudioLoader();
 
 async function init() {
   return new Promise(async (resolve, reject) => {
+    //audio setup for pre-loading
+
     try {
       console.log("Initializing the game...");
       await initStats();
@@ -129,7 +140,8 @@ async function init() {
       await initBackground();
       await initPhysics();
       await initPlayer();
-      //await initLoadAudio();
+      console.log("Loading audio...");
+      await loadAudio();
       // don't call init event listeners here - it gives the user control too early (they can move while in the laoding screena & before countdown)
       await initBackgroundAudio();
 
@@ -177,19 +189,61 @@ async function init() {
 }
 
 //function to load all game audio into buffers before the game starts
-async function loadAudio() {}
+async function loadAudio() {
+  // Initialize audio objects
+  backGroundMusic = new THREE.Audio(listener);
+  jumpSound = new THREE.Audio(listener);
+  jumpland = new THREE.Audio(listener);
+  hitsound = new THREE.Audio(listener);
+  winsound = new THREE.Audio(listener);
+  countdownOneSound = new THREE.Audio(listener);
+  countdownTwoSound = new THREE.Audio(listener);
+  countdownThreeSound = new THREE.Audio(listener);
+  countdownGoSound = new THREE.Audio(listener);
+
+  const audioPromises = [];
+
+  // Helper function to load a sound file and set up audio properties
+  function loadSound(filePath, audioObject, loop = false, volume = gameVolume) {
+    return new Promise((resolve, reject) => {
+      audioLoader.load(
+        filePath,
+        (buffer) => {
+          audioObject.setBuffer(buffer);
+          audioObject.setLoop(loop);
+          audioObject.setVolume(volume);
+          resolve();
+        },
+        undefined,
+        reject
+      );
+    });
+  }
+
+  // Assign each load operation to the audioPromises array
+  audioPromises.push(
+    loadSound(PbackGroundMusic, backGroundMusic, true, gameVolume / 2)
+  );
+  audioPromises.push(loadSound(PjumpSound, jumpSound));
+  audioPromises.push(loadSound(Pjumpland, jumpland));
+  audioPromises.push(loadSound(Phitsound, hitsound));
+  audioPromises.push(loadSound(Pwinsound, winsound));
+  audioPromises.push(loadSound(countdownOne, countdownOneSound));
+  audioPromises.push(loadSound(countdownTwo, countdownTwoSound));
+  audioPromises.push(loadSound(countdownThree, countdownThreeSound));
+  audioPromises.push(loadSound(countdownGo, countdownGoSound));
+
+  // Wait for all audio files to load
+  await Promise.all(audioPromises);
+
+  // Optional: Play background music immediately if desired
+  backGroundMusic.play();
+}
 
 async function initBackgroundAudio() {
   return new Promise((resolve) => {
-    backGroundMusic = new THREE.Audio(listener);
-    audioLoader.load(PbackGroundMusic, function (buffer) {
-      backGroundMusic.setBuffer(buffer);
-      backGroundMusic.setLoop(true);
-      backGroundMusic.setVolume(gameVolume / 2);
-      backGroundMusic.play();
-
-      resolve();
-    });
+    backGroundMusic.play();
+    resolve();
   });
 }
 
@@ -326,13 +380,7 @@ async function die() {
       ? { x: 0, y: 10, z: 10 }
       : { x: 0, y: 10, z: 230 };
 
-  const hitsound = new THREE.Audio(listener);
-  audioLoader.load(Phitsound, function (buffer) {
-    hitsound.setBuffer(buffer);
-    hitsound.setLoop(false);
-    hitsound.setVolume(gameVolume);
-    hitsound.play();
-  });
+  hitsound.play();
 
   // Wait for particle effect and then respawn
   await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
@@ -506,13 +554,7 @@ function checkForWin() {
     //runningAudio.setVolume(0);
 
     //play win sound
-    const winsound = new THREE.Audio(listener);
-    audioLoader.load(Pwinsound, function (buffer) {
-      winsound.setBuffer(buffer);
-      winsound.setLoop(false);
-      winsound.setVolume(gameVolume);
-      winsound.play();
-    });
+    winsound.play();
 
     showWinScreen(elapsedTime);
     //Stop the timer
@@ -837,13 +879,7 @@ function checkJumpState() {
       isJumping = false;
       // Play landing sound
       try {
-        const jumpland = new THREE.Audio(listener);
-        audioLoader.load(Pjumpland, function (buffer) {
-          jumpland.setBuffer(buffer);
-          jumpland.setLoop(false);
-          jumpland.setVolume(gameVolume);
-          jumpland.play();
-        });
+        jumpland.play();
       } catch (e) {
         console.warn("Landing sound failed to play:", e);
       }
@@ -868,13 +904,7 @@ function jump() {
 
     // Play jump sound
     try {
-      const jumpSound = new THREE.Audio(listener);
-      audioLoader.load(PjumpSound, function (buffer) {
-        jumpSound.setBuffer(buffer);
-        jumpSound.setLoop(false);
-        jumpSound.setVolume(gameVolume);
-        jumpSound.play();
-      });
+      jumpSound.play();
     } catch (e) {
       console.warn("Jump sound failed to play:", e);
     }
@@ -935,7 +965,6 @@ function checkIdleState() {
 // Update the updateMovement function to use camera direction
 function updateMovement(delta) {
   const speed = PLAYER_SPEED * delta;
-
 
   // Calculate forward and right vectors based on camera rotation
 
@@ -1832,41 +1861,29 @@ function removeEventListeners() {
 function startCountdown() {
   removeEventListeners(); // Remove any existing event listeners
 
-  const audioLoader = new THREE.AudioLoader();
-  let countdownAudio = new THREE.Audio(listener);
-
   const mapCountdownSounds = {
-    3: countdownThree,
-    2: countdownTwo,
-    1: countdownOne,
-    GO: countdownGo,
+    3: countdownThreeSound,
+    2: countdownTwoSound,
+    1: countdownOneSound,
+    GO: countdownGoSound,
   };
 
   function playCountdownSound(count) {
-    let soundFile = mapCountdownSounds[count];
-
     // Stop any currently playing sound
-    if (countdownAudio.isPlaying) {
-      countdownAudio.stop();
+    if (mapCountdownSounds[count].isPlaying) {
+      mapCountdownSounds[count].stop();
     }
-
-    audioLoader.load(soundFile, function (buffer) {
-      countdownAudio.setBuffer(buffer);
-      countdownAudio.setLoop(false);
-      countdownAudio.setVolume(gameVolume);
-      countdownAudio.play();
-    });
+    // Play the sound for the current countdown number
+    mapCountdownSounds[count].play();
   }
 
-  // clear existing countdown element if it exists
+  // Clear existing countdown element if it exists
   let countdownDisplay = document.getElementById("countdown");
   if (countdownDisplay) {
     countdownDisplay.remove();
   }
 
   let count = 3;
-  countdownDisplay = document.getElementById("countdown");
-
   countdownDisplay = document.createElement("div");
   countdownDisplay.id = "countdown";
   countdownDisplay.style.cssText = `

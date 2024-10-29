@@ -12,6 +12,7 @@ import {
   createGate,
   createGate2,
   createCylinder,
+  createWreckingBall,
   createFan,
   createRod,
   createHorizontalCylinder,
@@ -74,6 +75,7 @@ let playerHelper;
 
 let gates = [];
 let explosionGates = [];
+let wreckingBalls = [];
 let gateHelpers = [];
 let cylinders = [];
 let cylinderHelpers = [];
@@ -146,6 +148,18 @@ async function init() {
       await createGroundPiece(0, 0, 205, 60, 10);
       await createGroundPiece(0, 0, 235, 60, 10);
       await createGroundPiece(0, 0, 265, 60, 240);
+
+      wreckingBalls.push(await createWreckingBall(scene, 0, 25, 135, 25, 0.8, 3.8));
+
+      wreckingBalls.push(await createWreckingBall(scene, 0, 25, 165, 25, 0.8, 3.8));
+
+      wreckingBalls.push(await createWreckingBall(scene, 0, 25, 195, 25, 0.8, 3.8));
+
+      wreckingBalls.push(await createWreckingBall(scene, 0, 25, 225, 25, 0.8, 3.8));
+
+      wreckingBalls.push(await createWreckingBall(scene, 0, 25, 255, 25, 0.8, 3.8));
+
+    
 
       // Second set of obstacles
       await initGateObstacles();
@@ -260,6 +274,72 @@ export function createParticleExplosion(position) {
   }
 }
 
+function animateWreckingBalls(deltaTime) {
+  const baseSwingSpeed = 1.5; // Base speed that will be modified per ball
+  const swingAmplitude = 30;
+  const maxVerticalLift = 10;
+
+  wreckingBalls.forEach((wreckingBall, index) => {
+    // Initialize time, position, and speed if they don't exist
+    if (wreckingBall.time === undefined) {
+      wreckingBall.time = 0;
+      if (wreckingBall.initialX === undefined) {
+        wreckingBall.initialX = wreckingBall.position.x;
+      }
+      if (wreckingBall.initialY === undefined) {
+        wreckingBall.initialY = wreckingBall.position.y;
+      }
+      // Option 1: Assign a random speed between 1 and 3
+      //wreckingBall.swingSpeed = baseSwingSpeed * (0.5 + Math.random());
+      
+      // Option 2: Use index to create evenly spaced speeds
+      wreckingBall.swingSpeed = baseSwingSpeed * (0.75 + (index * 0.25));
+    }
+
+    // Update the time
+    wreckingBall.time += deltaTime;
+
+    // Use the ball's individual speed instead of the constant
+    const sineValue = Math.sin(wreckingBall.time * wreckingBall.swingSpeed);
+    const newX = wreckingBall.initialX + (sineValue * swingAmplitude);
+
+    const normalizedPosition = Math.abs(sineValue);
+    const verticalOffset = Math.pow(normalizedPosition, 2) * maxVerticalLift;
+
+    wreckingBall.position.x = newX;
+    wreckingBall.position.y = wreckingBall.initialY + verticalOffset;
+
+    const rotationAngle = -Math.cos(wreckingBall.time * wreckingBall.swingSpeed) * (Math.PI / 3);
+    wreckingBall.rotation.z = rotationAngle;
+
+    const forwardTilt = Math.abs(sineValue) * (Math.PI / 6);
+    //wreckingBall.rotation.x = forwardTilt;
+  });
+}
+
+// Helper function to initialize wrecking balls with different phases
+function initializeWreckingBalls(wreckingBalls) {
+  wreckingBalls.forEach((ball, index) => {
+    ball.time = (index * Math.PI / 2); // Starts each ball at a different phase
+    ball.initialX = ball.position.x;
+    ball.initialY = ball.position.y;
+  });
+}
+
+// Function to adjust swing parameters for individual wrecking balls
+function adjustWreckingBallSwing(wreckingBall, newSpeed, newAmplitude) {
+  wreckingBall.swingSpeed = newSpeed;
+  wreckingBall.swingAmplitude = newAmplitude;
+}
+
+// Function to reset a wrecking ball's swing
+function resetWreckingBallSwing(wreckingBall) {
+  wreckingBall.time = 0;
+  wreckingBall.position.x = wreckingBall.initialX;
+  wreckingBall.position.y = wreckingBall.initialY;
+  wreckingBall.rotation.z = 0;
+}
+
 // Add this to your animation loop
 function updateParticles(deltaTime) {
   particles.forEach((particle, index) => {
@@ -371,6 +451,8 @@ async function createGateExplosion(
       gate.castShadow = true;
       gate.receiveShadow = true;
 
+      gate.exploded = false;
+
       scene.add(gate);
       explosionGates.push(gate); // Add to explosion gates array
 
@@ -384,12 +466,17 @@ async function createGateExplosion(
 
 // Collision check function
 function checkCollision(model) {
+  const playerBoundingBox = new THREE.Box3().setFromObject(model)
   explosionGates.forEach((gate, index) => {
-    if (model.position.distanceTo(gate.position) < gate.width / 4) {
+    if(!gate.exploded) {
+    const gateBoundingBox = new THREE.Box3().setFromObject(gate);
+    if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
       gateExplosion(gate.position); // Trigger explosion at gate's position
       scene.remove(gate); // Remove gate after explosion
+      gate.exploded = true; // Set exploded flag to true
       gates.splice(index, 1); // Remove gate from array
     }
+  }
   });
 }
 
@@ -669,7 +756,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 10, 250);
+        model.position.set(0, 10, 50);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the moasdel
@@ -1117,6 +1204,7 @@ async function initGateObstacles() {
       8,
       7
     );
+
 
     const x1 = pillar1.position.x;
     const x2 = pillar2.position.x;
@@ -2051,28 +2139,11 @@ function animate() {
     //player bounding box
     const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
-    //gates bounding boxes
-    /*gates.forEach((gate) => {
-      const gateBoundingBox = new THREE.Box3().setFromObject(gate);
+    /*Actual bounding boxes for the player and obstacles*/
 
-      if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
-        const currentTime = Date.now();
-        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
-          isPlayerDead = true;
-          lastDeathTime = currentTime;
-          die();
-
-          // Reset the dead state after the cooldown
-          setTimeout(() => {
-            isPlayerDead = false;
-          }, deathCooldown);
-        }
-      }
-    });*/
-
-    //cylinders bounding boxes
-    cylinders.forEach((cylinder) => {
-      const cylinderBoundingBox = new THREE.Box3().setFromObject(cylinder);
+    //wreckingballs bounding boxes
+    wreckingBalls.forEach((wreckingBall) => {
+      const cylinderBoundingBox = new THREE.Box3().setFromObject(wreckingBall);
 
       if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
         const currentTime = Date.now();
@@ -2088,63 +2159,6 @@ function animate() {
         }
       }
     });
-
-    //rods bounding boxes
-    rods.forEach((rod) => {
-      const rodBoundingBox = new THREE.Box3().setFromObject(rod);
-
-      if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
-        //Reset the players position
-        const currentTime = Date.now();
-        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
-          isPlayerDead = true;
-          lastDeathTime = currentTime;
-          die();
-
-          // Reset the dead state after the cooldown
-          setTimeout(() => {
-            isPlayerDead = false;
-          }, deathCooldown);
-        }
-      }
-    });
-
-    rodsZ.forEach((rod) => {
-      const rodBoundingBox = new THREE.Box3().setFromObject(rod);
-
-      if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
-        const currentTime = Date.now();
-        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
-          isPlayerDead = true;
-          lastDeathTime = currentTime;
-          die();
-
-          // Reset the dead state after the cooldown
-          setTimeout(() => {
-            isPlayerDead = false;
-          }, deathCooldown);
-        }
-      }
-    });
-
-    // fans.forEach((fan) => {
-    //   fan.children.forEach((child) => {
-    //     const fanBoundingBox = new THREE.Box3().setFromObject(child);
-
-    //     if (playerBoundingBox.intersectsBox(fanBoundingBox)) {
-    //       //Reset the players position
-    //       playerBody.position.set(0, 10, 10);
-    //     }
-    //   });
-    //   // const fanBoundingBox = new THREE.Box3().setFromObject(fan);
-
-    //   // if (playerBoundingBox.intersectsBox(fanBoundingBox)) {
-    //   //   //Reset the players position
-    //   //   playerBody.position.set(0, 10, 10);
-    //   // }
-    // });
-
-    /*Actual bounding boxes for the player and obstacles*/
 
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
     if (playerHelper) {
@@ -2211,10 +2225,11 @@ function animate() {
 
   //Animate the gates
   //animateGates(deltaTime);
-  animateCylinders(deltaTime);
-  animateFans(deltaTime);
-  animateRodsX(deltaTime);
-  animateRodsZ(deltaTime);
+  animateWreckingBalls(deltaTime)
+  //animateCylinders(deltaTime);
+  //animateFans(deltaTime);
+  //animateRodsX(deltaTime);
+  //animateRodsZ(deltaTime);
 
   // cannonDebugger.update();
   renderer.render(scene, camera);

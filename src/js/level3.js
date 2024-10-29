@@ -12,6 +12,10 @@ import {
   createRotatingHammer,
   createConveyorBelt,
   createStartingPlatform,
+  createHorizontalCylinder,
+  createCylinder,
+  createPillar,
+  createRod,
 } from "./obstacles";
 
 // Import assets
@@ -59,12 +63,6 @@ let scene,
   timerRunning = false,
   previousTimestamp = 0,
   currentLives = 3,
-  gameWon = false,
-  zPosition = 0,
-  zStep = 60,
-  platformWidth = 60,
-  platformDepth = 60,
-  numberOfPlatforms = 8,
   timerInterval,
   countdownInterval;
 
@@ -81,9 +79,8 @@ let particleSpreadZ = 1000; //Based on how long our level is
 let playerHelper;
 let crown;
 let turnstiles = [];
-let conveyors = [];
 let hammers = [];
-
+let rods = [];
 // variables for camera control
 const cameraOffset = new THREE.Vector3(0, 12, -15); // Changed to position camera behind and above the model
 const cameraLerpFactor = 1.0;
@@ -110,13 +107,47 @@ const jumpCooldown = 250; // milliseconds between allowed jump attempts
 const listener = new THREE.AudioListener();
 const audioLoader = new THREE.AudioLoader();
 
+// Cannon ball management
+let cannonBalls = [];
+// Cannon positions array to cover the entire level
+const CANNON_POSITIONS = [
+  // Section 1 - Fork paths
+  { x: -30, y: 15, z: 120 }, // Left path
+  { x: 30, y: 15, z: 120 },  // Right path
+  
+  // // Section 2 - After first checkpoint
+  // { x: -20, y: 15, z: 230 }, // Left side
+  // { x: 20, y: 15, z: 300 },  // Right side
+  
+  // // Section 3 - Final stretch
+  // { x: -25, y: 15, z: 420 }, // Left path
+  // { x: 0, y: 15, z: 420 },   // Center path
+  // { x: 25, y: 15, z: 420 }   // Right path
+];
+
+// Modify shooting interval
+const SHOOT_INTERVAL = 1000; // Shoot every second
+const SECOND_CHECKPOINT_Z = 360; // Z position of second checkpoint
+
+// Add these with your other global variables
+let targetRotationY = 0;
+let rotationDamping = 0.1; // Controls how smoothly the rotation changes
+
+// Game state variables
+let isPaused = false;
+let gameWon = false;
+let isPlayerDead = false;
+let canSpawnBalls = false;
+let spawnCooldown = false;
+const SPAWN_COOLDOWN_TIME = 1000; // 3 seconds cooldown after respawn
+
 async function init() {
   return new Promise(async (resolve, reject) => {
     try {
       // Reset arrays
       hammers = [];
-      conveyors = [];
       turnstiles = [];
+      cannonBalls = [];
 
       console.log("Initializing the game...");
       await initStats();
@@ -129,30 +160,12 @@ async function init() {
       await initAudio();
 
       console.log("Creating obstacles + particles...");
-      // Increment height and z-position for each ground piece in a smooth, gradual way
-      // for (let i = 0; i < numberOfPlatforms; i++) {
-      //   //await createGroundPiece(0, 0, zPosition, platformWidth, platformDepth);
-      //   if (i === 0) {
-      //     await createStartingPlatform(world, scene, 0, 0, zPosition, 60, 0.1, 30);
-      //   } else {
-      //     const platform = await createStartingPlatform(world, scene, 0, 0, zPosition, 60, 0.1, 60);
-      //     // Remove the back fence
-      //     scene.remove(platform.fences.back.mesh);
-      //     world.removeBody(platform.fences.back.body);
-      //   }
-      //   zPosition += zStep;
-      // }
-      //crown = await createCrown(world, scene, -10, 0, 10);
 
-      //First set of obstacles
-      //await initTurnstiles();
-      //conveyor = await createConveyorBelt(world, scene, 10, 2, 10, 10, 20, 32);
-      //const hammer = createRotatingHammer(scene, 20, 5, 5, 1, 1);
-      // Create forked platforms and obstacles
-      await createLevel3Layout();
+      await initLevel3Layout();
       await initTurnstiles();
-      await createHammersAndConveyors();
-      await createCheckpoints();
+      await initHorizontalCylinders();
+      await initHammers();
+      await initCheckpoints();
 
       //Init particle background system
       await initBackgroundParticleSystem();
@@ -161,6 +174,8 @@ async function init() {
       await initFinishLine();
 
       console.log("Game initialized successfully!");
+
+      await initCannonBallSystem();
 
       resolve();
     } catch (error) {
@@ -190,8 +205,8 @@ async function initFinishLine() {
 
     textureLoader.load(
       finish,
-      (texture) => {
-        const finishLineGeometry = new THREE.BoxGeometry(6.5, 0.1, 1);
+      async (texture) => {
+        const finishLineGeometry = new THREE.BoxGeometry(60, 0, 1); // Changed width to 60 to match platform
         const finishLineMaterial = new THREE.MeshStandardMaterial({
           map: texture,
         });
@@ -199,14 +214,15 @@ async function initFinishLine() {
           finishLineGeometry,
           finishLineMaterial
         );
-        finishLine.position.set(0, 0.5, 495);
-        finishLine.scale.x = 10;
+        finishLine.position.set(0, 0, 480);
         finishLine.scale.z = 15;
         scene.add(finishLine);
 
+        // Add crown at the finish line
+        crown = await createCrown(world, scene, 0, 5, 480); // Position crown above finish line
         resolve();
       },
-      undefined, // onProgress callback (optional)
+      undefined,
       (error) => {
         console.error("Error loading texture:", error);
         reject(error);
@@ -225,7 +241,7 @@ const particleMaterial = new THREE.MeshBasicMaterial({
   opacity: 0.8,
 });
 
-function createParticleExplosion(position) {
+async function createParticleExplosion(position) {
   // Clear any existing particles
   particles.forEach((particle) => {
     scene.remove(particle.mesh);
@@ -268,7 +284,7 @@ function createParticleExplosion(position) {
 }
 
 // Add this to your animation loop
-function updateParticles(deltaTime) {
+async function updateParticles(deltaTime) {
   particles.forEach((particle, index) => {
     // Update position based on velocity
     particle.mesh.position.x += particle.velocity.x * deltaTime;
@@ -293,7 +309,11 @@ function updateParticles(deltaTime) {
 }
 
 async function die() {
+  canSpawnBalls = false; // Stop spawning while dead
   currentLives--;
+
+  // Remove all existing cannon balls
+  await removeAllCannonBalls();
 
   // Create particle explosion at player's current position
   createParticleExplosion(model.position);
@@ -301,10 +321,22 @@ async function die() {
   //Hide the player model
   model.visible = false;
 
-  const respawnPosition =
-    playerBody.position.z < 210
-      ? { x: 0, y: 10, z: 10 }
-      : { x: 0, y: 10, z: 230 };
+  // Define checkpoint positions
+  const checkpoints = {
+    start: { x: 0, y: 10, z: 10 },
+    checkpoint1: { x: 0, y: 10, z: 180 },
+    checkpoint2: { x: 0, y: 10, z: 360 }
+  };
+
+  // Determine respawn position based on player's progress
+  let respawnPosition;
+  if (playerBody.position.z < 180) {
+    respawnPosition = checkpoints.start;
+  } else if (playerBody.position.z < 360) {
+    respawnPosition = checkpoints.checkpoint1;
+  } else {
+    respawnPosition = checkpoints.checkpoint2;
+  }
 
   const hitsound = new THREE.Audio(listener);
   audioLoader.load(Phitsound, function (buffer) {
@@ -340,12 +372,8 @@ async function die() {
     lostMessage.id = "lostMessage";
     lostMessage.innerHTML = "You lost!";
     document.getElementById("gameMenu").appendChild(lostMessage);
-    // currentLives = 3;
-    // generateHearts(currentLives);
-    // //reset timer
-    // resetTimer()
   } else {
-    // Respawn at appropriate position
+    // Respawn at appropriate checkpoint
     playerBody.position.set(
       respawnPosition.x,
       respawnPosition.y,
@@ -356,6 +384,13 @@ async function die() {
 
   // Make player visible again
   model.visible = true;
+
+  // After respawn position is set
+  spawnCooldown = true;
+  setTimeout(() => {
+    spawnCooldown = false;
+    canSpawnBalls = true;
+  }, SPAWN_COOLDOWN_TIME);
 }
 
 async function initBackgroundParticleSystem() {
@@ -453,22 +488,60 @@ async function initScene() {
   });
 }
 
-function checkForWin() {
-  if (
-    playerBody.position.z > 487 &&
-    playerBody.position.y > 0 &&
-    gameWon == false
-  ) {
-    gameWon = true;
-    console.log("You win!");
-    showWinScreen(elapsedTime);
-    //Stop the timer
-    timerRunning = false;
+// Initialize the shooting system
+async function initCannonBallSystem() {
+  // Start the shooting interval
+  setInterval(() => {
+    // Only shoot if:
+    // 1. Spawning is enabled
+    // 2. Game isn't paused
+    // 3. Player hasn't reached second checkpoint
+    // 4. Not in spawn cooldown
+    // 5. Game has started (after countdown)
+    // 6. Player isn't dead
+    if (canSpawnBalls && 
+        !isPaused && 
+        playerBody.position.z < SECOND_CHECKPOINT_Z && 
+        !spawnCooldown &&
+        !isPlayerDead) {
+      shootCannonBall();
+    }
+  }, SHOOT_INTERVAL);
+}
+
+async function checkForWin() {
+  if (!gameWon && crown && crown.mesh) {
+    const playerBoundingBox = new THREE.Box3().setFromObject(model);
+    const crownBoundingBox = new THREE.Box3().setFromObject(crown.mesh);
+
+    if (playerBoundingBox.intersectsBox(crownBoundingBox)) {
+      gameWon = true;
+      console.log("You win!");
+      
+      // Play win sound
+      const winsound = new THREE.Audio(listener);
+      audioLoader.load(Pwinsound, function (buffer) {
+        winsound.setBuffer(buffer);
+        winsound.setLoop(false);
+        winsound.setVolume(1);
+        winsound.play();
+      });
+
+      showWinScreen(elapsedTime);
+      //Stop the timer
+      timerRunning = false;
+
+      // Hide the crown
+      crown.mesh.visible = false;
+      if (crown.body) {
+        world.removeBody(crown.body);
+      }
+    }
   }
 }
 
 // function to toggle between first-person and third-person views
-function toggleView() {
+async function toggleView() {
   isFirstPerson = !isFirstPerson;
   if (isFirstPerson) {
     controls.connect();
@@ -480,7 +553,7 @@ function toggleView() {
 }
 
 // for pointer lock controls
-function setupControls() {
+async function setupControls() {
   controls = new PointerLockControls(camera, renderer.domElement);
 
   document.addEventListener("click", () => {
@@ -693,10 +766,7 @@ async function initEventListeners() {
   });
 }
 
-let targetRotationY = 0; // Store target rotation
-const rotationDamping = 0.2; // Damping factor
-
-function onMouseMove(e) {
+async function onMouseMove(e) {
   if (controls.isLocked) {
     // Accumulate mouse movement
     targetRotationY -= e.movementX * mouseSensitivity;
@@ -715,7 +785,7 @@ function onMouseMove(e) {
 }
 
 //Movememnt functions that update the movement flags
-function handleKeyDown(event) {
+async function handleKeyDown(event) {
   switch (event.key) {
     case "w":
     case "ArrowUp":
@@ -744,7 +814,7 @@ function handleKeyDown(event) {
   }
 }
 
-function handleKeyUp(event) {
+async function handleKeyUp(event) {
   switch (event.key) {
     case "w":
     case "ArrowUp":
@@ -791,13 +861,6 @@ function jump() {
       jumpSound.setVolume(1);
       jumpSound.play();
     });
-    const jumpland = new THREE.Audio(listener);
-    audioLoader.load(Pjumpland, function (buffer) {
-      jumpland.setBuffer(buffer);
-      jumpland.setLoop(false);
-      jumpland.setVolume(1);
-      jumpland.play();
-    });
 
     // Apply jump force
     playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
@@ -821,6 +884,14 @@ function jump() {
 
       if (intersects.length > 0 && intersects[0].distance <= 0.1) {
         isJumping = false;
+        // Play landing sound
+        const jumpland = new THREE.Audio(listener);
+        audioLoader.load(Pjumpland, function (buffer) {
+          jumpland.setBuffer(buffer);
+          jumpland.setLoop(false);
+          jumpland.setVolume(1);
+          jumpland.play();
+        });
         cancelAnimationFrame(groundCheckInterval);
       } else {
         groundCheckInterval = requestAnimationFrame(checkGroundCollision);
@@ -831,7 +902,7 @@ function jump() {
   }
 }
 
-function crossfadeAction(fromAction, toAction, duration) {
+async function crossfadeAction(fromAction, toAction, duration) {
   if (fromAction !== toAction) {
     if (toAction == jumpAction) {
       isJumping = true;
@@ -848,7 +919,7 @@ function crossfadeAction(fromAction, toAction, duration) {
   }
 }
 
-function checkIdleState() {
+async function checkIdleState() {
   // If no movement keys are pressed and the current action isn't idle, switch to idle
   if (
     !moveForward &&
@@ -877,7 +948,7 @@ function checkIdleState() {
 
 // Update player movement based on key presses
 // Update the updateMovement function to use camera direction
-function updateMovement(delta) {
+async function updateMovement(delta) {
   const speed = PLAYER_SPEED * delta;
 
   // Calculate forward and right vectors based on camera rotation
@@ -972,92 +1043,158 @@ function updateMovement(delta) {
 
 async function initTurnstiles() {
   // Section 1 - Fork path
-  turnstiles.push(await createTurnstile(world, scene, -15, 0, 50, 2, 15)); // Left path
-  turnstiles.push(await createTurnstile(world, scene, 15, 0, 50, 2, 15));  // Right path
-  
+  turnstiles.push(await createTurnstile(world, scene, -30, 0, 50, 2, 15)); // Left path
+  turnstiles.push(await createTurnstile(world, scene, 30, 0, 50, 2, 15)); // Right path
+
   // Section 2 - After first checkpoint
-  turnstiles.push(await createTurnstile(world, scene, -20, 0, 200, 2, 15));
-  turnstiles.push(await createTurnstile(world, scene, 0, 0, 220, 2, 15));
-  turnstiles.push(await createTurnstile(world, scene, 20, 0, 200, 2, 15));
-  
+  turnstiles.push(await createTurnstile(world, scene, -13, 0, 220, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, -30, 0, 240, 2, 15));
+  //turnstiles.push(await createTurnstile(world, scene, 20, 0, 200, 2, 15));
+
   // Section 3 - Final stretch
   turnstiles.push(await createTurnstile(world, scene, 0, 0, 400, 2, 15));
   turnstiles.push(await createTurnstile(world, scene, -15, 0, 420, 2, 15));
 }
 
-async function createLevel3Layout() {
+async function initHorizontalCylinders() {
+  // Section 2 - left
+  await createHorizontalCylinder(world, scene, 10, -2, 210, 2, 50);
+  await createHorizontalCylinder(world, scene, 25, -2, 210, 2, 50);
+  // Section 2 - right
+  await createHorizontalCylinder(world, scene, -10, -2, 270, 2, 60);
+  await createHorizontalCylinder(world, scene, -25, -2, 270, 2, 60);
+
+  // Add moving rods on top of cylinders
+  // Section 2 - left rods
+  const rod1 = await createRod(scene, 10, 1, 220, 5, 30, 0.5, 10, 25);
+  rod1.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rod1);
+
+  const rod2 = await createRod(scene, 25, 1, 240, 5, 30, 0.5, 10, 30);
+  rod2.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rod2);
+
+  // Section 2 - right rods
+  const rod3 = await createRod(scene, -10, 1, 280, -30, -5, 0.5, 10, 20);
+  rod3.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rod3);
+
+  const rod4 = await createRod(scene, -25, 1, 300, -30, -5, 0.5, 10, 25);
+  rod4.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rod4);
+
+  const rod5 = await createRod(scene, -10, 1, 320, -30, -5, 0.5, 10, 20);
+  rod5.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rod5);
+}
+
+async function initLevel3Layout() {
   // Starting platform with back fence
-  const startPlatform = await createStartingPlatform(world, scene, 0, 0, 0, 60, 0.1, 30);
-  
+  const startPlatform = await createStartingPlatform(
+    world,
+    scene,
+    0,
+    0,
+    0,
+    60,
+    0.1,
+    30
+  );
+
   // Left path (no back fences)
-  const leftPath1 = await createStartingPlatform(world, scene, -30, 0, 60, 30, 0.1, 60);
+  const leftPath1 = await createStartingPlatform(
+    world,
+    scene,
+    -30,
+    0,
+    60,
+    30,
+    0.1,
+    60
+  );
   scene.remove(leftPath1.fences.back.mesh);
   world.removeBody(leftPath1.fences.back.body);
-  
-  const leftPath2 = await createStartingPlatform(world, scene, -30, 0, 120, 30, 0.1, 60);
+
+  const leftPath2 = await createStartingPlatform(
+    world,
+    scene,
+    -30,
+    0,
+    120,
+    30,
+    0.1,
+    60
+  );
   scene.remove(leftPath2.fences.back.mesh);
   world.removeBody(leftPath2.fences.back.body);
-  
+
   // Right path (no back fences)
-  const rightPath1 = await createStartingPlatform(world, scene, 30, 0, 60, 30, 0.1, 60);
+  const rightPath1 = await createStartingPlatform(
+    world,
+    scene,
+    30,
+    0,
+    60,
+    30,
+    0.1,
+    60
+  );
   scene.remove(rightPath1.fences.back.mesh);
   world.removeBody(rightPath1.fences.back.body);
-  
-  const rightPath2 = await createStartingPlatform(world, scene, 30, 0, 120, 30, 0.1, 60);
+
+  const rightPath2 = await createStartingPlatform(
+    world,
+    scene,
+    30,
+    0,
+    120,
+    30,
+    0.1,
+    60
+  );
   scene.remove(rightPath2.fences.back.mesh);
   world.removeBody(rightPath2.fences.back.body);
-  
+
   // Rest of platforms (no back fences)
   const platforms = [
-    await createStartingPlatform(world, scene, 0, 0, 180, 60, 0.1, 30),    // Checkpoint 1
-    await createStartingPlatform(world, scene, -20, 0, 240, 40, 0.1, 60),  // Section 2
+    await createStartingPlatform(world, scene, 0, 0, 180, 60, 0.1, 30), // Checkpoint 1
+    await createStartingPlatform(world, scene, -20, 0, 230, 40, 0.1, 60), // Section 2
     await createStartingPlatform(world, scene, 20, 0, 300, 40, 0.1, 60),
-    await createStartingPlatform(world, scene, 0, 0, 360, 60, 0.1, 30),    // Checkpoint 2
-    await createStartingPlatform(world, scene, 0, 0, 420, 60, 0.1, 60),    // Section 3
-    await createStartingPlatform(world, scene, 0, 0, 480, 60, 0.1, 30),    // Final platform
+    await createStartingPlatform(world, scene, 0, 0, 360, 60, 0.1, 30), // Checkpoint 2
+    await createStartingPlatform(world, scene, 0, 0, 420, 60, 0.1, 60), // Section 3
+    await createStartingPlatform(world, scene, 0, 0, 480, 60, 0.1, 30), // Final platform
   ];
 
   // Remove back fences from all remaining platforms
-  platforms.forEach(platform => {
+  platforms.forEach((platform) => {
     scene.remove(platform.fences.back.mesh);
     world.removeBody(platform.fences.back.body);
   });
 }
 
-async function createHammersAndConveyors() {
+async function initHammers() {
   // Section 1 obstacles - Fork paths
-  const hammer1 = createRotatingHammer(scene, -25, 5, 80, 1, 1);    // Left path hammer
-  const hammer2 = createRotatingHammer(scene, 25, 5, 80, 1, 1);     // Right path hammer
+  const hammer1 = createRotatingHammer(world, scene, -30, 0, 80, 1, 2); // Left path hammer
+  const hammer2 = createRotatingHammer(world, scene, 30, 0, 80, 1, 2); // Right path hammer
   hammers.push(hammer1, hammer2);
-  
-  // Conveyors for first section
-  const conveyor1 = await createConveyorBelt(world, scene, -30, 2, 140, 10, 20, 32); // Left path
-  const conveyor2 = await createConveyorBelt(world, scene, 30, 2, 140, 10, 20, 32);  // Right path
-  conveyors.push(conveyor1, conveyor2);
-  
+
   // Section 2 obstacles - Zigzag section
-  const hammer3 = createRotatingHammer(scene, -15, 5, 260, 1, 1);
-  const hammer4 = createRotatingHammer(scene, 15, 5, 320, 1, 1);
+  const hammer3 = createRotatingHammer(world, scene, -15, 0, 260, 1, 2);
+  const hammer4 = createRotatingHammer(world, scene, 15, 0, 320, 1, 2);
   hammers.push(hammer3, hammer4);
-  
-  const conveyor3 = await createConveyorBelt(world, scene, 0, 2, 290, 10, 20, 32);
-  conveyors.push(conveyor3);
-  
+
   // Section 3 obstacles - Final stretch
-  const hammer5 = createRotatingHammer(scene, 0, 5, 440, 1, 1);
+  const hammer5 = createRotatingHammer(world, scene, 0, 0, 440, 1, 2);
   hammers.push(hammer5);
-  
-  const conveyor4 = await createConveyorBelt(world, scene, 0, 2, 460, 10, 20, 32);
-  conveyors.push(conveyor4);
 }
 
-async function createCheckpoints() {
+async function initCheckpoints() {
   // Create checkpoint markers (you can use custom models or simple geometries)
   const checkpointGeometry = new THREE.BoxGeometry(60, 5, 2);
-  const checkpointMaterial = new THREE.MeshStandardMaterial({ 
+  const checkpointMaterial = new THREE.MeshStandardMaterial({
     color: 0x00ff00,
     transparent: true,
-    opacity: 0.5 
+    opacity: 0.5,
   });
 
   // Checkpoint 1
@@ -1070,57 +1207,111 @@ async function createCheckpoints() {
   checkpoint2.position.set(0, 2.5, 360);
   scene.add(checkpoint2);
 }
-async function createGroundPiece(x, y, z, width, length) {
-  return new Promise((resolve) => {
-    //X, Y, Z IS THE POSITION OF THE GROUND PIECE, STARTING FROM THE CENTER
 
-    //Create a simple plane for the ground
-    const groundGeometry = new THREE.PlaneGeometry(width, length);
-    const groundMaterial = new THREE.MeshStandardMaterial();
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.position.set(x, y, z + length / 2);
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
+// Shoot a cannon ball from the end line towards the player
+async function shootCannonBall() {
+  // Don't shoot if: 
+  // 1. No model/player
+  // 2. Game won
+  // 3. Past second checkpoint
+  // 4. Game is paused
+  // 5. In spawn cooldown
+  // 6. Player is dead
+  if (!model || 
+      !playerBody || 
+      gameWon || 
+      playerBody.position.z >= SECOND_CHECKPOINT_Z || 
+      isPaused || 
+      spawnCooldown || 
+      isPlayerDead) return;
 
-    //Create a cannon.js body for the ground
-    const groundShape = new CANNON.Box(
-      new CANNON.Vec3(width / 2, 0.001, length / 2)
-    );
-    const groundBody = new CANNON.Body({ mass: 0, shape: groundShape });
-    groundBody.position.set(x, y, z + length / 2);
-    world.addBody(groundBody);
+  // Randomly select a cannon position
+  const cannonPos = CANNON_POSITIONS[Math.floor(Math.random() * CANNON_POSITIONS.length)];
+  const startPosition = new THREE.Vector3(cannonPos.x, cannonPos.y, cannonPos.z);
+  
+  // Add some randomization to the x position for variety
+  startPosition.x += (Math.random() - 0.5) * 20; // Random spread of ±10 units
 
-    //add texture over the ground
-    const textureLoader = new THREE.TextureLoader();
-    const texture = textureLoader.load(groundTexture);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(10, 10);
-    groundMaterial.map = texture;
+  // Calculate direction towards player with adjusted aim
+  const targetPos = model.position.clone();
+  targetPos.y += 2; // Aim slightly above player
+  
+  // Add some randomization to targeting
+  targetPos.x += (Math.random() - 0.5) * 5; // Random targeting spread
+  targetPos.z += (Math.random() - 0.5) * 5;
+  
+  const direction = new THREE.Vector3()
+    .subVectors(targetPos, startPosition)
+    .normalize();
 
-    resolve();
-  });
+  // Adjust speed based on distance to player for more consistent trajectories
+  const distanceToPlayer = startPosition.distanceTo(targetPos);
+  const speedMultiplier = Math.min(distanceToPlayer / 100, 2); // Cap the multiplier at 2
+
+  // Create the cannon ball with adjusted parameters
+  const cannonBall = await createCannonBall(
+    scene, 
+    world, 
+    1.0, 
+    startPosition, 
+    direction,
+    speedMultiplier
+  );
+  
+  cannonBalls.push(cannonBall);
+
+  // Clean up old cannon balls after 8 seconds
+  setTimeout(() => {
+    if (cannonBall.mesh && cannonBall.body) {
+      scene.remove(cannonBall.mesh);
+      world.removeBody(cannonBall.body);
+      cannonBalls = cannonBalls.filter(ball => ball !== cannonBall);
+    }
+  }, 8000);
 }
 
-function AddVisualGateHelpers() {
-  // Add visual helpers for the gates
-  gates.forEach((gate) => {
-    const helper = new THREE.BoxHelper(gate, "blue");
-    gateHelpers.push(helper);
-    //scene.add(helper);
+// Update cannon balls in the animation loop
+async function updateCannonBalls(deltaTime) {
+  cannonBalls.forEach((cannonBall) => {
+    if (cannonBall.mesh && cannonBall.body) {
+      // Update visual position to match physics
+      cannonBall.mesh.position.copy(cannonBall.body.position);
+      cannonBall.mesh.quaternion.copy(cannonBall.body.quaternion);
+
+      // Check for collision with player
+      const ballBoundingBox = new THREE.Box3().setFromObject(cannonBall.mesh);
+      const playerBoundingBox = new THREE.Box3().setFromObject(model);
+
+      if (playerBoundingBox.intersectsBox(ballBoundingBox)) {
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Remove the cannon ball after hit
+          scene.remove(cannonBall.mesh);
+          world.removeBody(cannonBall.body);
+          cannonBalls = cannonBalls.filter(ball => ball !== cannonBall);
+
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
+      }
+    }
   });
 }
-
-function AddVisualCylinderHelpers() {
-  // Add visual helpers for the cylinders
-  cylinders.forEach((cylinder) => {
-    const helper = new THREE.BoxHelper(cylinder, "blue");
-    cylinderHelpers.push(helper);
-    //scene.add(helper);
+// function to remove all cannon balls
+async function removeAllCannonBalls() {
+  cannonBalls.forEach(ball => {
+    if (ball.mesh && ball.body) {
+      scene.remove(ball.mesh);
+      world.removeBody(ball.body);
+    }
   });
+  cannonBalls = [];
 }
-
 async function animateCrown(deltaTime) {
   return new Promise((resolve) => {
     if (crown && crown.mesh) {
@@ -1146,8 +1337,56 @@ async function animateTurnstile(deltaTime) {
   });
 }
 
+async function animateHammer(deltaTime) {
+  return new Promise((resolve) => {
+    hammers.forEach((hammer) => {
+      if (hammer && hammer.updateRotation) {
+        hammer.updateRotation(deltaTime);
+      }
+    });
+    resolve();
+  });
+}
+
+async function animateRods(deltaTime) {
+  let waitTime = 0.5; // Seconds to wait at each position
+
+  rods.forEach((rod) => {
+    const maxX = Math.max(rod.maxX, rod.minX);
+    const minX = Math.min(rod.maxX, rod.minX);
+    const moveSpeed = rod.speed; // Movement speed
+
+    // Initialize the rod direction if it doesn't exist
+    if (rod.moveDirection === undefined) {
+      rod.moveDirection = rod.position.x >= maxX ? -1 : 1;
+    }
+
+    if (rod.waitTimer === undefined) {
+      rod.waitTimer = 0; // Timer for waiting at bounds
+    }
+
+    // Check if the rod is waiting at the bounds
+    if (rod.waitTimer > 0) {
+      rod.waitTimer -= deltaTime; // Reduce the wait timer
+      return; // Skip the movement until wait time is over
+    }
+
+    // Clamp rod position to max/min bounds
+    if (rod.position.x > maxX) {
+      rod.position.x = maxX;
+      rod.moveDirection *= -1;
+      rod.waitTimer = waitTime; // Set wait timer before moving again
+    } else if (rod.position.x < minX) {
+      rod.position.x = minX;
+      rod.moveDirection *= -1;
+      rod.waitTimer = waitTime; // Set wait timer before moving again
+    }
+
+    rod.position.x += rod.moveDirection * moveSpeed * deltaTime;
+  });
+}
 // Update the camera position to follow the player and initial panning
-function updateCamera() {
+async function updateCamera() {
   if (!model || isPlayerDead) return;
 
   // Handle panning animation
@@ -1205,22 +1444,22 @@ function updateCamera() {
 }
 
 // Easing function for smooth acceleration and deceleration
-function easeInOutQuad(t) {
+async function easeInOutQuad(t) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
 
-function startGameTimer() {
+async function startGameTimer() {
   startCountdown(); // Only start the countdown, don't start the timer yet
 }
 
-function removeEventListeners() {
+async function removeEventListeners() {
   //remove event listeners
   window.removeEventListener("keydown", handleKeyDown);
   window.removeEventListener("keyup", handleKeyUp);
   window.removeEventListener("mousemove", onMouseMove, false);
 }
 
-function startCountdown() {
+async function startCountdown() {
   removeEventListeners(); // Remove any existing event listeners
 
   const audioLoader = new THREE.AudioLoader();
@@ -1233,7 +1472,7 @@ function startCountdown() {
     GO: countdownGo,
   };
 
-  function playCountdownSound(count) {
+  async function playCountdownSound(count) {
     let soundFile = mapCountdownSounds[count];
 
     // Stop any currently playing sound
@@ -1289,6 +1528,7 @@ function startCountdown() {
       // Start the timer and player control after the countdown ends
       initEventListeners();
       initializeTimer();
+      canSpawnBalls = true; // Enable cannon ball spawning
 
       // Clear the interval and hide the countdown display after 1 second
       clearInterval(countdownInterval);
@@ -1299,7 +1539,7 @@ function startCountdown() {
   }, 1000);
 }
 
-function initializeTimer() {
+async function initializeTimer() {
   startTime = Date.now();
   elapsedTime = 0;
   timerRunning = true;
@@ -1308,7 +1548,7 @@ function initializeTimer() {
 }
 
 // Update game timer
-function updateTimer() {
+async function updateTimer() {
   if (!timerRunning) return;
 
   const currentTime = Date.now(); // Get the current timestamp in milliseconds
@@ -1320,7 +1560,7 @@ function updateTimer() {
 }
 
 // Create a function to show the timer
-function showTimer() {
+async function showTimer() {
   const timer = document.createElement("div");
   timer.id = "game-timer";
 
@@ -1341,7 +1581,7 @@ function showTimer() {
 }
 
 // Update the timer display
-function updateTimerDisplay(timeInMs) {
+async function updateTimerDisplay(timeInMs) {
   const timer = document.getElementById("game-timer");
   if (timer) {
     const seconds = Math.max(0, timeInMs / 1000).toFixed(1); // Ensure we never show negative time
@@ -1350,7 +1590,7 @@ function updateTimerDisplay(timeInMs) {
 }
 
 // Reset timer function (useful for restarts)
-function resetTimer() {
+async function resetTimer() {
   elapsedTime = 0; // Reset elapsed time
   timerRunning = false;
   updateTimerDisplay(0);
@@ -1386,13 +1626,12 @@ async function panCameraToStart() {
   });
 }
 
-let isPlayerDead = false;
 let deathCooldown = 2000; // 2 seconds in milliseconds
 let lastDeathTime = 0;
 
 //display game timer
 let frame = 0;
-function animate() {
+async function animate() {
   frame++;
   stats.begin();
 
@@ -1490,15 +1729,94 @@ function animate() {
 
     // Check collision with turnstiles
     turnstiles.forEach((turnstile) => {
-      if (turnstile.mesh) {
-        const turnstileBoundingBox = new THREE.Box3().setFromObject(
-          turnstile.mesh
+      if (turnstile.mesh && turnstile.bar) {
+        // Create a bounding box just for the rotating bar
+        const barWorldPosition = new THREE.Vector3();
+        const barWorldQuaternion = new THREE.Quaternion();
+        const barWorldScale = new THREE.Vector3();
+        
+        // Get the world transform of the bar
+        turnstile.bar.getWorldPosition(barWorldPosition);
+        turnstile.bar.getWorldQuaternion(barWorldQuaternion);
+        turnstile.bar.getWorldScale(barWorldScale);
+        
+        // Create a temporary mesh for accurate collision detection
+        const barGeometry = turnstile.bar.geometry.clone();
+        const tempBar = new THREE.Mesh(barGeometry);
+        tempBar.position.copy(barWorldPosition);
+        tempBar.quaternion.copy(barWorldQuaternion);
+        tempBar.scale.copy(barWorldScale);
+        
+        // Get accurate bounding box for the turnstile bar
+        const turnstileBoundingBox = new THREE.Box3().setFromObject(tempBar);
+        
+        // Create a more precise player bounding box based on the model's dimensions
+        const playerBoundingBox = new THREE.Box3();
+        // Update player bounding box based on current position
+        playerBoundingBox.setFromObject(model);
+        
+        // Shrink the player bounding box slightly to match the physical body better
+        const playerSize = new THREE.Vector3();
+        playerBoundingBox.getSize(playerSize);
+        const shrinkFactor = 0.6; // Adjust this to match your player's CANNON.js body size
+        
+        const centerPoint = new THREE.Vector3();
+        playerBoundingBox.getCenter(centerPoint);
+        
+        // Shrink the bounding box while maintaining its center
+        playerBoundingBox.min.set(
+          centerPoint.x - (playerSize.x * shrinkFactor) / 2,
+          centerPoint.y - (playerSize.y * shrinkFactor) / 2,
+          centerPoint.z - (playerSize.z * shrinkFactor) / 2
         );
+        playerBoundingBox.max.set(
+          centerPoint.x + (playerSize.x * shrinkFactor) / 2,
+          centerPoint.y + (playerSize.y * shrinkFactor) / 2,
+          centerPoint.z + (playerSize.z * shrinkFactor) / 2
+        );
+        
         if (playerBoundingBox.intersectsBox(turnstileBoundingBox)) {
-          console.log("Player died from turnstile!");
-          if (!isPlayerDead) {
+          const currentTime = Date.now();
+          if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+            // Calculate intersection volume
+            const intersection = new THREE.Box3();
+            intersection.copy(playerBoundingBox).intersect(turnstileBoundingBox);
+            
+            const intersectionSize = new THREE.Vector3();
+            intersection.getSize(intersectionSize);
+            
+            // Calculate intersection volume relative to player size
+            const intersectionVolume = intersectionSize.x * intersectionSize.y * intersectionSize.z;
+            const playerVolume = playerSize.x * playerSize.y * playerSize.z * Math.pow(shrinkFactor, 3);
+            const intersectionRatio = intersectionVolume / playerVolume;
+            
+            // Only kill if intersection is significant enough
+            if (intersectionRatio > 0.1) { // Adjust this threshold as needed
+              isPlayerDead = true;
+              lastDeathTime = currentTime;
+              die();
+              
+              setTimeout(() => {
+                isPlayerDead = false;
+              }, deathCooldown);
+            }
+          }
+        }
+      }
+    });
+
+    // Check collision with hammer
+    hammers.forEach((hammer) => {
+      if (hammer && hammer.mesh) {
+        const hammerBoundingBox = new THREE.Box3().setFromObject(hammer.mesh);
+        if (playerBoundingBox.intersectsBox(hammerBoundingBox)) {
+          const currentTime = Date.now();
+          if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
             isPlayerDead = true;
-            die(); // Assuming you have a die() function
+            lastDeathTime = currentTime;
+            die();
+
+            // Reset the dead state after the cooldown
             setTimeout(() => {
               isPlayerDead = false;
             }, deathCooldown);
@@ -1507,35 +1825,13 @@ function animate() {
       }
     });
 
-    // Check collision with conveyor belt
-    // if (conveyor && conveyor.group) {
-    //   const conveyorBoundingBox = new THREE.Box3().setFromObject(
-    //     conveyor.group
-    //   );
-    //   if (playerBoundingBox.intersectsBox(conveyorBoundingBox)) {
-    //     console.log("On conveyor belt!");
-    //     // Apply conveyor belt effect
-    //     const conveyorSpeed = 5; // Adjust as needed
-    //     const conveyorDirection = new CANNON.Vec3(1, 0, 0); // Adjust based on conveyor direction
-    //     playerBody.velocity.vadd(
-    //       conveyorDirection.scale(conveyorSpeed * deltaTime),
-    //       playerBody.velocity
-    //     );
-
-    //     // Allow jumping on conveyor belt
-    //     if (isJumping && Date.now() - lastJumpTime > jumpCooldown) {
-    //       playerBody.velocity.y = 0; // Reset vertical velocity before applying jump
-    //       playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0));
-    //       lastJumpTime = Date.now();
-    //     }
-    //   }
-    // }
-
     // Check for collisions with fences and prevent player from going through
-    const platforms = scene.children.filter(child => child.userData.isPlatform);
-    platforms.forEach(platform => {
+    const platforms = scene.children.filter(
+      (child) => child.userData.isPlatform
+    );
+    platforms.forEach((platform) => {
       if (platform.userData.fences) {
-        Object.values(platform.userData.fences).forEach(fence => {
+        Object.values(platform.userData.fences).forEach((fence) => {
           if (fence.body && fence.mesh) {
             // Check for collision with player
             const fenceBoundingBox = new THREE.Box3().setFromObject(fence.mesh);
@@ -1544,18 +1840,38 @@ function animate() {
               const pushDirection = new THREE.Vector3()
                 .subVectors(playerBody.position, fence.body.position)
                 .normalize();
-              
+
               // Apply a small force to push the player away from the fence
               playerBody.applyForce(
                 new CANNON.Vec3(pushDirection.x, 0, pushDirection.z).scale(500),
                 playerBody.position
               );
-              
-              // Optionally, you can add a small bounce effect
+
+              // add a small bounce effect
               playerBody.velocity.y = Math.max(playerBody.velocity.y, 2);
             }
           }
         });
+      }
+    });
+
+    // check for collisions with rods
+    rods.forEach((rod) => {
+      const rodBoundingBox = new THREE.Box3().setFromObject(rod);
+
+      if (playerBoundingBox.intersectsBox(rodBoundingBox)) {
+        //Reset the players position
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
       }
     });
 
@@ -1575,29 +1891,9 @@ function animate() {
   // Animate obstacles
   animateCrown(deltaTime);
   animateTurnstile(deltaTime);
-
-  // Update conveyor belt animation
-  // if (conveyor && conveyor.setSpeed) {
-  //   conveyor.setSpeed(0.005); // Adjust speed as needed
-  // }
-
-  // Update conveyor animations with safety checks
-  if (conveyors && conveyors.length > 0) {
-    conveyors.forEach(conveyor => {
-      if (conveyor && conveyor.setSpeed && typeof conveyor.setSpeed === 'function') {
-        conveyor.setSpeed(0.005);
-      }
-    });
-  }
-
-  // Update hammer animations with safety checks
-  if (hammers && hammers.length > 0) {
-    hammers.forEach(hammer => {
-      if (hammer && hammer.rotation !== undefined) {
-        hammer.rotation.z += 0.02;
-      }
-    });
-  }
+  animateHammer(deltaTime);
+  animateRods(deltaTime);
+  updateCannonBalls(deltaTime);
 
   cannonDebugger.update();
   renderer.render(scene, camera);
@@ -1609,7 +1905,7 @@ function animate() {
 // Create a function to show the loading screen
 let loadingAnimationInterval;
 
-function showLoadingScreen() {
+async function showLoadingScreen() {
   const loadingScreen = document.createElement("div");
   loadingScreen.id = "loading-screen";
   loadingScreen.style.position = "fixed";
@@ -1643,7 +1939,7 @@ function showLoadingScreen() {
 }
 
 // Function to hide the loading screen
-function hideLoadingScreen() {
+async function hideLoadingScreen() {
   clearInterval(loadingAnimationInterval); // Clear the animation interval
   const loadingScreen = document.getElementById("loading-screen");
   if (loadingScreen) {
@@ -1651,15 +1947,15 @@ function hideLoadingScreen() {
   }
 }
 
-function showGameMenu() {
+async function showGameMenu() {
   document.getElementById("gameMenu").style.display = "block";
 }
 
-function hideGameMenu() {
+async function hideGameMenu() {
   document.getElementById("gameMenu").style.display = "none";
 }
 
-function generateHearts(currentLives) {
+async function generateHearts(currentLives) {
   // Get the container for the hearts
   const heartsContainer = document.getElementById("hearts-container");
 
@@ -1681,7 +1977,7 @@ function generateHearts(currentLives) {
 }
 
 // Create a container for the hearts when the game starts
-function createHeartsContainer() {
+async function createHeartsContainer() {
   const heartsContainer = document.createElement("div");
   heartsContainer.id = "hearts-container";
   heartsContainer.style.position = "fixed";
@@ -1694,11 +1990,11 @@ function createHeartsContainer() {
   document.body.appendChild(heartsContainer);
 }
 
-function toggleMenu() {
+async function toggleMenu() {
   const gameMenu = document.getElementById("gameMenu");
   if (gameMenu.style.display === "block") {
     gameMenu.style.display = "none";
-
+    isPaused = false;
     // unpauseGame();
   } else {
     const resumeButton = document.getElementById("resumeButton");
@@ -1732,12 +2028,12 @@ function toggleMenu() {
     }
 
     gameMenu.style.display = "block";
-
+    isPaused = true;
     // pauseGame();
   }
 }
 
-function showWinScreen(elapsedTime) {
+async function showWinScreen(elapsedTime) {
   const gameMenu = document.getElementById("gameMenu");
   elapsedTime = elapsedTime / 1000;
   // Hide start and resume buttons
@@ -1801,7 +2097,7 @@ function showWinScreen(elapsedTime) {
   gameMenu.appendChild(winMessage);
 }
 
-function generateBestTime() {
+async function generateBestTime() {
   //clear the best time container
   if (document.getElementById("best-time")) {
     document.getElementById("best-time").remove();
@@ -1835,19 +2131,30 @@ function generateBestTime() {
 }
 
 // Example reset function (you need to implement the actual logic)
-function resetGame() {
+async function resetGame() {
   // Logic to reset your game
   console.log("Game is restarting...");
 }
 
-function restartGame() {
+async function restartGame() {
+  canSpawnBalls = false; // Stop spawning during restart
+
+  // Remove all existing cannon balls
+  await removeAllCannonBalls();
+
+  // Reset crown visibility
+  if (crown && crown.mesh) {
+    crown.mesh.visible = true;
+    if (crown.body && !world.bodies.includes(crown.body)) {
+      world.addBody(crown.body);
+    }
+  }
+  
   // do countdown again
-  //reset timer to 0
   resetTimer();
+  // Start countdown will re-enable spawning when ready
   startCountdown();
   playerBody.position.set(0, 10, 0);
-  //restart timer
-  //resetTimer();
   currentLives = 3;
   generateHearts(currentLives);
   gameWon = false;
@@ -1865,7 +2172,7 @@ async function startGame() {
       toggleMenu();
       //Add pointer lock to the document
       document.body.requestPointerLock();
-
+      canSpawnBalls = true; // Resume spawning when unpaused
       // unpauseGame();
     });
 
@@ -1899,8 +2206,8 @@ async function startGame() {
       document.addEventListener("keydown", (event) => {
         if (event.key === "P" || event.key === "p") {
           toggleMenu();
-
           document.exitPointerLock();
+          canSpawnBalls = false; // Stop spawning when paused
         }
       });
     });

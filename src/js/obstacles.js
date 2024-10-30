@@ -1,10 +1,12 @@
 import * as THREE from "three";
 import * as CANNON from "cannon-es";
 import wall from "../textures/fall-guys-texture.jpg";
+import neon_wall from "../textures/neon.png";
+import chain from "../textures/silver_texture.jpg";
 import texture2 from "../textures/pink.jpg";
 import texture3 from "../textures/texture 3.jpg";
 import tile from "../textures/hexagon-tile.jpg";
-import stripes from "../textures/texture 4.png";
+import stripes from "../textures/neon.png";
 
 export async function createPillar(
   world,
@@ -24,7 +26,11 @@ export async function createPillar(
     textureLoader.load(wall, (texture) => {
       //Create a simple plane for the ground
       const pillarGeometry = new THREE.BoxGeometry(width, height, length);
-      const pillarMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const pillarMaterial = new THREE.MeshStandardMaterial({
+         color: "#5e408f",
+        //  metalness: 0.8,
+        //  roughness: 0.2
+         });
       const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
       pillar.position.set(x, y + height / 2, z + length / 2);
       pillar.castShadow = true;
@@ -299,7 +305,11 @@ export async function createGate2(
 
       // Create the gate mesh in Three.js
       const gateGeometry = new THREE.BoxGeometry(width, height, length);
-      const gateMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const gateMaterial = new THREE.MeshStandardMaterial({ 
+        map: texture,
+        metalness: 3,
+        roughness: 0.2
+       });
       const gate = new THREE.Mesh(gateGeometry, gateMaterial);
       gate.position.set(newX, y + height / 2, z);
       gate.castShadow = true;
@@ -346,7 +356,7 @@ export async function createWreckingBall(scene, x, y, z, ropeLength, ropeRadius,
     
     // Load textures for both rope and ball
     Promise.all([
-      new Promise(resolve => textureLoader.load(texture2, resolve)), // rope texture
+      new Promise(resolve => textureLoader.load(chain, resolve)), // rope texture
       new Promise(resolve => textureLoader.load(texture3, resolve))  // ball texture
     ]).then(([ropeTexture, ballTexture]) => {
       // Create the rope (cylinder)
@@ -388,7 +398,7 @@ export async function createWreckingBall(scene, x, y, z, ropeLength, ropeRadius,
       wreckingBallGroup.rotateX(Math.PI / 2);
       
       // Set up shadows
-      rope.castShadow = true;
+      // rope.castShadow = true;
       rope.receiveShadow = true;
       ball.castShadow = true;
       ball.receiveShadow = true;

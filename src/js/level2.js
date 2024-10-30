@@ -5,7 +5,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as CANNON from "cannon-es";
 import CannonDebugger from "cannon-es-debugger";
 import Stats from "stats.js";
-import stripes from "../textures/texture 4.png";
+import stripes from "../textures/neon.png";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 import {
   createPillar,
@@ -20,7 +20,7 @@ import {
 
 // Import assets
 import finish from "../img/finish.jpg";
-import basicBg from "../img/sky.jpg";
+import basicBg from "../img/sample2.png";
 import heart from "../img/heart.png";
 import groundTexture from "../img/stoleItLol.jpg";
 import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
@@ -161,7 +161,7 @@ async function init() {
 
     
 
-      // Second set of obstacles
+      // Third set of obstacles
       await initGateObstacles();
 
       await initFinishLine();
@@ -317,28 +317,6 @@ function animateWreckingBalls(deltaTime) {
   });
 }
 
-// Helper function to initialize wrecking balls with different phases
-function initializeWreckingBalls(wreckingBalls) {
-  wreckingBalls.forEach((ball, index) => {
-    ball.time = (index * Math.PI / 2); // Starts each ball at a different phase
-    ball.initialX = ball.position.x;
-    ball.initialY = ball.position.y;
-  });
-}
-
-// Function to adjust swing parameters for individual wrecking balls
-function adjustWreckingBallSwing(wreckingBall, newSpeed, newAmplitude) {
-  wreckingBall.swingSpeed = newSpeed;
-  wreckingBall.swingAmplitude = newAmplitude;
-}
-
-// Function to reset a wrecking ball's swing
-function resetWreckingBallSwing(wreckingBall) {
-  wreckingBall.time = 0;
-  wreckingBall.position.x = wreckingBall.initialX;
-  wreckingBall.position.y = wreckingBall.initialY;
-  wreckingBall.rotation.z = 0;
-}
 
 // Add this to your animation loop
 function updateParticles(deltaTime) {
@@ -445,7 +423,10 @@ async function createGateExplosion(
       const newX = leftPillarPosition - width / 2;
 
       const gateGeometry = new THREE.BoxGeometry(width, height, length);
-      const gateMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const gateMaterial = new THREE.MeshStandardMaterial({ 
+        map: texture,
+        metalness: 3,
+        roughness: 0.2 });
       gate = new THREE.Mesh(gateGeometry, gateMaterial); // Assign to global gate
       gate.position.set(newX, y + height / 2, z);
       gate.castShadow = true;
@@ -485,7 +466,7 @@ async function die() {
 
   // Create particle explosion at player's current position
   createParticleExplosion(model.position);
-
+  // await initGateObstacles();
   //Hide the player model
   model.visible = false;
 
@@ -756,7 +737,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 10, 50);
+        model.position.set(0, 10, 25);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the moasdel
@@ -867,32 +848,7 @@ async function initEventListeners() {
     resolve();
   });
 }
-// function to handle mouse movement
-// Update the onMouseMove function
-// function onMouseMove(event) {
-//   if (controls.isLocked) {
-//     // Update camera rotation
-//     cameraRotation.y -= event.movementX * mouseSensitivity;
-//     // cameraRotation.y = Math.max(
-//     //   -Math.PI / 2, // Limit looking up
-//     //   Math.min(
-//     //     Math.PI / 2, // Limit looking down
-//     //     cameraRotation.y - event.movementX * mouseSensitivity
-//     //   )
-//     // );
 
-//     // Rotate the player model to match camera direction
-//     if (playerBody && model) {
-//       // Set the quaternion of the physics body
-//       playerBody.quaternion.setFromAxisAngle(
-//         new CANNON.Vec3(0, 1, 0),
-//         cameraRotation.y
-//       );
-
-//       // model.rotation.y = cameraRotation.y;
-//     }
-//   }
-// }
 
 let targetRotationY = 0; // Store target rotation
 const rotationDamping = 0.2; // Damping factor
@@ -1189,7 +1145,7 @@ async function initGateObstacles() {
   return new Promise(async (resolve) => {
     //FIRST SET OF PILLARS AND GATES (4 pillars, 3 gates)
 
-    const firstSetZ = 275; // Z position for the second set of pillars
+    const firstSetZ = 275; // Z position for the first set of pillars
 
     let pillar1 = await createPillar(world, scene, 28.5, 0, firstSetZ, 3, 8, 7);
     let pillar2 = await createPillar(world, scene, 9.5, 0, firstSetZ, 3, 8, 7);
@@ -1665,170 +1621,7 @@ async function initGateObstacles() {
   });
 }
 
-async function initRodObstacles() {
-  return new Promise(async (resolve) => {
-    //x, y, z, minX, maxX, radius, length
-    // let rod1 = createRod(scene, -29, 0, 280, -32, 32, 0.75, 15, 30);
-    // let rod2 = createRod(scene, 20, 0, 305, -25, 29, 0.75, 30, 40);
-    let rod3 = await createRod(scene, -29, 0, 333, -32, 32, 0.75, 15, 20);
-    let rod4 = await createRod(scene, 20, 0, 355, 0, 32, 0.75, 15, 10);
-    let rod5 = await createRod(scene, -10, 0, 355, -32, 0, 0.75, 15, 10);
-    let rod6 = await createRod(scene, 20, 0, 390, -32, 32, 0.75, 22, 30);
-    let rod7 = await createRod(scene, -20, 0, 415, -32, 0, 0.75, 20, 15);
-    // z moving rod
-    let rod8 = await createRod(scene, 15, 0, 450, 425, 485, 0.75, 30, 40);
-    //rotate rod8 in the X axis
-    rod8.rotation.z = Math.PI / 2;
-    let rod9 = await createRod(scene, -15, 0, 455, -32, 0, 0.75, 15, 30);
 
-    // rods.push(rod1);
-    // rods.push(rod2);
-    rods.push(rod3);
-    rods.push(rod4);
-    rods.push(rod5);
-    rods.push(rod6);
-    rods.push(rod7);
-    rodsZ.push(rod8);
-    rods.push(rod9);
-
-    addVisualRodHelpers();
-
-    resolve();
-  });
-}
-
-function initFanObstacles() {
-  let fan1 = createFan(scene, 15, 0, 250, 3, 30);
-  let fan2 = createFan(scene, -15, 0, 260, 3, 30);
-  let fan3 = createFan(scene, 15, 0, 290, 3, 30);
-  let fan4 = createFan(scene, -15, 0, 300, 3, 30);
-
-  fans.push(fan1.blade1);
-  fans.push(fan1.blade2);
-  fans.push(fan1.center);
-
-  fans.push(fan2.blade1);
-  fans.push(fan2.blade2);
-  fans.push(fan2.center);
-
-  fans.push(fan3.blade1);
-  fans.push(fan3.blade2);
-  fans.push(fan3.center);
-
-  fans.push(fan4.blade1);
-  fans.push(fan4.blade2);
-  fans.push(fan4.center);
-
-  fanHelpers.push(fan1.blade1Helper);
-  fanHelpers.push(fan1.blade2Helper);
-  fanHelpers.push(fan1.centerHelper);
-
-  fanHelpers.push(fan2.blade1Helper);
-  fanHelpers.push(fan2.blade2Helper);
-  fanHelpers.push(fan2.centerHelper);
-
-  fanHelpers.push(fan3.blade1Helper);
-  fanHelpers.push(fan3.blade2Helper);
-  fanHelpers.push(fan3.centerHelper);
-
-  fanHelpers.push(fan4.blade1Helper);
-  fanHelpers.push(fan4.blade2Helper);
-  fanHelpers.push(fan4.centerHelper);
-
-  console.log(fans);
-}
-
-function addVisualRodHelpers() {
-  rods.forEach((rod) => {
-    const helper = new THREE.BoxHelper(rod, "blue");
-    rodsHelpers.push(helper);
-    //scene.add(helper);
-  });
-  rodsZ.forEach((rod) => {
-    const helper = new THREE.BoxHelper(rod, "blue");
-    rodsZHelpers.push(helper);
-    //scene.add(helper);
-  });
-}
-
-function animateRodsX(deltaTime) {
-  //const moveSpeed = 20; // Movement speed
-  let waitTime = 0.5; // Seconds to wait at each position
-
-  rods.forEach((rod) => {
-    const maxX = rod.maxX;
-    const minX = rod.minX;
-    const moveSpeed = rod.speed; // Movement speed
-
-    // Initialize the rod direction if it doesn't exist
-    if (rod.moveDirection === undefined) {
-      rod.moveDirection = rod.position.x >= maxX ? -1 : 1;
-    }
-
-    if (rod.waitTimer === undefined) {
-      rod.waitTimer = 0; // Timer for waiting at bounds
-    }
-
-    // Check if the rod is waiting at the bounds
-    if (rod.waitTimer > 0) {
-      rod.waitTimer -= deltaTime; // Reduce the wait timer
-      return; // Skip the movement until wait time is over
-    }
-
-    // Clamp rod position to max/min bounds
-    if (rod.position.x > maxX) {
-      rod.position.x = maxX;
-      rod.moveDirection *= -1;
-      rod.waitTimer = waitTime; // Set wait timer before moving again
-    } else if (rod.position.x < minX) {
-      rod.position.x = minX;
-      rod.moveDirection *= -1;
-      rod.waitTimer = waitTime; // Set wait timer before moving again
-    }
-
-    rod.position.x += rod.moveDirection * moveSpeed * deltaTime;
-  });
-}
-
-function animateRodsZ(deltaTime) {
-  //const moveSpeed = 20; // Movement speed
-
-  let waitTime = 0.5; // Seconds to wait at each position
-
-  rodsZ.forEach((rod) => {
-    const maxZ = rod.maxX;
-    const minZ = rod.minX;
-    const moveSpeed = rod.speed; // Movement speed
-
-    // Initialize the rod direction if it doesn't exist
-    if (rod.moveDirection === undefined) {
-      rod.moveDirection = rod.position.z >= maxZ ? -1 : 1;
-    }
-
-    if (rod.waitTimer === undefined) {
-      rod.waitTimer = 0; // Timer for waiting at bounds
-    }
-
-    // Check if the rod is waiting at the bounds
-    if (rod.waitTimer > 0) {
-      rod.waitTimer -= deltaTime; // Reduce the wait timer
-      return; // Skip the movement until wait time is over
-    }
-
-    // Clamp rod position to max/min bounds
-    if (rod.position.z > maxZ) {
-      rod.position.z = maxZ;
-      rod.moveDirection *= -1;
-      rod.waitTimer = waitTime; // Set wait timer before moving again
-    } else if (rod.position.z < minZ) {
-      rod.position.z = minZ;
-      rod.moveDirection *= -1;
-      rod.waitTimer = waitTime; // Set wait timer before moving again
-    }
-
-    rod.position.z += rod.moveDirection * moveSpeed * deltaTime;
-  });
-}
 
 function AddVisualGateHelpers() {
   // Add visual helpers for the gates
@@ -1839,14 +1632,7 @@ function AddVisualGateHelpers() {
   });
 }
 
-function AddVisualCylinderHelpers() {
-  // Add visual helpers for the cylinders
-  cylinders.forEach((cylinder) => {
-    const helper = new THREE.BoxHelper(cylinder, "blue");
-    cylinderHelpers.push(helper);
-    //scene.add(helper);
-  });
-}
+
 function AddVisualHorizontalCylinderHelpers() {
   // Add visual helpers for the cylinders
   horizontalCylinders.forEach((cylinder) => {
@@ -1856,105 +1642,6 @@ function AddVisualHorizontalCylinderHelpers() {
   });
 }
 
-function animateGates(deltaTime) {
-  const moveSpeed = 20; // Movement speed
-  const waitTime = 1; // Seconds to wait at each position
-
-  gates.forEach((gate) => {
-    const pillar = gate.leftPillar;
-    const maxY =
-      pillar.position.y +
-      pillar.geometry.parameters.height / 2 -
-      gate.geometry.parameters.height / 2;
-    const minY = 0 - gate.geometry.parameters.height / 2 - 1;
-
-    // Initialize the gate direction if it doesn't exist
-    if (gate.moveDirection === undefined) {
-      gate.moveDirection = gate.position.y >= maxY ? -1 : 1;
-    }
-
-    // Initialize waiting state and last wait time if not set
-    if (gate.waiting === undefined) {
-      gate.waiting = false;
-      gate.lastWaitTime = 0;
-    }
-
-    // If gate is at max or min height, start waiting
-    if (!gate.waiting && (gate.position.y >= maxY || gate.position.y <= minY)) {
-      gate.waiting = true;
-      gate.lastWaitTime = clock.getElapsedTime(); // Record the time of the wait
-    }
-
-    // Handle the waiting period
-    if (gate.waiting) {
-      // Check how long the gate has been waiting
-      if (clock.getElapsedTime() - gate.lastWaitTime >= waitTime) {
-        gate.waiting = false; // Stop waiting and reverse direction
-        gate.moveDirection *= -1;
-      }
-    }
-
-    // Move the gate if not waiting
-    if (!gate.waiting) {
-      gate.position.y += gate.moveDirection * moveSpeed * deltaTime;
-
-      // Clamp gate position to max/min bounds
-      if (gate.position.y > maxY) {
-        gate.position.y = maxY;
-      } else if (gate.position.y < minY) {
-        gate.position.y = minY;
-      }
-    }
-  });
-}
-
-function animateFans(deltaTime) {
-  const fanSpinSpeed = 2;
-  fans.forEach((fan) => {
-    if (fan.name == "blade1") {
-      fan.rotation.y += fanSpinSpeed * deltaTime;
-    }
-    if (fan.name == "blade2") {
-      fan.rotation.z -= fanSpinSpeed * deltaTime;
-    }
-  });
-
-  fanHelpers.forEach((helper) => {
-    if (helper) {
-      helper.update();
-      helper.updateMatrixWorld(true);
-    }
-  });
-}
-
-function animateCylinders(deltaTime) {
-  //function to move cylinders right and left
-
-  const moveSpeed = 50; // Movement speed
-
-  cylinders.forEach((cylinder) => {
-    const maxX = 29;
-    const minX = -29;
-
-    // Initialize the cylinder direction if it doesn't exist
-    if (cylinder.moveDirection === undefined) {
-      cylinder.moveDirection = cylinder.position.x >= maxX ? -1 : 1;
-    }
-
-    // If cylinder is at max or min width, start waiting
-    if (cylinder.position.x >= maxX || cylinder.position.x <= minX) {
-      cylinder.moveDirection *= -1;
-    }
-    // Clamp cylinder position to max/min bounds
-    if (cylinder.position.x > maxX) {
-      cylinder.position.x = maxX;
-    } else if (cylinder.position.x < minX) {
-      cylinder.position.x = minX;
-    }
-
-    cylinder.position.x += cylinder.moveDirection * moveSpeed * deltaTime;
-  });
-}
 
 // Update the camera position to follow the player
 // Update the updateCamera function

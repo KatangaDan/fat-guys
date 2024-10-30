@@ -276,6 +276,43 @@ export async function createRod(
   });
 }
 
+export async function createVertRod(
+  scene,
+  x,
+  y,
+  z,
+  minX,
+  maxX,
+  radiusOfRod,
+  lengthOfRod,
+  speed
+) {
+  return new Promise((resolve) => {
+    // load the texture
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(texture3, (texture) => {
+      const rodGeometry = new THREE.CylinderGeometry(
+        radiusOfRod,
+        radiusOfRod,
+        lengthOfRod,
+        32
+      );
+      const rodMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const rod = new THREE.Mesh(rodGeometry, rodMaterial);
+      rod.position.set(x, y + radiusOfRod, z);
+      rod.rotation.y = Math.PI / 2;
+      rod.castShadow = true;
+      rod.minX = minX;
+      rod.maxX = maxX;
+      rod.speed = speed;
+      rod.receiveShadow = true;
+      scene.add(rod);
+
+      resolve(rod);
+    });
+  });
+}
+
 //level 2 obstacles
 export async function createGate2(
   world,
@@ -457,9 +494,16 @@ export function createCannonBall(scene, world, radius, startPosition, direction,
 
   ball.userData.physicsBody = body;
 
+  // Add lifetime property to the ball
+  const lifetime = 2; // 2 seconds lifetime
+  ball.userData.creationTime = Date.now();
+  ball.userData.lifetime = lifetime;
+
   return {
     mesh: ballGroup,
-    body: body
+    body: body,
+    lifetime: lifetime,
+    creationTime: Date.now()
   };
 }
 
@@ -925,7 +969,7 @@ export async function createCrown(
     resolve({ mesh: crownBase, body: crownBody });
   });
 }
-// Add this new function at the end of the file
+
 export async function createStartingPlatform(
   world,
   scene,

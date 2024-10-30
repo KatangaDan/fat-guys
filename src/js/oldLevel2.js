@@ -8,9 +8,13 @@ import Stats from "stats.js";
 import stripes from "../textures/neon.png";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 import {
-  createPillar2,
+  createPillar,
+  createGate,
   createGate2,
+  createCylinder,
   createWreckingBall,
+  createFan,
+  createRod,
   createHorizontalCylinder,
 } from "./obstacles";
 
@@ -24,11 +28,6 @@ import PjumpSound from "../sounds/jumpSound.wav";
 import Pjumpland from "../sounds/jumpland.wav";
 import Phitsound from "../sounds/hit.wav";
 import Pwinsound from "../sounds/winSound.wav";
-import countdownOne from "../sounds/1.mp3";
-import countdownTwo from "../sounds/2.mp3";
-import countdownThree from "../sounds/3.mp3";
-import countdownGo from "../sounds/GO.mp3";
-import runSound from "../sounds/running.mp3";
 
 //Global variables
 let scene,
@@ -60,21 +59,7 @@ let scene,
   timerRunning = false,
   previousTimestamp = 0,
   currentLives = 3,
-  gameWon = false,
-  gameVolume = 0.5,
-  isGamePaused = false,
-  runningAudio,
-  isRunningPlaying = false;
-
-let backGroundMusic,
-  jumpSound,
-  jumpland,
-  hitsound,
-  winsound,
-  countdownOneSound,
-  countdownTwoSound,
-  countdownThreeSound,
-  countdownGoSound;
+  gameWon = false;
 
 //Global variables for the background particle system
 let particleSystem;
@@ -88,6 +73,9 @@ let particleSpreadZ = 1000; //Based on how long our level is
 //Helpers to visualize intersection boxes
 let playerHelper;
 
+let gates = [];
+let explosionGates = [];
+let wreckingBalls = [];
 let gateHelpers = [];
 let cylinders = [];
 let cylinderHelpers = [];
@@ -95,9 +83,9 @@ let cylinderHelpers = [];
 let horizontalCylinders = [];
 let horizontalCylinderHelpers = [];
 
-let gates = [];
-let explosionGates = [];
-let wreckingBalls = [];
+let fans = [];
+let fanHelpers = [];
+
 let rods = [];
 let rodsHelpers = [];
 
@@ -123,8 +111,6 @@ const turnSpeed = 0.2; // for rotation
 
 //Jumping flag
 let isJumping = false;
-let lastJumpTime = 0;
-const jumpCooldown = 250; // milliseconds between allowed jump attempts
 
 //Audio Setup
 const listener = new THREE.AudioListener();
@@ -132,8 +118,6 @@ const audioLoader = new THREE.AudioLoader();
 
 async function init() {
   return new Promise(async (resolve, reject) => {
-    //audio setup for pre-loading
-
     try {
       console.log("Initializing the game...");
       await initStats();
@@ -142,19 +126,22 @@ async function init() {
       await initBackground();
       await initPhysics();
       await initPlayer();
-      console.log("Loading audio...");
-      await loadAudio();
-      // don't call init event listeners here - it gives the user control too early (they can move while in the laoding screena & before countdown)
-      await initBackgroundAudio();
+      await initEventListeners();
+      await initAudio();
 
       console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 60);
+
+      // cylinder.position.y = 0;
+      // cylinder.position.z = 20;
+      // cylinder.rotation.x = Math.PI / 2; // Rotate the cylinder by 90 degrees around the x-axis
+      //Init particle background system
       await initBackgroundParticleSystem();
 
       //First set of obstacles
       await initGroundCylinders();
 
-    //Ground pieces for second set of obstacles
+      //   //Ground pieces for second set of obstacles
       await createGroundPiece(0, 0, 115, 60, 10);
       await createGroundPiece(0, 0, 145, 60, 10);
       await createGroundPiece(0, 0, 175, 60, 10);
@@ -172,6 +159,8 @@ async function init() {
 
       wreckingBalls.push(await createWreckingBall(scene, 0, 25, 255, 25, 0.8, 3.8));
 
+    
+
       // Third set of obstacles
       await initGateObstacles();
 
@@ -188,69 +177,18 @@ async function init() {
   });
 }
 
-//function to load all game audio into buffers before the game starts
-async function loadAudio() {
-  // Initialize audio objects
-  backGroundMusic = new THREE.Audio(listener);
-  jumpSound = new THREE.Audio(listener);
-  jumpland = new THREE.Audio(listener);
-  hitsound = new THREE.Audio(listener);
-  winsound = new THREE.Audio(listener);
-  countdownOneSound = new THREE.Audio(listener);
-  countdownTwoSound = new THREE.Audio(listener);
-  countdownThreeSound = new THREE.Audio(listener);
-  countdownGoSound = new THREE.Audio(listener);
-
-  const audioPromises = [];
-
-  // Helper function to load a sound file and set up audio properties
-  function loadSound(filePath, audioObject, loop = false, volume = gameVolume) {
-    return new Promise((resolve, reject) => {
-      audioLoader.load(
-        filePath,
-        (buffer) => {
-          audioObject.setBuffer(buffer);
-          audioObject.setLoop(loop);
-          audioObject.setVolume(volume);
-          resolve();
-        },
-        undefined,
-        reject
-      );
-    });
-  }
-
-  // Assign each load operation to the audioPromises array
-  audioPromises.push(
-    loadSound(PbackGroundMusic, backGroundMusic, true, gameVolume / 2)
-  );
-  audioPromises.push(loadSound(PjumpSound, jumpSound));
-  audioPromises.push(loadSound(Pjumpland, jumpland));
-  audioPromises.push(loadSound(Phitsound, hitsound));
-  audioPromises.push(loadSound(Pwinsound, winsound));
-  audioPromises.push(loadSound(countdownOne, countdownOneSound));
-  audioPromises.push(loadSound(countdownTwo, countdownTwoSound));
-  audioPromises.push(loadSound(countdownThree, countdownThreeSound));
-  audioPromises.push(loadSound(countdownGo, countdownGoSound));
-
-  // Wait for all audio files to load
-  await Promise.all(audioPromises);
-
-  // Optional: Play background music immediately if desired
-  backGroundMusic.play();
-}
-
-async function initBackgroundAudio() {
+async function initAudio() {
   return new Promise((resolve) => {
-    backGroundMusic.play();
-    resolve();
-  });
-}
+    const backGroundMusic = new THREE.Audio(listener);
+    audioLoader.load(PbackGroundMusic, function (buffer) {
+      backGroundMusic.setBuffer(buffer);
+      backGroundMusic.setLoop(true);
+      backGroundMusic.setVolume(0.2);
+      backGroundMusic.play();
 
-function updateGameVolume() {
-  if (backGroundMusic) {
-    backGroundMusic.setVolume(gameVolume / 2);
-  }
+      resolve();
+    });
+  });
 }
 
 async function initFinishLine() {
@@ -294,7 +232,7 @@ const particleMaterial = new THREE.MeshBasicMaterial({
   opacity: 0.8,
 });
 
-function createParticleExplosion(position) {
+export function createParticleExplosion(position) {
   // Clear any existing particles
   particles.forEach((particle) => {
     scene.remove(particle.mesh);
@@ -337,47 +275,48 @@ function createParticleExplosion(position) {
 }
 
 function animateWreckingBalls(deltaTime) {
-    const baseSwingSpeed = 1.5; // Base speed that will be modified per ball
-    const swingAmplitude = 30;
-    const maxVerticalLift = 10;
-  
-    wreckingBalls.forEach((wreckingBall, index) => {
-      // Initialize time, position, and speed if they don't exist
-      if (wreckingBall.time === undefined) {
-        wreckingBall.time = 0;
-        if (wreckingBall.initialX === undefined) {
-          wreckingBall.initialX = wreckingBall.position.x;
-        }
-        if (wreckingBall.initialY === undefined) {
-          wreckingBall.initialY = wreckingBall.position.y;
-        }
-        // Option 1: Assign a random speed between 1 and 3
-        //wreckingBall.swingSpeed = baseSwingSpeed * (0.5 + Math.random());
-        
-        // Option 2: Use index to create evenly spaced speeds
-        wreckingBall.swingSpeed = baseSwingSpeed * (0.75 + (index * 0.25));
+  const baseSwingSpeed = 1.5; // Base speed that will be modified per ball
+  const swingAmplitude = 30;
+  const maxVerticalLift = 10;
+
+  wreckingBalls.forEach((wreckingBall, index) => {
+    // Initialize time, position, and speed if they don't exist
+    if (wreckingBall.time === undefined) {
+      wreckingBall.time = 0;
+      if (wreckingBall.initialX === undefined) {
+        wreckingBall.initialX = wreckingBall.position.x;
       }
-  
-      // Update the time
-      wreckingBall.time += deltaTime;
-  
-      // Use the ball's individual speed instead of the constant
-      const sineValue = Math.sin(wreckingBall.time * wreckingBall.swingSpeed);
-      const newX = wreckingBall.initialX + (sineValue * swingAmplitude);
-  
-      const normalizedPosition = Math.abs(sineValue);
-      const verticalOffset = Math.pow(normalizedPosition, 2) * maxVerticalLift;
-  
-      wreckingBall.position.x = newX;
-      wreckingBall.position.y = wreckingBall.initialY + verticalOffset;
-  
-      const rotationAngle = -Math.cos(wreckingBall.time * wreckingBall.swingSpeed) * (Math.PI / 3);
-      wreckingBall.rotation.z = rotationAngle;
-  
-      const forwardTilt = Math.abs(sineValue) * (Math.PI / 6);
-      //wreckingBall.rotation.x = forwardTilt;
-    });
-  }
+      if (wreckingBall.initialY === undefined) {
+        wreckingBall.initialY = wreckingBall.position.y;
+      }
+      // Option 1: Assign a random speed between 1 and 3
+      //wreckingBall.swingSpeed = baseSwingSpeed * (0.5 + Math.random());
+      
+      // Option 2: Use index to create evenly spaced speeds
+      wreckingBall.swingSpeed = baseSwingSpeed * (0.75 + (index * 0.25));
+    }
+
+    // Update the time
+    wreckingBall.time += deltaTime;
+
+    // Use the ball's individual speed instead of the constant
+    const sineValue = Math.sin(wreckingBall.time * wreckingBall.swingSpeed);
+    const newX = wreckingBall.initialX + (sineValue * swingAmplitude);
+
+    const normalizedPosition = Math.abs(sineValue);
+    const verticalOffset = Math.pow(normalizedPosition, 2) * maxVerticalLift;
+
+    wreckingBall.position.x = newX;
+    wreckingBall.position.y = wreckingBall.initialY + verticalOffset;
+
+    const rotationAngle = -Math.cos(wreckingBall.time * wreckingBall.swingSpeed) * (Math.PI / 3);
+    wreckingBall.rotation.z = rotationAngle;
+
+    const forwardTilt = Math.abs(sineValue) * (Math.PI / 6);
+    //wreckingBall.rotation.x = forwardTilt;
+  });
+}
+
 
 // Add this to your animation loop
 function updateParticles(deltaTime) {
@@ -525,14 +464,9 @@ function checkCollision(model) {
 async function die() {
   currentLives--;
 
-  isPlayerDead = true;
-
-  //stop run sound
-  // runningAudio.setVolume(0);
-
   // Create particle explosion at player's current position
   createParticleExplosion(model.position);
-
+  // await initGateObstacles();
   //Hide the player model
   model.visible = false;
 
@@ -541,46 +475,24 @@ async function die() {
       ? { x: 0, y: 10, z: 10 }
       : { x: 0, y: 10, z: 230 };
 
-  hitsound.play();
+  const hitsound = new THREE.Audio(listener);
+  audioLoader.load(Phitsound, function (buffer) {
+    hitsound.setBuffer(buffer);
+    hitsound.setLoop(false);
+    hitsound.setVolume(1);
+    hitsound.play();
+  });
 
   // Wait for particle effect and then respawn
   await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
 
-  //true death - don't respawn: show a menu to restart the game
+  //true death
   if (currentLives <= 0) {
     playerBody.position.set(0, 10, 10);
-    //request for mouse control
-    document.exitPointerLock();
-    removeEventListeners();
-
+    currentLives = 3;
     generateHearts(currentLives);
-    //stop the timer
-    timerRunning = false;
-    removeEventListeners();
-    toggleMenu();
-    //hide volume slider
-    document.getElementById("volume-control").style.display = "none";
-
-    //stop player moving if they die
-    moveForward = false;
-    moveBackward = false;
-    moveLeft = false;
-    moveRight = false;
-
-    //hide resume button from menu
-    document.getElementById("resumeButton").style.display = "none";
-
-    //add "You lost" message to gameMenu
-    const lostMessage = document.createElement("h1");
-    lostMessage.id = "lostMessage";
-    lostMessage.innerHTML = "You lost!";
-
-    document.getElementById("gameMenu").appendChild(lostMessage);
-
-    // currentLives = 3;
-    // generateHearts(currentLives);
-    // //reset timer
-    // resetTimer();
+    //reset timer
+    resetTimer();
   } else {
     // Respawn at appropriate position
     playerBody.position.set(
@@ -593,7 +505,6 @@ async function die() {
 
   // Make player visible again
   model.visible = true;
-  isPlayerDead = false;
 }
 
 async function initBackgroundParticleSystem() {
@@ -686,7 +597,7 @@ async function initScene() {
 
     //Create an axis
     const axesHelper = new THREE.AxesHelper(1000); // Size of the axes
-    // scene.add(axesHelper);
+    scene.add(axesHelper);
 
     //Start clock
     clock = new THREE.Clock();
@@ -700,23 +611,12 @@ async function initScene() {
 
 function checkForWin() {
   if (
-    playerBody.position.z > 492 &&
+    playerBody.position.z > 487 &&
     playerBody.position.y > 0 &&
     gameWon == false
   ) {
     gameWon = true;
-    //set all movement flags to false
-    moveForward = false;
-    moveBackward = false;
-    moveLeft = false;
-    moveRight = false;
-
-    //stop run sound if playing
-    //runningAudio.setVolume(0);
-
-    //play win sound
-    winsound.play();
-
+    console.log("You win!");
     showWinScreen(elapsedTime);
     //Stop the timer
     timerRunning = false;
@@ -738,10 +638,9 @@ function toggleView() {
 // for pointer lock controls
 function setupControls() {
   controls = new PointerLockControls(camera, renderer.domElement);
+
   document.addEventListener("click", () => {
-    if (!isGamePaused) {
-      controls.lock(); // Lock pointer only when the game is not paused
-    }
+    controls.lock();
   });
 
   controls.addEventListener("lock", () => {
@@ -806,7 +705,7 @@ async function initBackground() {
 
       // // Enable texture matrix transformation
       // texture.center.set(0.5, 0.5); // Set the center of rotation to the center of the texture
-      // texture.rotation = Math.PI/2; // Rotate the texture by 45 degrees (?/4 radians)
+      // texture.rotation = Math.PI/2; // Rotate the texture by 45 degrees (Ï€/4 radians)
     });
 
     const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);
@@ -838,10 +737,10 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 10);
+        model.position.set(0, 10, 25);
         model.scale.set(0.4, 0.4, 0.4);
 
-        // Enable shadows for all meshes in the model
+        // Enable shadows for all meshes in the moasdel
         model.traverse((node) => {
           if (node.isMesh) {
             node.castShadow = true;
@@ -949,6 +848,8 @@ async function initEventListeners() {
     resolve();
   });
 }
+
+
 let targetRotationY = 0; // Store target rotation
 const rotationDamping = 0.2; // Damping factor
 
@@ -989,10 +890,6 @@ function handleKeyDown(event) {
     case "ArrowRight":
       moveRight = true;
       break;
-    case "p" || "P":
-      // Pause the game
-      toggleMenu();
-      break;
     case " ":
       // Jump when spacebar is pressed
       console.log("Jumping");
@@ -1025,57 +922,34 @@ function handleKeyUp(event) {
   }
 }
 
-// Move checkJumpState outside the jump function so it persists
-let isPlayingJumpAnimation = false;
-
-function checkJumpState() {
-  let startingY =
-    playerBody.position.y -
-    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
-    0.1;
-
-  // Reset isJumping as soon as we start falling and near ground
-  if (playerBody.velocity.y < 0 && startingY < 0.15) {
-    if (isJumping) {
-      isJumping = false;
-      // Play landing sound
-      try {
-        jumpland.play();
-      } catch (e) {
-        console.warn("Landing sound failed to play:", e);
-      }
-    }
-  }
-}
-
+// Function to handle jumping
 function jump() {
   let startingY =
     playerBody.position.y -
     (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
     0.1;
-  const GROUND_THRESHOLD = 0.15;
+  isJumping = true;
 
-  if (
-    startingY < GROUND_THRESHOLD &&
-    !isJumping &&
-    Math.abs(playerBody.velocity.y) < 0.2
-  ) {
+  // Check if the player is grounded and if they are , allow them to jump
+  if (startingY < 0.1) {
     isJumping = true;
-    isPlayingJumpAnimation = true;
-
-    // Play jump sound
-    try {
+    const jumpSound = new THREE.Audio(listener);
+    audioLoader.load(PjumpSound, function (buffer) {
+      jumpSound.setBuffer(buffer);
+      jumpSound.setLoop(false);
+      jumpSound.setVolume(1);
       jumpSound.play();
-    } catch (e) {
-      console.warn("Jump sound failed to play:", e);
-    }
-
-    // Apply jump force
+    });
     playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
-
-    // Ensure jump animation plays
     crossfadeAction(currentAction, jumpAction, fadeDuration);
     currentAction = jumpAction;
+    const jumpland = new THREE.Audio(listener);
+    audioLoader.load(Pjumpland, function (buffer) {
+      jumpland.setBuffer(buffer);
+      jumpland.setLoop(false);
+      jumpland.setVolume(1);
+      jumpland.play();
+    });
   }
 }
 
@@ -1128,7 +1002,6 @@ function updateMovement(delta) {
   const speed = PLAYER_SPEED * delta;
 
   // Calculate forward and right vectors based on camera rotation
-
   let forward;
   let right;
 
@@ -1251,501 +1124,504 @@ async function createGroundPiece(x, y, z, width, length) {
   });
 }
 
+async function initGroundCylinders() {
+  return new Promise(async (resolve) => {
+    horizontalCylinders.push(
+      await createHorizontalCylinder(world, scene, -20, -2.5, 65, 2, 40)
+    );
+    horizontalCylinders.push(
+      await createHorizontalCylinder(world, scene, 0, -2.5, 65, 2, 40)
+    );
+    horizontalCylinders.push(
+      await createHorizontalCylinder(world, scene, 20, -2.5, 65, 2, 40)
+    );
+
+    AddVisualHorizontalCylinderHelpers();
+    resolve();
+  });
+}
+
 async function initGateObstacles() {
-    return new Promise(async (resolve) => {
-      //FIRST SET OF PILLARS AND GATES (4 pillars, 3 gates)
-  
-      const firstSetZ = 275; // Z position for the first set of pillars
-  
-      let pillar1 = await createPillar2(world, scene, 28.5, 0, firstSetZ, 3, 8, 7);
-      let pillar2 = await createPillar2(world, scene, 9.5, 0, firstSetZ, 3, 8, 7);
-      let pillar3 = await createPillar2(world, scene, -9.5, 0, firstSetZ, 3, 8, 7);
-      let pillar4 = await createPillar2(
-        world,
-        scene,
-        -28.5,
-        0,
-        firstSetZ,
-        3,
-        8,
-        7
-      );
-  
-  
-      const x1 = pillar1.position.x;
-      const x2 = pillar2.position.x;
-      const x3 = pillar3.position.x;
-      const x4 = pillar4.position.x;
-  
-      //moving gates between pillar 1 and 2
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          x1,
-          0,
-          pillar1.position.z,
-          8,
-          2,
-          pillar1,
-          pillar2
-        )
-      );
-  
-      gates.push(
-        await createGateExplosion(
-          scene,
-          model,
-          pillar2.position.x,
-          0,
-          pillar3.position.z,
-          8,
-          2,
-          pillar2,
-          pillar3
-        )
-      );
-  
-      //moving gates between pillar 3 and 4
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          x3,
-          0,
-          pillar3.position.z,
-          8,
-          2,
-          pillar3,
-          pillar4
-        )
-      );
-  
-      //SECOND SET OF PILLARS
-  
-      const secondSetZ = 300; // Z position for the second set of pillars
-      const leftmostX = 28.5; // Fixed x position for the leftmost pillar
-      const rightmostX = -28.5; // Fixed x position for the rightmost pillar
-  
-      // Calculate equal spacing between the pillars
-      const totalDistance = leftmostX - rightmostX; // Distance between leftmost and rightmost
-      const pillarSpacing = totalDistance / 4; // We have 4 gaps for 5 pillars
-  
-      // Create 4 pillars with equal spacing between them
-      let pillar5 = await createPillar2(world, scene, x1, 0, secondSetZ, 3, 8, 7);
-  
-      let pillar6 = await createPillar2(world, scene, x2, 0, secondSetZ, 3, 8, 7);
-  
-      let pillar7 = await createPillar2(world, scene, x3, 0, secondSetZ, 3, 8, 7);
-      let pillar8 = await createPillar2(
-        world,
-        scene,
-        rightmostX,
-        0,
-        secondSetZ,
-        3,
-        8,
-        7
-      );
-  
-      // Moving gates between pillar 6 and 7
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          pillar6.position.x,
-          0,
-          pillar6.position.z,
-          8,
-          2,
-          pillar6,
-          pillar7
-        )
-      );
-  
-      gates.push(
-        await createGateExplosion(
-          scene,
-          model,
-          pillar5.position.x,
-          0,
-          pillar6.position.z,
-          8,
-          2,
-          pillar5,
-          pillar6
-        )
-      );
-  
-      // Moving gates between pillar 7 and 8
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          pillar7.position.x,
-          0,
-          pillar7.position.z,
-          8,
-          2,
-          pillar7,
-          pillar8
-        )
-      );
-  
-      // Third set of pillars
-      const thirdSetZ = 325;
-  
-      let pillar9 = await createPillar2(world, scene, x1, 0, thirdSetZ, 3, 8, 7);
-  
-      let pillar10 = await createPillar2(world, scene, x2, 0, thirdSetZ, 3, 8, 7);
-  
-      let pillar11 = await createPillar2(world, scene, x3, 0, thirdSetZ, 3, 8, 7);
-      let pillar12 = await createPillar2(
-        world,
-        scene,
-        rightmostX,
-        0,
-        thirdSetZ,
-        3,
-        8,
-        7
-      );
-  
-      // Moving gates between pillar 10 and 11
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          pillar10.position.x,
-          0,
-          pillar10.position.z,
-          8,
-          2,
-          pillar10,
-          pillar11
-        )
-      );
-  
-      gates.push(
-        await createGateExplosion(
-          scene,
-          model,
-          pillar9.position.x,
-          0,
-          pillar10.position.z,
-          8,
-          2,
-          pillar9,
-          pillar10
-        )
-      );
-      // Moving gates between pillar 11 and 12
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          pillar11.position.x,
-          0,
-          pillar11.position.z,
-          8,
-          2,
-          pillar11,
-          pillar12
-        )
-      );
-  
-      // Fourth set of pillars
-      const fourthSetZ = 350;
-  
-      let pillar13 = await createPillar2(world, scene, x1, 0, fourthSetZ, 3, 8, 7);
-  
-      let pillar14 = await createPillar2(world, scene, x2, 0, fourthSetZ, 3, 8, 7);
-  
-      let pillar15 = await createPillar2(world, scene, x3, 0, fourthSetZ, 3, 8, 7);
-      let pillar16 = await createPillar2(
-        world,
-        scene,
-        rightmostX,
-        0,
-        fourthSetZ,
-        3,
-        8,
-        7
-      );
-  
-      // Moving gates between pillar 13 and 14
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          pillar13.position.x,
-          0,
-          pillar13.position.z,
-          8,
-          2,
-          pillar13,
-          pillar14
-        )
-      );
-      gates.push(
-        await createGateExplosion(
-          scene,
-          model,
-          pillar15.position.x,
-          0,
-          pillar16.position.z,
-          8,
-          2,
-          pillar15,
-          pillar16
-        )
-      );
-      // Moving gates between pillar 14 and 15
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          pillar14.position.x,
-          0,
-          pillar14.position.z,
-          8,
-          2,
-          pillar14,
-          pillar15
-        )
-      );
-  
-      // Fifth set of pillars
-      const fifthSetZ = 375;
-  
-      let pillar17 = await createPillar2(world, scene, x1, 0, fifthSetZ, 3, 8, 7);
-  
-      let pillar18 = await createPillar2(world, scene, x2, 0, fifthSetZ, 3, 8, 7);
-  
-      let pillar19 = await createPillar2(world, scene, x3, 0, fifthSetZ, 3, 8, 7);
-      let pillar20 = await createPillar2(
-        world,
-        scene,
-        rightmostX,
-        0,
-        fifthSetZ,
-        3,
-        8,
-        7
-      );
-  
-      // Moving gates between pillar 17 and 18
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          pillar17.position.x,
-          0,
-          pillar17.position.z,
-          8,
-          2,
-          pillar17,
-          pillar18
-        )
-      );
-      gates.push(
-        await createGateExplosion(
-          scene,
-          model,
-          pillar18.position.x,
-          0,
-          pillar19.position.z,
-          8,
-          2,
-          pillar18,
-          pillar19
-        )
-      );
-      // Moving gates between pillar 19 and 20
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          pillar19.position.x,
-          0,
-          pillar19.position.z,
-          8,
-          2,
-          pillar19,
-          pillar20
-        )
-      );
-  
-      // Sixth set of pillars
-      const sixthSetZ = 400;
-  
-      let pillar21 = await createPillar2(world, scene, x1, 0, sixthSetZ, 3, 8, 7);
-  
-      let pillar22 = await createPillar2(world, scene, x2, 0, sixthSetZ, 3, 8, 7);
-  
-      let pillar23 = await createPillar2(world, scene, x3, 0, sixthSetZ, 3, 8, 7);
-      let pillar24 = await createPillar2(
-        world,
-        scene,
-        rightmostX,
-        0,
-        sixthSetZ,
-        3,
-        8,
-        7
-      );
-  
-      // Moving gates between pillar 21 and 22
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          pillar21.position.x,
-          0,
-          pillar21.position.z,
-          8,
-          2,
-          pillar21,
-          pillar22
-        )
-      );
-      // Moving gates between pillar 22 and 23
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          pillar22.position.x,
-          0,
-          pillar22.position.z,
-          8,
-          2,
-          pillar22,
-          pillar23
-        )
-      );
-      gates.push(
-        await createGateExplosion(
-          scene,
-          model,
-          pillar23.position.x,
-          0,
-          pillar24.position.z,
-          8,
-          2,
-          pillar23,
-          pillar24
-        )
-      );
-  
-      // Seventh set of pillars
-      const seventhSetZ = 425;
-  
-      let pillar25 = await createPillar2(
+  return new Promise(async (resolve) => {
+    //FIRST SET OF PILLARS AND GATES (4 pillars, 3 gates)
+
+    const firstSetZ = 275; // Z position for the first set of pillars
+
+    let pillar1 = await createPillar(world, scene, 28.5, 0, firstSetZ, 3, 8, 7);
+    let pillar2 = await createPillar(world, scene, 9.5, 0, firstSetZ, 3, 8, 7);
+    let pillar3 = await createPillar(world, scene, -9.5, 0, firstSetZ, 3, 8, 7);
+    let pillar4 = await createPillar(
+      world,
+      scene,
+      -28.5,
+      0,
+      firstSetZ,
+      3,
+      8,
+      7
+    );
+
+
+    const x1 = pillar1.position.x;
+    const x2 = pillar2.position.x;
+    const x3 = pillar3.position.x;
+    const x4 = pillar4.position.x;
+
+    //moving gates between pillar 1 and 2
+    gates.push(
+      await createGate2(
         world,
         scene,
         x1,
         0,
-        seventhSetZ,
-        3,
+        pillar1.position.z,
         8,
-        7
-      );
-  
-      let pillar26 = await createPillar2(
-        world,
+        2,
+        pillar1,
+        pillar2
+      )
+    );
+
+    gates.push(
+      await createGateExplosion(
         scene,
-        x2,
+        model,
+        pillar2.position.x,
         0,
-        seventhSetZ,
-        3,
+        pillar3.position.z,
         8,
-        7
-      );
-  
-      let pillar27 = await createPillar2(
+        2,
+        pillar2,
+        pillar3
+      )
+    );
+
+    //moving gates between pillar 3 and 4
+    gates.push(
+      await createGate2(
         world,
         scene,
         x3,
         0,
-        seventhSetZ,
-        3,
+        pillar3.position.z,
         8,
-        7
-      );
-      let pillar28 = await createPillar2(
+        2,
+        pillar3,
+        pillar4
+      )
+    );
+
+    //SECOND SET OF PILLARS
+
+    const secondSetZ = 300; // Z position for the second set of pillars
+    const leftmostX = 28.5; // Fixed x position for the leftmost pillar
+    const rightmostX = -28.5; // Fixed x position for the rightmost pillar
+
+    // Calculate equal spacing between the pillars
+    const totalDistance = leftmostX - rightmostX; // Distance between leftmost and rightmost
+    const pillarSpacing = totalDistance / 4; // We have 4 gaps for 5 pillars
+
+    // Create 4 pillars with equal spacing between them
+    let pillar5 = await createPillar(world, scene, x1, 0, secondSetZ, 3, 8, 7);
+
+    let pillar6 = await createPillar(world, scene, x2, 0, secondSetZ, 3, 8, 7);
+
+    let pillar7 = await createPillar(world, scene, x3, 0, secondSetZ, 3, 8, 7);
+    let pillar8 = await createPillar(
+      world,
+      scene,
+      rightmostX,
+      0,
+      secondSetZ,
+      3,
+      8,
+      7
+    );
+
+    // Moving gates between pillar 6 and 7
+    gates.push(
+      await createGate2(
         world,
         scene,
-        rightmostX,
+        pillar6.position.x,
         0,
-        seventhSetZ,
-        3,
+        pillar6.position.z,
         8,
-        7
-      );
-  
-      // Moving gates between pillar 26 and 27
-      gates.push(
-        await createGateExplosion(
-          scene,
-          model,
-          pillar25.position.x,
-          0,
-          pillar26.position.z,
-          8,
-          2,
-          pillar25,
-          pillar26
-        )
-      );
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          pillar26.position.x,
-          0,
-          pillar26.position.z,
-          8,
-          2,
-          pillar26,
-          pillar27
-        )
-      );
-      // Moving gates between pillar 27 and 28
-      gates.push(
-        await createGate2(
-          world,
-          scene,
-          pillar27.position.x,
-          0,
-          pillar27.position.z,
-          8,
-          2,
-          pillar27,
-          pillar28
-        )
-      );
-  
-      AddVisualGateHelpers();
-      // AddVisualCylinderHelpers();
-      resolve();
-    });
-  }
+        2,
+        pillar6,
+        pillar7
+      )
+    );
 
-  async function initGroundCylinders() {
-    return new Promise(async (resolve) => {
-      horizontalCylinders.push(
-        await createHorizontalCylinder(world, scene, -20, -2.5, 65, 2, 40)
-      );
-      horizontalCylinders.push(
-        await createHorizontalCylinder(world, scene, 0, -2.5, 65, 2, 40)
-      );
-      horizontalCylinders.push(
-        await createHorizontalCylinder(world, scene, 20, -2.5, 65, 2, 40)
-      );
-  
-      resolve();
-    });
-  }
+    gates.push(
+      await createGateExplosion(
+        scene,
+        model,
+        pillar5.position.x,
+        0,
+        pillar6.position.z,
+        8,
+        2,
+        pillar5,
+        pillar6
+      )
+    );
+
+    // Moving gates between pillar 7 and 8
+    gates.push(
+      await createGate2(
+        world,
+        scene,
+        pillar7.position.x,
+        0,
+        pillar7.position.z,
+        8,
+        2,
+        pillar7,
+        pillar8
+      )
+    );
+
+    // Third set of pillars
+    const thirdSetZ = 325;
+
+    let pillar9 = await createPillar(world, scene, x1, 0, thirdSetZ, 3, 8, 7);
+
+    let pillar10 = await createPillar(world, scene, x2, 0, thirdSetZ, 3, 8, 7);
+
+    let pillar11 = await createPillar(world, scene, x3, 0, thirdSetZ, 3, 8, 7);
+    let pillar12 = await createPillar(
+      world,
+      scene,
+      rightmostX,
+      0,
+      thirdSetZ,
+      3,
+      8,
+      7
+    );
+
+    // Moving gates between pillar 10 and 11
+    gates.push(
+      await createGate2(
+        world,
+        scene,
+        pillar10.position.x,
+        0,
+        pillar10.position.z,
+        8,
+        2,
+        pillar10,
+        pillar11
+      )
+    );
+
+    gates.push(
+      await createGateExplosion(
+        scene,
+        model,
+        pillar9.position.x,
+        0,
+        pillar10.position.z,
+        8,
+        2,
+        pillar9,
+        pillar10
+      )
+    );
+    // Moving gates between pillar 11 and 12
+    gates.push(
+      await createGate2(
+        world,
+        scene,
+        pillar11.position.x,
+        0,
+        pillar11.position.z,
+        8,
+        2,
+        pillar11,
+        pillar12
+      )
+    );
+
+    // Fourth set of pillars
+    const fourthSetZ = 350;
+
+    let pillar13 = await createPillar(world, scene, x1, 0, fourthSetZ, 3, 8, 7);
+
+    let pillar14 = await createPillar(world, scene, x2, 0, fourthSetZ, 3, 8, 7);
+
+    let pillar15 = await createPillar(world, scene, x3, 0, fourthSetZ, 3, 8, 7);
+    let pillar16 = await createPillar(
+      world,
+      scene,
+      rightmostX,
+      0,
+      fourthSetZ,
+      3,
+      8,
+      7
+    );
+
+    // Moving gates between pillar 13 and 14
+    gates.push(
+      await createGate2(
+        world,
+        scene,
+        pillar13.position.x,
+        0,
+        pillar13.position.z,
+        8,
+        2,
+        pillar13,
+        pillar14
+      )
+    );
+    gates.push(
+      await createGateExplosion(
+        scene,
+        model,
+        pillar15.position.x,
+        0,
+        pillar16.position.z,
+        8,
+        2,
+        pillar15,
+        pillar16
+      )
+    );
+    // Moving gates between pillar 14 and 15
+    gates.push(
+      await createGate2(
+        world,
+        scene,
+        pillar14.position.x,
+        0,
+        pillar14.position.z,
+        8,
+        2,
+        pillar14,
+        pillar15
+      )
+    );
+
+    // Fifth set of pillars
+    const fifthSetZ = 375;
+
+    let pillar17 = await createPillar(world, scene, x1, 0, fifthSetZ, 3, 8, 7);
+
+    let pillar18 = await createPillar(world, scene, x2, 0, fifthSetZ, 3, 8, 7);
+
+    let pillar19 = await createPillar(world, scene, x3, 0, fifthSetZ, 3, 8, 7);
+    let pillar20 = await createPillar(
+      world,
+      scene,
+      rightmostX,
+      0,
+      fifthSetZ,
+      3,
+      8,
+      7
+    );
+
+    // Moving gates between pillar 17 and 18
+    gates.push(
+      await createGate2(
+        world,
+        scene,
+        pillar17.position.x,
+        0,
+        pillar17.position.z,
+        8,
+        2,
+        pillar17,
+        pillar18
+      )
+    );
+    gates.push(
+      await createGateExplosion(
+        scene,
+        model,
+        pillar18.position.x,
+        0,
+        pillar19.position.z,
+        8,
+        2,
+        pillar18,
+        pillar19
+      )
+    );
+    // Moving gates between pillar 19 and 20
+    gates.push(
+      await createGate2(
+        world,
+        scene,
+        pillar19.position.x,
+        0,
+        pillar19.position.z,
+        8,
+        2,
+        pillar19,
+        pillar20
+      )
+    );
+
+    // Sixth set of pillars
+    const sixthSetZ = 400;
+
+    let pillar21 = await createPillar(world, scene, x1, 0, sixthSetZ, 3, 8, 7);
+
+    let pillar22 = await createPillar(world, scene, x2, 0, sixthSetZ, 3, 8, 7);
+
+    let pillar23 = await createPillar(world, scene, x3, 0, sixthSetZ, 3, 8, 7);
+    let pillar24 = await createPillar(
+      world,
+      scene,
+      rightmostX,
+      0,
+      sixthSetZ,
+      3,
+      8,
+      7
+    );
+
+    // Moving gates between pillar 21 and 22
+    gates.push(
+      await createGate2(
+        world,
+        scene,
+        pillar21.position.x,
+        0,
+        pillar21.position.z,
+        8,
+        2,
+        pillar21,
+        pillar22
+      )
+    );
+    // Moving gates between pillar 22 and 23
+    gates.push(
+      await createGate2(
+        world,
+        scene,
+        pillar22.position.x,
+        0,
+        pillar22.position.z,
+        8,
+        2,
+        pillar22,
+        pillar23
+      )
+    );
+    gates.push(
+      await createGateExplosion(
+        scene,
+        model,
+        pillar23.position.x,
+        0,
+        pillar24.position.z,
+        8,
+        2,
+        pillar23,
+        pillar24
+      )
+    );
+
+    // Seventh set of pillars
+    const seventhSetZ = 425;
+
+    let pillar25 = await createPillar(
+      world,
+      scene,
+      x1,
+      0,
+      seventhSetZ,
+      3,
+      8,
+      7
+    );
+
+    let pillar26 = await createPillar(
+      world,
+      scene,
+      x2,
+      0,
+      seventhSetZ,
+      3,
+      8,
+      7
+    );
+
+    let pillar27 = await createPillar(
+      world,
+      scene,
+      x3,
+      0,
+      seventhSetZ,
+      3,
+      8,
+      7
+    );
+    let pillar28 = await createPillar(
+      world,
+      scene,
+      rightmostX,
+      0,
+      seventhSetZ,
+      3,
+      8,
+      7
+    );
+
+    // Moving gates between pillar 26 and 27
+    gates.push(
+      await createGateExplosion(
+        scene,
+        model,
+        pillar25.position.x,
+        0,
+        pillar26.position.z,
+        8,
+        2,
+        pillar25,
+        pillar26
+      )
+    );
+    gates.push(
+      await createGate2(
+        world,
+        scene,
+        pillar26.position.x,
+        0,
+        pillar26.position.z,
+        8,
+        2,
+        pillar26,
+        pillar27
+      )
+    );
+    // Moving gates between pillar 27 and 28
+    gates.push(
+      await createGate2(
+        world,
+        scene,
+        pillar27.position.x,
+        0,
+        pillar27.position.z,
+        8,
+        2,
+        pillar27,
+        pillar28
+      )
+    );
+
+    AddVisualGateHelpers();
+    // AddVisualCylinderHelpers();
+    resolve();
+  });
+}
+
+
 
 function AddVisualGateHelpers() {
   // Add visual helpers for the gates
@@ -1756,169 +1632,56 @@ function AddVisualGateHelpers() {
   });
 }
 
-function AddVisualCylinderHelpers() {
+
+function AddVisualHorizontalCylinderHelpers() {
   // Add visual helpers for the cylinders
-  cylinders.forEach((cylinder) => {
+  horizontalCylinders.forEach((cylinder) => {
     const helper = new THREE.BoxHelper(cylinder, "blue");
-    cylinderHelpers.push(helper);
-    //scene.add(helper);
+    horizontalCylinderHelpers.push(helper);
+    scene.add(helper);
   });
 }
 
 
-
-
-
-
-let timerInterval, countdownInterval;
-
-// Update the camera position to follow the player and initial panning
+// Update the camera position to follow the player
+// Update the updateCamera function
 function updateCamera() {
-  if (!model || isPlayerDead) return;
+  if (!model) return;
 
-  // Handle panning animation
-  if (isPanning) {
-    const currentTime = Date.now();
-    const elapsed = currentTime - panStartTime;
-    panProgress = Math.min(elapsed / panDuration, 1);
-
-    // Use easing function for smooth motion
-    const easedProgress = easeInOutQuad(panProgress);
-
-    // Interpolate camera position
-    camera.position.lerpVectors(
-      panStartPosition,
-      panEndPosition,
-      easedProgress
-    );
-
-    //look at a point in front and under the camera
-    // Calculate look-at point: 50 units ahead and 20 units below camera
-    const lookAtPoint = camera.position.clone();
-    // lookAtPoint.z -= 50; // Look 50 units ahead
-    lookAtPoint.x += 70;
-    lookAtPoint.y -= 50; // Look 20 units down
-
-    camera.lookAt(lookAtPoint);
-
-    // Check if panning is complete
-    if (panProgress >= 1) {
-      isPanning = false;
-      panProgress = 0;
-    }
-
-    return; // Skip regular camera updates while panning
-  }
-
-  // Your existing camera update logic
   if (isFirstPerson) {
-    model.visible = false;
-    const headPosition = model.position.clone().add(new THREE.Vector3(0, 2, 0));
-    camera.position.copy(headPosition);
-    camera.rotation.copy(controls.getObject().rotation);
+    const headPosition = model.position.clone().add(new THREE.Vector3(0, 2, 0)); // get the model's head position
+    camera.position.copy(headPosition); // set the camera position to the model's head position
+    camera.rotation.copy(controls.getObject().rotation); // set the camera rotation to the model's rotation
   } else {
+    // Calculate camera position based on offset and rotation
     const cameraPosition = new THREE.Vector3(
       Math.sin(cameraRotation.y) * cameraOffset.z,
       cameraOffset.y,
       Math.cos(cameraRotation.y) * cameraOffset.z
     );
+
+    // Add player position to camera position
     cameraPosition.add(model.position);
+
+    // Update camera position with smooth lerp
     camera.position.lerp(cameraPosition, cameraLerpFactor);
+
+    // Calculate look target (slightly above player position)
     const lookTarget = model.position.clone().add(new THREE.Vector3(0, 2, 0));
     camera.lookAt(lookTarget);
+
+    // Apply pitch rotation after looking at target
     camera.rotateX(cameraRotation.x);
   }
 }
-
-// Easing function for smooth acceleration and deceleration
-function easeInOutQuad(t) {
-  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-}
+// Start game timer
 function startGameTimer() {
-  startCountdown(); // Only start the countdown, don't start the timer yet
-}
-
-function removeEventListeners() {
-  //remove event listeners
-  window.removeEventListener("keydown", handleKeyDown);
-  window.removeEventListener("keyup", handleKeyUp);
-  window.removeEventListener("mousemove", onMouseMove, false);
-  //remove event listener for 'p' key
-}
-
-function startCountdown() {
-  removeEventListeners(); // Remove any existing event listeners
-
-  const mapCountdownSounds = {
-    3: countdownThreeSound,
-    2: countdownTwoSound,
-    1: countdownOneSound,
-    GO: countdownGoSound,
-  };
-
-  function playCountdownSound(count) {
-    // Stop any currently playing sound
-    if (mapCountdownSounds[count].isPlaying) {
-      mapCountdownSounds[count].stop();
-    }
-    // Play the sound for the current countdown number
-    mapCountdownSounds[count].play();
-  }
-
-  // Clear existing countdown element if it exists
-  let countdownDisplay = document.getElementById("countdown");
-  if (countdownDisplay) {
-    countdownDisplay.remove();
-  }
-
-  let count = 3;
-  countdownDisplay = document.createElement("div");
-  countdownDisplay.id = "countdown";
-  countdownDisplay.style.cssText = `
-            position: fixed;
-            top: 25%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 150px;
-            font-weight: bold;
-            color: #ffffff;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        `;
-  document.body.appendChild(countdownDisplay);
-
-  countdownDisplay.style.display = "block";
-  countdownInterval = setInterval(() => {
-    if (count > 0) {
-      playCountdownSound(count); // Play sound for the current countdown number
-      countdownDisplay.textContent = count;
-      countdownDisplay.style.transform = "translate(-50%, -50%) scale(1.2)";
-      setTimeout(() => {
-        countdownDisplay.style.transform = "translate(-50%, -50%) scale(1)";
-      }, 200);
-      count--;
-    } else {
-      countdownDisplay.textContent = "GO!";
-      playCountdownSound("GO"); // Play "GO.mp3" sound
-
-      // Start the timer and player control after the countdown ends
-      initEventListeners();
-      initializeTimer();
-
-      // Clear the interval and hide the countdown display after 1 second
-      clearInterval(countdownInterval);
-      setTimeout(() => {
-        countdownDisplay.style.display = "none";
-      }, 1000);
-    }
-  }, 1000);
-}
-
-function initializeTimer() {
-  startTime = Date.now();
-  elapsedTime = 0;
+  startTime = Date.now(); // Get the current timestamp in milliseconds
+  elapsedTime = 0; // Reset elapsed time
   timerRunning = true;
   updateTimerDisplay(0);
-  timerInterval = setInterval(updateTimer, 100);
+  // Start the interval to update the timer every 100 ms (or your desired interval)
+  // timerInterval = setInterval(updateTimer, 100);
 }
 
 // Update game timer
@@ -1940,33 +1703,18 @@ function showTimer() {
 
   // Style the timer
   timer.style.position = "fixed";
-  timer.style.top = "12px";
-  timer.style.right = "150px";
+  timer.style.top = "10px";
+  timer.style.right = "10px";
   timer.style.color = "white";
   timer.style.padding = "10px";
   timer.style.borderRadius = "5px";
-  timer.style.fontSize = "30px";
+  timer.style.fontSize = "24px";
   timer.style.zIndex = "10000"; // Higher than other game elements
 
   // Initial timer content
-  timer.textContent = "0.0 s";
+  timer.textContent = "0.000 s";
 
   document.body.appendChild(timer);
-}
-
-// Create a container for the hearts when the game starts
-function createHeartsContainer() {
-  const heartsContainer = document.createElement("div");
-  heartsContainer.id = "hearts-container";
-  heartsContainer.style.position = "fixed";
-  heartsContainer.style.top = "20px";
-  heartsContainer.style.right = "10px"; // Adjust based on timer position
-  heartsContainer.style.display = "flex";
-  heartsContainer.style.zIndex = "10000"; // Higher than other game elements
-
-  //add a thick border around this container
-  //heartsContainer.style.border = "2px solid white";
-  document.body.appendChild(heartsContainer);
 }
 
 // Update the timer display
@@ -1980,39 +1728,10 @@ function updateTimerDisplay(timeInMs) {
 
 // Reset timer function (useful for restarts)
 function resetTimer() {
+  startTime = Date.now(); // Get the current timestamp in milliseconds
   elapsedTime = 0; // Reset elapsed time
-  timerRunning = false;
+  timerRunning = true;
   updateTimerDisplay(0);
-}
-
-// Add these variables to your global scope
-let isPanning = false;
-let panProgress = 0;
-let panStartPosition = null;
-let panEndPosition = null;
-let panStartTime = null;
-let panDuration = 5000; // 10 seconds
-
-// Modified panCameraToStart function
-async function panCameraToStart() {
-  return new Promise((resolve) => {
-    // Set initial camera position
-    camera.position.set(-70, 50, 350);
-    panStartPosition = new THREE.Vector3(-70, 50, 400);
-    panEndPosition = new THREE.Vector3(-70, 50, 10);
-    panStartTime = Date.now();
-    isPanning = true;
-
-    // Create an interval to check when panning is complete
-    const checkInterval = setInterval(() => {
-      if (!isPanning) {
-        clearInterval(checkInterval);
-        isFirstPerson = false;
-        updateCamera();
-        resolve();
-      }
-    }, 100);
-  });
 }
 
 let isPlayerDead = false;
@@ -2024,9 +1743,14 @@ let frame = 0;
 function animate() {
   //console.log("Frame:", frame);
   frame++;
-  stats.begin();
 
-  checkJumpState();
+  //start timer on 2nd frame because theres a big time difference between the first frame and the second frame
+  if (frame === 2) {
+    startGameTimer();
+    //showTimer;
+  }
+
+  stats.begin();
 
   // update the game timer
   updateTimer();
@@ -2102,10 +1826,26 @@ function animate() {
     //player bounding box
     const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
-
-
-
     /*Actual bounding boxes for the player and obstacles*/
+
+    //wreckingballs bounding boxes
+    wreckingBalls.forEach((wreckingBall) => {
+      const cylinderBoundingBox = new THREE.Box3().setFromObject(wreckingBall);
+
+      if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
+      }
+    });
 
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
     if (playerHelper) {
@@ -2170,7 +1910,14 @@ function animate() {
   //   updateParticles();
   // }
 
+  //Animate the gates
+  //animateGates(deltaTime);
   animateWreckingBalls(deltaTime)
+  //animateCylinders(deltaTime);
+  //animateFans(deltaTime);
+  //animateRodsX(deltaTime);
+  //animateRodsZ(deltaTime);
+
   // cannonDebugger.update();
   renderer.render(scene, camera);
   //controls.update();
@@ -2244,7 +1991,7 @@ function generateHearts(currentLives) {
   for (let i = 0; i < currentLives; i++) {
     const heartImg = document.createElement("img");
     heartImg.src = heart; // Use the imported heart image
-    heartImg.style.width = "40px"; // Adjust size as needed
+    heartImg.style.width = "30px"; // Adjust size as needed
     heartImg.style.marginLeft = "5px"; // Space between hearts
     heartImg.style.position = "relative";
     heartImg.style.zIndex = "10001"; // Higher than other game elements
@@ -2252,39 +1999,33 @@ function generateHearts(currentLives) {
   }
 }
 
+// Create a container for the hearts when the game starts
+function createHeartsContainer() {
+  const heartsContainer = document.createElement("div");
+  heartsContainer.id = "hearts-container";
+  heartsContainer.style.position = "fixed";
+  heartsContainer.style.top = "20px";
+  heartsContainer.style.right = "100px"; // Adjust based on timer position
+  heartsContainer.style.display = "flex";
+  heartsContainer.style.zIndex = "10000"; // Higher than other game elements
+
+  //add a thick border around this container
+  //heartsContainer.style.border = "2px solid white";
+  document.body.appendChild(heartsContainer);
+}
+
 // Example usage: generateHearts(3);
 
 function toggleMenu() {
   const gameMenu = document.getElementById("gameMenu");
-
   if (gameMenu.style.display === "block") {
     gameMenu.style.display = "none";
 
-    //unpauseGame
-
-    isGamePaused = false;
-
-    //take control of mouse
-    document.body.requestPointerLock();
-
-    //click anywhere on the screen
-    document.body.click();
-
     // unpauseGame();
   } else {
-    //pauseGame
-    isGamePaused = true;
-
-    document.exitPointerLock();
-
     const resumeButton = document.getElementById("resumeButton");
     const startButton = document.getElementById("startButton");
     const restartButton = document.getElementById("restartButton");
-
-    //show volume slider
-    const volumeControl = document.getElementById("volume-control");
-    console.log("volumeControl", volumeControl);
-    if (volumeControl) volumeControl.style.display = "block";
 
     startButton.style.display = "none";
     resumeButton.style.display = "block";
@@ -2294,8 +2035,6 @@ function toggleMenu() {
     const winMessage = document.getElementById("winMessage");
     const congratsMessage = document.getElementById("congratsMessage");
     const bestTimeMessage = document.getElementById("bestTimeMessage");
-    //hide "You lost" message
-    const youLostMessage = document.getElementById("lostMessage");
 
     if (winMessage) {
       winMessage.remove();
@@ -2308,12 +2047,7 @@ function toggleMenu() {
       bestTimeMessage.remove();
     }
 
-    if (youLostMessage) {
-      youLostMessage.remove();
-    }
-
     gameMenu.style.display = "block";
-    //show the volume control
 
     // pauseGame();
   }
@@ -2327,13 +2061,11 @@ function showWinScreen(elapsedTime) {
   document.getElementById("resumeButton").style.display = "none";
   document.getElementById("restartButton").style.display = "block"; // Show restart button
 
-  document.getElementById("volume-control").style.display = "none";
-
   //show the game menu
   gameMenu.style.display = "block";
 
   //disable player movement by removing event listers for wasd
-  removeEventListeners();
+  window.removeEventListener("keydown", handleKeyDown);
 
   //exit pointer lock
   document.exitPointerLock();
@@ -2350,24 +2082,18 @@ function showWinScreen(elapsedTime) {
   winMessage.style.textAlign = "center"; // Center the text
   winMessage.style.color = "white";
 
-  //hide you lost message if it exists
-  const youLostMessage = document.getElementById("lostMessage");
-  if (youLostMessage) {
-    youLostMessage.remove();
-  }
-
   // Create the congratulatory message
   const congratsMessage = document.createElement("h2");
   congratsMessage.id = "congratsMessage";
-  congratsMessage.textContent = "Congratulations! ";
+  congratsMessage.textContent = "Congratulations!";
   winMessage.appendChild(congratsMessage);
 
   //store elapsed time in local storage as best time
-  let bestTime = localStorage.getItem("bestTimeLevel2");
+  let bestTime = localStorage.getItem("bestTime");
 
   if (!bestTime) {
-    localStorage.setItem("bestTimeLevel2", elapsedTime);
-    bestTime = localStorage.getItem("bestTimeLevel2");
+    localStorage.setItem("bestTime", elapsedTime);
+    bestTime = localStorage.getItem("bestTime");
   }
 
   // Create a best time message
@@ -2378,7 +2104,7 @@ function showWinScreen(elapsedTime) {
 
   //new best time
   if (elapsedTime <= bestTime) {
-    localStorage.setItem("bestTimeLevel2", elapsedTime);
+    localStorage.setItem("bestTime", elapsedTime);
     congratsMessage.textContent = "Congratulations! New Best Time!";
   }
 
@@ -2402,19 +2128,19 @@ function generateBestTime() {
 
   // Style the best time container
   bestTimeContainer.style.position = "fixed";
-  bestTimeContainer.style.top = "60px"; // Adjust to position it below the timer
-  bestTimeContainer.style.right = "15px"; // Same right alignment as the timer
+  bestTimeContainer.style.top = "50px"; // Adjust to position it below the timer
+  bestTimeContainer.style.right = "10px"; // Same right alignment as the timer
   bestTimeContainer.style.color = "white"; // Text color
-  bestTimeContainer.style.fontSize = "30px"; // Font size
+  bestTimeContainer.style.fontSize = "20px"; // Font size
   bestTimeContainer.style.zIndex = "10000"; // Higher than other game elements
 
   // Retrieve the best time from localStorage
-  let bestTime = localStorage.getItem("bestTimeLevel2");
+  let bestTime = localStorage.getItem("bestTime");
 
   // Format the display message
   if (bestTime) {
     bestTimeContainer.textContent = `Best Time: ${parseFloat(bestTime).toFixed(
-      1
+      3
     )} s`; // Show best time formatted to 3 decimal places
   } else {
     bestTimeContainer.textContent = "Best Time: N/A"; // Default message if no best time
@@ -2430,41 +2156,12 @@ function resetGame() {
   console.log("Game is restarting...");
 }
 
-function restartGame() {
-  // do countdown again
-
-  //reset timer to 0
-  resetTimer();
-  startCountdown();
-
-  playerBody.position.set(0, 10, 10);
-  //restart timer
-  //resetTimer();
-  currentLives = 3;
-  generateHearts(currentLives);
-  gameWon = false;
-}
-
 //Main function to start the game
 async function startGame() {
   try {
     let startButton = document.getElementById("startButton");
     let resumeButton = document.getElementById("resumeButton");
     let restartButton = document.getElementById("restartButton");
-
-    // Add an event listener to the volume slider
-    function updateVolume() {
-      // Get the current slider value
-      const volume = volumeSlider.value;
-      // Update the game volume
-      gameVolume = volume;
-
-      updateGameVolume();
-    }
-
-    volumeSlider.addEventListener("input", updateVolume);
-    // Set the initial volume of the slider
-    volumeSlider.value = gameVolume;
 
     //Add event listener to the resume button
     resumeButton.addEventListener("click", () => {
@@ -2479,27 +2176,46 @@ async function startGame() {
     restartButton.addEventListener("click", () => {
       // window.location.reload();
       toggleMenu();
-      generateBestTime();
 
-      restartGame();
+      //if wasd dont have event listeners, add them back
+      window.addEventListener("keydown", handleKeyDown);
+
+      //Respawn the player(make it a function cause timer needs to be reset, etc)
+      playerBody.position.set(0, 10, 10);
+
+      //restart timer
+      resetTimer();
+
+      currentLives = 3;
+      generateHearts(currentLives);
+
+      gameWon = false;
+
+      generateBestTime();
     });
 
     //Add event listener to the start button
     startButton.addEventListener("click", async () => {
       showLoadingScreen();
       hideGameMenu();
-      //render the game
       await init();
-
-      //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
+      //startGameTimer();
       showTimer();
       hideLoadingScreen();
       createHeartsContainer();
       generateHearts(3);
       generateBestTime();
+
       renderer.setAnimationLoop(animate);
-      //await panCameraToStart();
-      startCountdown();
+
+      //Add pause event listener
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "P" || event.key === "p") {
+          toggleMenu();
+
+          document.exitPointerLock();
+        }
+      });
     });
   } catch (error) {
     console.error("Error during initialization:", error);

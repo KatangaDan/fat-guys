@@ -1530,8 +1530,10 @@ async function animateCrown(deltaTime) {
 async function animateTurnstile(deltaTime) {
   return new Promise((resolve) => {
     turnstiles.forEach((turnstile) => {
-      // Only animate if turnstile is ahead of player
-      if (turnstile.mesh && turnstile.body && turnstile.mesh.position.z > playerBody.position.z - 30) {
+      // Only animate if turnstile is ahead of player and within range
+      if (turnstile.mesh && turnstile.body && 
+          turnstile.mesh.position.z > playerBody.position.z - 30 && // Don't animate obstacles behind player
+          turnstile.mesh.position.z < playerBody.position.z + 100) { // Don't animate obstacles too far ahead
         const rotation = deltaTime * 1.0;
         turnstile.mesh.rotation.y += rotation;
         turnstile.body.quaternion.setFromAxisAngle(
@@ -1547,8 +1549,10 @@ async function animateTurnstile(deltaTime) {
 async function animateHammer(deltaTime) {
   return new Promise((resolve) => {
     hammers.forEach((hammer) => {
-      // Only animate if hammer is ahead of player
-      if (hammer && hammer.updateRotation && hammer.mesh.position.z > playerBody.position.z - 30) {
+      // Only animate if hammer is ahead of player and within range
+      if (hammer && hammer.updateRotation && 
+          hammer.mesh.position.z > playerBody.position.z - 30 &&
+          hammer.mesh.position.z < playerBody.position.z + 100) {
         hammer.updateRotation(deltaTime);
       }
     });
@@ -1560,8 +1564,9 @@ async function animateRods(deltaTime) {
   let waitTime = 0.5; // Seconds to wait at each position
 
   rods.forEach((rod) => {
-    // Only animate if rod is ahead of player
-    if (rod.position.z > playerBody.position.z - 30) {
+    // Only animate if rod is ahead of player and within range
+    if (rod.position.z > playerBody.position.z - 30 &&
+        rod.position.z < playerBody.position.z + 100) {
       const maxX = Math.max(rod.maxX, rod.minX);
       const minX = Math.min(rod.maxX, rod.minX);
       const moveSpeed = rod.speed;
@@ -1602,8 +1607,9 @@ async function animateGates(deltaTime) {
   const waitTime = 1; // Seconds to wait at each position
 
   gates.forEach((gate) => {
-    // Only animate if gate is ahead of player
-    if (gate.position.z > playerBody.position.z - 30) {
+    // Only animate if gate is ahead of player and within range
+    if (gate.position.z > playerBody.position.z - 30 &&
+        gate.position.z < playerBody.position.z + 100) {
       const pillar = gate.leftPillar;
       const maxY = pillar.position.y + pillar.geometry.parameters.height / 2 - gate.geometry.parameters.height / 2;
       const minY = 0 - gate.geometry.parameters.height / 2 - 1;
@@ -1654,8 +1660,9 @@ async function animateCylinders(deltaTime) {
     const moveSpeed = 40; // Movement speed
 
     cylinders.forEach((cylinder) => {
-      // Only animate if cylinder is ahead of player
-      if (cylinder.position.z > playerBody.position.z - 30) {
+      // Only animate if cylinder is ahead of player and within range
+      if (cylinder.position.z > playerBody.position.z - 30 &&
+          cylinder.position.z < playerBody.position.z + 100) {
         const maxX = 29;
         const minX = -29;
 
@@ -1999,13 +2006,10 @@ async function animate() {
 
     // Check collision with turnstiles
     turnstiles.forEach((turnstile) => {
-      if (turnstile.mesh && turnstile.bar) {
-        const barWorldPosition = new THREE.Vector3();
-        turnstile.bar.getWorldPosition(barWorldPosition);
-
-        const turnstileBoundingBox = new THREE.Box3().setFromObject(
-          turnstile.bar
-        );
+      if (turnstile.mesh && playerBody) {
+        // Create bounding box for turnstile mesh
+        const turnstileBoundingBox = new THREE.Box3().setFromObject(turnstile.mesh);
+        const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
         if (playerBoundingBox.intersectsBox(turnstileBoundingBox)) {
           const currentTime = Date.now();
@@ -2014,7 +2018,6 @@ async function animate() {
             lastDeathTime = currentTime;
             die();
             
-            // Reset the dead state after the cooldown
             setTimeout(() => {
               isPlayerDead = false;
             }, deathCooldown);
@@ -2023,10 +2026,13 @@ async function animate() {
       }
     });
 
-    // Check collision with hammer
+    // Check collision with hammers 
     hammers.forEach((hammer) => {
-      if (hammer && hammer.mesh) {
+      if (hammer && hammer.mesh && playerBody) {
+        // Create bounding box for hammer mesh
         const hammerBoundingBox = new THREE.Box3().setFromObject(hammer.mesh);
+        const playerBoundingBox = new THREE.Box3().setFromObject(model);
+
         if (playerBoundingBox.intersectsBox(hammerBoundingBox)) {
           const currentTime = Date.now();
           if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
@@ -2034,7 +2040,6 @@ async function animate() {
             lastDeathTime = currentTime;
             die();
             
-            // Reset the dead state after the cooldown
             setTimeout(() => {
               isPlayerDead = false;
             }, deathCooldown);

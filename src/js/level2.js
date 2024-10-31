@@ -18,7 +18,7 @@ import {
 import finish from "../img/finish.jpg";
 import basicBg from "../img/sample2.png";
 import heart from "../img/heart.png";
-import groundTexture from "../textures/image.png";
+import groundTexture from "../textures/floor.png";
 import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
 import PjumpSound from "../sounds/jumpSound.wav";
 import Pjumpland from "../sounds/jumpland.wav";
@@ -862,6 +862,20 @@ async function initLighting() {
 
     scene.add(mainLight);
 
+    // create a second light at z =270, in the oposite direction to the mainlight so ot can illumintate the wrecking balls
+    const secondaryLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    secondaryLight.position.set(50, 100, 270);
+    secondaryLight.castShadow = true;
+    secondaryLight.shadow.mapSize.width = 4096;
+    secondaryLight.shadow.mapSize.height = 4096;
+    secondaryLight.shadow.camera.left = -shadowDistance;
+    secondaryLight.shadow.camera.right = shadowDistance;
+    secondaryLight.shadow.camera.top = shadowDistance;
+    secondaryLight.shadow.camera.bottom = -shadowDistance;
+
+    scene.add(secondaryLight);
+
+
     // Secondary fill light (no shadows) for better coverage
     const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
     fillLight.position.set(-50, 50, -50);
@@ -915,7 +929,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 270);
+        model.position.set(0, 2, 15);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model

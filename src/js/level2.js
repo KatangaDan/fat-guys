@@ -151,7 +151,7 @@ async function init() {
       await initBackgroundAudio();
 
       // Initialize minimap
-      minimapElements = initMinimap();
+     // minimapElements = initMinimap();
 
       console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 60);
@@ -2218,7 +2218,24 @@ function animate() {
     //player bounding box
     const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
-    /*Actual bounding boxes for the player and obstacles*/
+    //wreckingballs bounding boxes
+    wreckingBalls.forEach((wreckingBall) => {
+      const wreckingBallBoundingBox = new THREE.Box3().setFromObject(wreckingBall);
+
+      if (playerBoundingBox.intersectsBox(wreckingBallBoundingBox)) {
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
+      }
+    });
 
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
     if (playerHelper) {
@@ -2290,9 +2307,9 @@ function animate() {
 
   stats.end();
 
-  if (minimapElements && model) {
-    updateMinimap(minimapElements.playerIndicator);
-  }
+  // if (minimapElements && model) {
+  //   updateMinimap(minimapElements.playerIndicator);
+  // }
 }
 
 // Create a function to show the loading screen

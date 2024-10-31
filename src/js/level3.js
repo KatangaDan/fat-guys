@@ -186,7 +186,6 @@ async function init() {
       await initPlayer();
       await initEventListeners();
       await initAudio();
-      await initBackgroundAudio();
 
       console.log("Creating obstacles + particles...");
 

@@ -174,7 +174,6 @@ async function init() {
       await initBackground();
       await initPhysics();
       await initPlayer();
-      await initEventListeners();
       await initAudio();
 
       console.log("Creating obstacles + particles...");
@@ -560,7 +559,7 @@ async function checkForWin() {
 }
 
 // function to toggle between first-person and third-person views
-async function toggleView() {
+function toggleView() {
   isFirstPerson = !isFirstPerson;
   if (isFirstPerson) {
     controls.connect();

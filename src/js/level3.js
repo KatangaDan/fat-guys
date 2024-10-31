@@ -184,8 +184,8 @@ async function init() {
       await initBackground();
       await initPhysics();
       await initPlayer();
-      await initEventListeners();
-      await initAudio();
+      await initBackgroundAudio();
+
 
       console.log("Creating obstacles + particles...");
 

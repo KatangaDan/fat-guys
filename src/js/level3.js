@@ -166,6 +166,9 @@ let particles = [];
 const particleCountDie = 100;
 const SPAWN_COOLDOWN_TIME = 1000; // 3 seconds cooldown after respawn
 
+// minimap setup
+let minimapElements, minimapScene, minimapCamera, minimapRenderer;
+
 //function to load all game audio into buffers before the game starts
 async function loadAudio() {}
 
@@ -185,6 +188,9 @@ async function init() {
       await initPhysics();
       await initPlayer();
       await initBackgroundAudio();
+
+      // Initialize minimap
+      minimapElements = initMinimap();
 
       console.log("Creating obstacles + particles...");
 
@@ -211,6 +217,49 @@ async function init() {
       reject(error);
     }
   });
+}
+
+function initMinimap() {
+  minimapScene = scene;
+  
+  // Create orthographic camera
+  minimapCamera = new THREE.OrthographicCamera(
+    -50, 50,
+    50, -50,
+    1, 1000
+  );
+  minimapCamera.position.set(0, 200, 0);
+  minimapCamera.lookAt(0, 0, 0);
+  minimapCamera.up.set(0, 0, -1);
+  
+  // Setup minimap renderer
+  minimapRenderer = new THREE.WebGLRenderer({
+    canvas: document.getElementById('minimap'),
+    antialias: true
+  });
+  minimapRenderer.setSize(250, 250);
+  
+  return {};
+}
+
+function updateMinimap() {
+  if (!model) return;
+  
+  // Update minimap camera to follow player
+  minimapCamera.position.set(
+    model.position.x,
+    200,
+    model.position.z
+  );
+  
+  // Update camera target to look at player position
+  minimapCamera.lookAt(
+    model.position.x,
+    0,
+    model.position.z
+  );
+  
+  minimapRenderer.render(minimapScene, minimapCamera);
 }
 
 async function initBackgroundAudio() {
@@ -525,6 +574,13 @@ async function initScene() {
 
     //Setup controls
     setupControls();
+
+    try {
+      minimapElements = initMinimap();
+      console.log('Minimap initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize minimap:', error);
+    }
 
     resolve();
   });
@@ -2330,6 +2386,10 @@ async function animate() {
   }
 
   stats.end();
+
+  if (minimapElements && model) {
+    updateMinimap(minimapElements.playerIndicator);
+  }
 }
 
 async function showLoadingScreen() {
@@ -2669,6 +2729,10 @@ async function startGame() {
       generateBestTime();
       renderer.setAnimationLoop(animate);
       //await panCameraToStart();
+      // Show minimap
+      if (minimapElements && minimapElements.renderer) {
+        minimapElements.renderer.domElement.style.display = 'block';
+      }
       startCountdown();
     });
   } catch (error) {

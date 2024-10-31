@@ -855,11 +855,6 @@ async function initEventListeners() {
     // event listeners for mouse control
     document.addEventListener("mousemove", onMouseMove, false);
     //switch between first and third person view
-    window.addEventListener("keydown", (event) => {
-      if (event.key === "v" || event.key === "V") {
-        toggleView();
-      }
-    });
     resolve();
   });
 }
@@ -904,6 +899,9 @@ function handleKeyDown(event) {
     case "p" || "P":
       // Pause the game
       toggleMenu();
+      break;
+    case "v":
+      toggleView();
       break;
     case " ":
       // Jump when spacebar is pressed

@@ -34,6 +34,7 @@ import countdownOne from "../sounds/1.mp3";
 import countdownTwo from "../sounds/2.mp3";
 import countdownThree from "../sounds/3.mp3";
 import countdownGo from "../sounds/GO.mp3";
+import runSound from "../sounds/running.mp3";
 
 //Global variables
 let scene,
@@ -65,6 +66,10 @@ let scene,
   timerRunning = false,
   previousTimestamp = 0,
   currentLives = 3,
+  gameVolume = 0.5,
+  backGroundMusic,
+  runningAudio,
+  isRunningPlaying = false,
   timerInterval,
   isPanning = false,
   panProgress = 0,
@@ -72,7 +77,9 @@ let scene,
   panEndPosition = null,
   panStartTime = null,
   panDuration = 5000, // 10 seconds
-  countdownInterval;
+  countdownInterval,
+  targetRotationY = 0,
+  rotationDamping = 0.1; // Controls how smoothly the rotation changes
 
 //Global variables for the background particle system
 let particleSystem;
@@ -91,6 +98,7 @@ let crown;
 let turnstiles = [];
 let hammers = [];
 let rods = [];
+let cylinders = [];
 let gates = [];
 let platforms = [];
 
@@ -114,6 +122,7 @@ const turnSpeed = 0.2; // for rotation
 //Jumping flag
 let isJumping = false;
 let lastJumpTime = 0;
+let isPlayingJumpAnimation = false;
 const jumpCooldown = 250; // milliseconds between allowed jump attempts
 
 //Audio Setup
@@ -121,8 +130,8 @@ const listener = new THREE.AudioListener();
 const audioLoader = new THREE.AudioLoader();
 
 // Cannon ball management
-let cannonBalls = [];
-let hasLeftStartingPlatform = false;
+let cannonBalls = [],
+hasLeftStartingPlatform = false;
 // Cannon positions array to cover the entire level
 const CANNON_POSITIONS = [
   // Section 1 - Fork paths
@@ -143,12 +152,8 @@ const CANNON_POSITIONS = [
 const SHOOT_INTERVAL = 1000; // Shoot every second
 const SECOND_CHECKPOINT_Z = 360; // Z position of second checkpoint
 
-// Add these with your other global variables
-let targetRotationY = 0;
-let rotationDamping = 0.1; // Controls how smoothly the rotation changes
-
 // Game state variables
-let isPaused = false;
+let isGamePaused = false;
 let gameWon = false;
 let loadingAnimationInterval;
 let deathCooldown = 2000; // 2 seconds in milliseconds
@@ -157,7 +162,12 @@ let frame = 0; //display game timer
 let isPlayerDead = false;
 let canSpawnBalls = false;
 let spawnCooldown = false;
+let particles = [];
+const particleCountDie = 100;
 const SPAWN_COOLDOWN_TIME = 1000; // 3 seconds cooldown after respawn
+
+//function to load all game audio into buffers before the game starts
+async function loadAudio() {}
 
 async function init() {
   return new Promise(async (resolve, reject) => {
@@ -175,7 +185,8 @@ async function init() {
       await initPhysics();
       await initPlayer();
       await initEventListeners();
-      await initAudio();
+      // don't call init event listeners here - it gives the user control too early (they can move while in the loading screen & before countdown)
+      await initBackgroundAudio();
 
       console.log("Creating obstacles + particles...");
 
@@ -204,18 +215,24 @@ async function init() {
   });
 }
 
-async function initAudio() {
+async function initBackgroundAudio() {
   return new Promise((resolve) => {
-    const backGroundMusic = new THREE.Audio(listener);
+    backGroundMusic = new THREE.Audio(listener);
     audioLoader.load(PbackGroundMusic, function (buffer) {
       backGroundMusic.setBuffer(buffer);
       backGroundMusic.setLoop(true);
-      backGroundMusic.setVolume(0.2);
+      backGroundMusic.setVolume(gameVolume / 2);
       backGroundMusic.play();
 
       resolve();
     });
   });
+}
+
+function updateGameVolume() {
+  if (backGroundMusic) {
+    backGroundMusic.setVolume(gameVolume / 2);
+  }
 }
 
 // async function initFinishLine() {
@@ -251,8 +268,7 @@ async function initAudio() {
 // }
 
 // First, add these variables at the top with your other global variables
-let particles = [];
-const particleCountDie = 100;
+
 const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
 const particleMaterial = new THREE.MeshBasicMaterial({
   color: "#8E1767",
@@ -328,7 +344,6 @@ async function updateParticles(deltaTime) {
 }
 
 async function die() {
-  hasLeftStartingPlatform = false;  // Reset the flag when player dies
   canSpawnBalls = false; // Stop spawning while dead
   currentLives--;
 
@@ -362,7 +377,7 @@ async function die() {
   audioLoader.load(Phitsound, function (buffer) {
     hitsound.setBuffer(buffer);
     hitsound.setLoop(false);
-    hitsound.setVolume(1);
+    hitsound.setVolume(gameVolume);
     hitsound.play();
   });
 
@@ -375,11 +390,15 @@ async function die() {
     //request for mouse control
     document.exitPointerLock();
     removeEventListeners();
+
     generateHearts(currentLives);
     //stop the timer
     timerRunning = false;
     removeEventListeners();
     toggleMenu();
+    //hide volume slider
+    document.getElementById("volume-control").style.display = "none";
+
     //stop player moving if they die
     moveForward = false;
     moveBackward = false;
@@ -404,6 +423,7 @@ async function die() {
 
   // Make player visible again
   model.visible = true;
+  isPlayerDead = false;
 
   // After respawn position is set
   spawnCooldown = true;
@@ -516,12 +536,12 @@ async function initScene() {
 async function initCannonBallSystem() {
   setInterval(() => {
     if (
-      canSpawnBalls &&
-      !isPaused &&
-      playerBody.position.z < SECOND_CHECKPOINT_Z &&
+      !isGamePaused &&
       !spawnCooldown &&
       !isPlayerDead &&
-      hasLeftStartingPlatform // New condition
+      hasLeftStartingPlatform && // This should be checked first
+      playerBody.position.z < SECOND_CHECKPOINT_Z &&
+      canSpawnBalls
     ) {
       shootCannonBall();
     }
@@ -535,14 +555,18 @@ async function checkForWin() {
 
     if (playerBoundingBox.intersectsBox(crownBoundingBox)) {
       gameWon = true;
-      console.log("You win!");
+      //set all movement flags to false
+      moveForward = false;
+      moveBackward = false;
+      moveLeft = false;
+      moveRight = false;
 
-      // Play win sound
+      //play win sound
       const winsound = new THREE.Audio(listener);
       audioLoader.load(Pwinsound, function (buffer) {
         winsound.setBuffer(buffer);
         winsound.setLoop(false);
-        winsound.setVolume(1);
+        winsound.setVolume(gameVolume);
         winsound.play();
       });
 
@@ -574,9 +598,10 @@ async function toggleView() {
 // for pointer lock controls
 async function setupControls() {
   controls = new PointerLockControls(camera, renderer.domElement);
-
   document.addEventListener("click", () => {
-    controls.lock();
+    if (!isGamePaused) {
+      controls.lock(); // Lock pointer only when the game is not paused
+    }
   });
 
   controls.addEventListener("lock", () => {
@@ -673,7 +698,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 10, 0);
+        model.position.set(0, 2, 360);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -777,7 +802,7 @@ async function initEventListeners() {
     document.addEventListener("mousemove", onMouseMove, false);
     //switch between first and third person view
     window.addEventListener("keydown", (event) => {
-      if (event.key === "v") {
+      if (event.key === "v" || event.key === "V") {
         toggleView();
       }
     });
@@ -803,8 +828,8 @@ async function onMouseMove(e) {
   }
 }
 
-//Movememnt functions that update the movement flags
-async function handleKeyDown(event) {
+// Movement functions that update the movement flags
+function handleKeyDown(event) {
   switch (event.key) {
     case "w":
     case "ArrowUp":
@@ -822,6 +847,10 @@ async function handleKeyDown(event) {
     case "ArrowRight":
       moveRight = true;
       break;
+    case "p" || "P":
+      // Pause the game
+      toggleMenu();
+      break;
     case " ":
       // Jump when spacebar is pressed
       console.log("Jumping");
@@ -833,7 +862,7 @@ async function handleKeyDown(event) {
   }
 }
 
-async function handleKeyUp(event) {
+function handleKeyUp(event) {
   switch (event.key) {
     case "w":
     case "ArrowUp":
@@ -854,70 +883,67 @@ async function handleKeyUp(event) {
   }
 }
 
-// Function to handle jumping
-function jump() {
-  const currentTime = Date.now();
+// Functions to handle jumping
+function checkJumpState() {
   let startingY =
     playerBody.position.y -
     (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
     0.1;
 
-  // Multiple checks to ensure the jump is valid
-  if (
-    startingY < 0.1 && // Ground check
-    !isJumping && // Not already in a jump
-    currentTime - lastJumpTime >= jumpCooldown && // Cooldown check
-    Math.abs(playerBody.velocity.y) < 0.1 // Ensure player is not moving vertically
-  ) {
-    isJumping = true;
-    lastJumpTime = currentTime;
-
-    // Play jump sound
-    const jumpSound = new THREE.Audio(listener);
-    audioLoader.load(PjumpSound, function (buffer) {
-      jumpSound.setBuffer(buffer);
-      jumpSound.setLoop(false);
-      jumpSound.setVolume(1);
-      jumpSound.play();
-    });
-
-    // Apply jump force
-    playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
-    crossfadeAction(currentAction, jumpAction, fadeDuration);
-    currentAction = jumpAction;
-
-    // Set up ground detection
-    const raycaster = new THREE.Raycaster();
-    const rayDirection = new THREE.Vector3(0, -1, 0);
-
-    let groundCheckInterval;
-
-    function checkGroundCollision() {
-      if (!isJumping) {
-        cancelAnimationFrame(groundCheckInterval);
-        return;
-      }
-
-      raycaster.set(playerBody.position, rayDirection);
-      const intersects = raycaster.intersectObjects(scene.children, true);
-
-      if (intersects.length > 0 && intersects[0].distance <= 0.1) {
-        isJumping = false;
-        // Play landing sound
+  // Reset isJumping as soon as we start falling and near ground
+  if (playerBody.velocity.y < 0 && startingY < 0.15) {
+    if (isJumping) {
+      isJumping = false;
+      // Play landing sound
+      try {
         const jumpland = new THREE.Audio(listener);
         audioLoader.load(Pjumpland, function (buffer) {
           jumpland.setBuffer(buffer);
           jumpland.setLoop(false);
-          jumpland.setVolume(1);
+          jumpland.setVolume(gameVolume);
           jumpland.play();
         });
-        cancelAnimationFrame(groundCheckInterval);
-      } else {
-        groundCheckInterval = requestAnimationFrame(checkGroundCollision);
+      } catch (e) {
+        console.warn("Landing sound failed to play:", e);
       }
     }
+  }
+}
 
-    checkGroundCollision();
+function jump() {
+  let startingY =
+    playerBody.position.y -
+    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+    0.1;
+  const GROUND_THRESHOLD = 0.15;
+
+  if (
+    startingY < GROUND_THRESHOLD &&
+    !isJumping &&
+    Math.abs(playerBody.velocity.y) < 0.2
+  ) {
+    isJumping = true;
+    isPlayingJumpAnimation = true;
+
+    // Play jump sound
+    try {
+      const jumpSound = new THREE.Audio(listener);
+      audioLoader.load(PjumpSound, function (buffer) {
+        jumpSound.setBuffer(buffer);
+        jumpSound.setLoop(false);
+        jumpSound.setVolume(gameVolume);
+        jumpSound.play();
+      });
+    } catch (e) {
+      console.warn("Jump sound failed to play:", e);
+    }
+
+    // Apply jump force
+    playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce, 0), model.position);
+
+    // Ensure jump animation plays
+    crossfadeAction(currentAction, jumpAction, fadeDuration);
+    currentAction = jumpAction;
   }
 }
 
@@ -967,7 +993,7 @@ async function checkIdleState() {
 
 // Update player movement based on key presses
 // Update the updateMovement function to use camera direction
-async function updateMovement(delta) {
+function updateMovement(delta) {
   const speed = PLAYER_SPEED * delta;
 
   // Calculate forward and right vectors based on camera rotation
@@ -1030,7 +1056,7 @@ async function updateMovement(delta) {
       currentAction = targetAction; // Update current action to the new one
     }
     const targetRotation = Math.atan2(moveDirection.x, moveDirection.z);
-    // // Create a quaternion for the target rotation
+    // Create a quaternion for the target rotation
     playerBody.quaternion.setFromAxisAngle(
       new CANNON.Vec3(0, 1, 0),
       targetRotation
@@ -1222,63 +1248,110 @@ async function initLevel3Layout() {
 }
 
 async function initGates() {
-  // Platform dimensions from your layout
-  const platformWidth = 60;
-  const platformDepth = 60;
-  const platformPosition = { x: 0, y: 0, z: 420 }; // Section 3 platform position
+  // First set of pillars and gates (4 pillars, 3 gates)
+  const firstSetZ = 400; // First set position
+  const pillarWidth = 3;
+  const pillarHeight = 8;
+  const pillarDepth = 6;
+  
+  // Create first set of pillars
+  let pillar1 = await createPillar(world, scene, 28.5, 0, firstSetZ, pillarWidth, pillarHeight, pillarDepth);
+  let pillar2 = await createPillar(world, scene, 9.5, 0, firstSetZ, pillarWidth, pillarHeight, pillarDepth);
+  let pillar3 = await createPillar(world, scene, -9.5, 0, firstSetZ, pillarWidth, pillarHeight, pillarDepth);
+  let pillar4 = await createPillar(world, scene, -28.5, 0, firstSetZ, pillarWidth, pillarHeight, pillarDepth);
 
-  // Create three sets of double gates across the platform
-  const gateSetSpacing = platformDepth / 3;
-  const gateSpacing = 10; // Space between gates in a pair
+  // Create gates between pillars (first set)
+  gates.push(
+    await createGate(
+      scene,
+      pillar1.position.x,
+      0,
+      pillar1.position.z,
+      8,
+      2,
+      pillar1,
+      pillar2
+    )
+  );
 
-  for (let i = 0; i < 3; i++) {
-    const setZ =
-      platformPosition.z - platformDepth / 2 + gateSetSpacing * (i + 1);
+  gates.push(
+    await createGate(
+      scene,
+      pillar2.position.x,
+      -8,
+      pillar2.position.z,
+      8,
+      2,
+      pillar2,
+      pillar3
+    )
+  );
 
-    // Create each pair of gates
-    for (let j = 0; j < 2; j++) {
-      const gateX = j === 0 ? -15 : 15; // Offset gates left and right
+  gates.push(
+    await createGate(
+      scene,
+      pillar3.position.x,
+      0,
+      pillar3.position.z,
+      8,
+      2,
+      pillar3,
+      pillar4
+    )
+  );
 
-      // Create pillars for this gate
-      const leftPillar = await createPillar(
-        world,
-        scene,
-        gateX - 5, // Adjust pillar position based on gate position
-        0,
-        setZ,
-        2, // width
-        8, // height
-        2 // depth
-      );
+  // Second set of pillars, gates, and cylinders
+  const secondSetZ = 430;
+  
+  // Create second set of pillars
+  let pillar5 = await createPillar(world, scene, 28.5, 0, secondSetZ, pillarWidth, pillarHeight, pillarDepth);
+  let pillar6 = await createPillar(world, scene, 9.5, 0, secondSetZ, pillarWidth, pillarHeight, pillarDepth);
+  let pillar7 = await createPillar(world, scene, -9.5, 0, secondSetZ, pillarWidth, pillarHeight, pillarDepth);
+  let pillar8 = await createPillar(world, scene, -28.5, 0, secondSetZ, pillarWidth, pillarHeight, pillarDepth);
 
-      const rightPillar = await createPillar(
-        world,
-        scene,
-        gateX + 5, // Adjust pillar position based on gate position
-        0,
-        setZ,
-        2, // width
-        8, // height
-        2 // depth
-      );
+  // Create cylinders near second set
+  cylinders.push(await createCylinder(scene, 30, 0, secondSetZ - 1.5, 1, 6));
+  cylinders.push(await createCylinder(scene, -30, 0, secondSetZ + 8, 1, 6));
 
-      // Create gate between pillars
-      const gate = await createGate(
-        scene,
-        gateX,
-        0,
-        setZ,
-        6, // height
-        2, // length
-        leftPillar,
-        rightPillar
-      );
+  // Create gates between pillars (second set)
+  gates.push(
+    await createGate(
+      scene,
+      pillar5.position.x,
+      0,
+      pillar5.position.z,
+      8,
+      2,
+      pillar5,
+      pillar6
+    )
+  );
 
-      // Add random initial phase to create alternating patterns
-      gate.phase = Math.random() * Math.PI * 2;
-      gates.push(gate);
-    }
-  }
+  gates.push(
+    await createGate(
+      scene,
+      pillar6.position.x,
+      -8,
+      pillar6.position.z,
+      8,
+      2,
+      pillar6,
+      pillar7
+    )
+  );
+
+  gates.push(
+    await createGate(
+      scene,
+      pillar7.position.x,
+      0,
+      pillar7.position.z,
+      8,
+      2,
+      pillar7,
+      pillar8
+    )
+  );
 }
 
 async function initHammers() {
@@ -1345,7 +1418,7 @@ async function shootCannonBall() {
     !playerBody ||
     gameWon ||
     playerBody.position.z >= SECOND_CHECKPOINT_Z ||
-    isPaused ||
+    isGamePaused ||
     spawnCooldown ||
     isPlayerDead
   )
@@ -1418,7 +1491,7 @@ async function updateCannonBalls(deltaTime) {
         if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
           isPlayerDead = true;
           lastDeathTime = currentTime;
-          //die();
+          die();
 
           // Remove the cannon ball after hit
           scene.remove(cannonBall.mesh);
@@ -1457,13 +1530,14 @@ async function animateCrown(deltaTime) {
 async function animateTurnstile(deltaTime) {
   return new Promise((resolve) => {
     turnstiles.forEach((turnstile) => {
-      if (turnstile.mesh && turnstile.body) {
+      // Only animate if turnstile is ahead of player
+      if (turnstile.mesh && turnstile.body && turnstile.mesh.position.z > playerBody.position.z - 30) {
         const rotation = deltaTime * 1.0;
-        turnstile.mesh.rotation.y += rotation; // Rotate the turnstile mesh
+        turnstile.mesh.rotation.y += rotation;
         turnstile.body.quaternion.setFromAxisAngle(
           new CANNON.Vec3(0, 1, 0),
           turnstile.mesh.rotation.y
-        ); // Rotate the cannon body
+        );
       }
     });
     resolve();
@@ -1473,7 +1547,8 @@ async function animateTurnstile(deltaTime) {
 async function animateHammer(deltaTime) {
   return new Promise((resolve) => {
     hammers.forEach((hammer) => {
-      if (hammer && hammer.updateRotation) {
+      // Only animate if hammer is ahead of player
+      if (hammer && hammer.updateRotation && hammer.mesh.position.z > playerBody.position.z - 30) {
         hammer.updateRotation(deltaTime);
       }
     });
@@ -1485,39 +1560,130 @@ async function animateRods(deltaTime) {
   let waitTime = 0.5; // Seconds to wait at each position
 
   rods.forEach((rod) => {
-    const maxX = Math.max(rod.maxX, rod.minX);
-    const minX = Math.min(rod.maxX, rod.minX);
-    const moveSpeed = rod.speed; // Movement speed
+    // Only animate if rod is ahead of player
+    if (rod.position.z > playerBody.position.z - 30) {
+      const maxX = Math.max(rod.maxX, rod.minX);
+      const minX = Math.min(rod.maxX, rod.minX);
+      const moveSpeed = rod.speed;
 
-    // Initialize the rod direction if it doesn't exist
-    if (rod.moveDirection === undefined) {
-      rod.moveDirection = rod.position.x >= maxX ? -1 : 1;
+      // Initialize the rod direction if it doesn't exist
+      if (rod.moveDirection === undefined) {
+        rod.moveDirection = rod.position.x >= maxX ? -1 : 1;
+      }
+
+      if (rod.waitTimer === undefined) {
+        rod.waitTimer = 0; // Timer for waiting at bounds
+      }
+
+      // Check if the rod is waiting at the bounds
+      if (rod.waitTimer > 0) {
+        rod.waitTimer -= deltaTime; // Reduce the wait timer
+        return; // Skip the movement until wait time is over
+      }
+
+      // Clamp rod position to max/min bounds
+      if (rod.position.x > maxX) {
+        rod.position.x = maxX;
+        rod.moveDirection *= -1;
+        rod.waitTimer = waitTime; // Set wait timer before moving again
+      } else if (rod.position.x < minX) {
+        rod.position.x = minX;
+        rod.moveDirection *= -1;
+        rod.waitTimer = waitTime; // Set wait timer before moving again
+      }
+
+      rod.position.x += rod.moveDirection * moveSpeed * deltaTime;
     }
-
-    if (rod.waitTimer === undefined) {
-      rod.waitTimer = 0; // Timer for waiting at bounds
-    }
-
-    // Check if the rod is waiting at the bounds
-    if (rod.waitTimer > 0) {
-      rod.waitTimer -= deltaTime; // Reduce the wait timer
-      return; // Skip the movement until wait time is over
-    }
-
-    // Clamp rod position to max/min bounds
-    if (rod.position.x > maxX) {
-      rod.position.x = maxX;
-      rod.moveDirection *= -1;
-      rod.waitTimer = waitTime; // Set wait timer before moving again
-    } else if (rod.position.x < minX) {
-      rod.position.x = minX;
-      rod.moveDirection *= -1;
-      rod.waitTimer = waitTime; // Set wait timer before moving again
-    }
-
-    rod.position.x += rod.moveDirection * moveSpeed * deltaTime;
   });
 }
+
+async function animateGates(deltaTime) {
+  const moveSpeed = 20; // Movement speed
+  const waitTime = 1; // Seconds to wait at each position
+
+  gates.forEach((gate) => {
+    // Only animate if gate is ahead of player
+    if (gate.position.z > playerBody.position.z - 30) {
+      const pillar = gate.leftPillar;
+      const maxY = pillar.position.y + pillar.geometry.parameters.height / 2 - gate.geometry.parameters.height / 2;
+      const minY = 0 - gate.geometry.parameters.height / 2 - 1;
+
+      // Initialize the gate direction if it doesn't exist
+      if (gate.moveDirection === undefined) {
+        gate.moveDirection = gate.position.y >= maxY ? -1 : 1;
+      }
+
+      // Initialize waiting state and last wait time if not set
+      if (gate.waiting === undefined) {
+        gate.waiting = false;
+        gate.lastWaitTime = 0;
+      }
+
+      // If gate is at max or min height, start waiting
+      if (!gate.waiting && (gate.position.y >= maxY || gate.position.y <= minY)) {
+        gate.waiting = true;
+        gate.lastWaitTime = clock.getElapsedTime(); // Record the time of the wait
+      }
+
+      // Handle the waiting period
+      if (gate.waiting) {
+        // Check how long the gate has been waiting
+        if (clock.getElapsedTime() - gate.lastWaitTime >= waitTime) {
+          gate.waiting = false; // Stop waiting and reverse direction
+          gate.moveDirection *= -1;
+        }
+      }
+
+      // Move the gate if not waiting
+      if (!gate.waiting) {
+        gate.position.y += gate.moveDirection * moveSpeed * deltaTime;
+
+        // Clamp gate position to max/min bounds
+        if (gate.position.y > maxY) {
+          gate.position.y = maxY;
+        } else if (gate.position.y < minY) {
+          gate.position.y = minY;
+        }
+      }
+    }
+  });
+}
+
+async function animateCylinders(deltaTime) {
+  return new Promise((resolve) => {
+    const moveSpeed = 40; // Movement speed
+
+    cylinders.forEach((cylinder) => {
+      // Only animate if cylinder is ahead of player
+      if (cylinder.position.z > playerBody.position.z - 30) {
+        const maxX = 29;
+        const minX = -29;
+
+        // Initialize the cylinder direction if it doesn't exist
+        if (cylinder.moveDirection === undefined) {
+          cylinder.moveDirection = cylinder.position.x >= maxX ? -1 : 1;
+        }
+
+        // If cylinder is at max or min width, start waiting
+        if (cylinder.position.x >= maxX || cylinder.position.x <= minX) {
+          cylinder.moveDirection *= -1;
+        }
+
+        // Clamp cylinder position to max/min bounds
+        if (cylinder.position.x > maxX) {
+          cylinder.position.x = maxX;
+        } else if (cylinder.position.x < minX) {
+          cylinder.position.x = minX;
+        }
+
+        cylinder.position.x += cylinder.moveDirection * moveSpeed * deltaTime;
+      }
+    });
+
+    resolve();
+  });
+}
+
 // Update the camera position to follow the player and initial panning
 async function updateCamera() {
   if (!model || isPlayerDead) return;
@@ -1605,7 +1771,7 @@ async function startCountdown() {
     GO: countdownGo,
   };
 
-  async function playCountdownSound(count) {
+  function playCountdownSound(count) {
     let soundFile = mapCountdownSounds[count];
 
     // Stop any currently playing sound
@@ -1616,7 +1782,7 @@ async function startCountdown() {
     audioLoader.load(soundFile, function (buffer) {
       countdownAudio.setBuffer(buffer);
       countdownAudio.setLoop(false);
-      countdownAudio.setVolume(0.5);
+      countdownAudio.setVolume(gameVolume);
       countdownAudio.play();
     });
   }
@@ -1661,7 +1827,6 @@ async function startCountdown() {
       // Start the timer and player control after the countdown ends
       initEventListeners();
       initializeTimer();
-      canSpawnBalls = true; // Enable cannon ball spawning
 
       // Clear the interval and hide the countdown display after 1 second
       clearInterval(countdownInterval);
@@ -1824,55 +1989,6 @@ async function animate() {
     // Check for collisions with new obstacles
     const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
-    // Check collision with crown
-    if (crown && crown.mesh && !gameWon) {
-      const crownBoundingBox = new THREE.Box3().setFromObject(crown.mesh);
-      if (playerBoundingBox.intersectsBox(crownBoundingBox)) {
-        console.log("Player won!");
-        gameWon = true;
-        showWinScreen(elapsedTime);
-        // Hide the crown instead of removing it
-        crown.mesh.visible = false;
-        if (crown.body && world.removeBody) {
-          world.removeBody(crown.body);
-        }
-      }
-    }
-
-    // Update gates
-    gates.forEach((gate) => {
-      if (gate && gate.mesh) {
-        // Gate movement logic
-        const maxHeight = 8;
-        const minHeight = 0;
-        const moveSpeed = 0.05;
-
-        if (!gate.mesh.waiting) {
-          gate.mesh.position.y += moveSpeed * gate.mesh.moveDirection;
-
-          if (gate.mesh.position.y >= maxHeight) {
-            gate.mesh.moveDirection = -1;
-            gate.mesh.waiting = true;
-            gate.mesh.lastWaitTime = Date.now();
-          } else if (gate.mesh.position.y <= minHeight) {
-            gate.mesh.moveDirection = 1;
-            gate.mesh.waiting = true;
-            gate.mesh.lastWaitTime = Date.now();
-          }
-        } else {
-          if (Date.now() - gate.mesh.lastWaitTime > 1000) {
-            gate.mesh.waiting = false;
-          }
-        }
-
-        // Update physics body position
-        if (gate.body) {
-          gate.body.position.y = gate.mesh.position.y;
-          gate.body.position.copy(gate.mesh.position);
-        }
-      }
-    });
-
     // Reset crown visibility when game restarts
     if (!gameWon && crown && crown.mesh && !crown.mesh.visible) {
       crown.mesh.visible = true;
@@ -1896,8 +2012,8 @@ async function animate() {
           if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
             isPlayerDead = true;
             lastDeathTime = currentTime;
-            //die();
-
+            die();
+            
             // Reset the dead state after the cooldown
             setTimeout(() => {
               isPlayerDead = false;
@@ -1916,13 +2032,51 @@ async function animate() {
           if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
             isPlayerDead = true;
             lastDeathTime = currentTime;
-            //die();
-
+            die();
+            
             // Reset the dead state after the cooldown
             setTimeout(() => {
               isPlayerDead = false;
             }, deathCooldown);
           }
+        }
+      }
+    });
+    
+    // Check for collisions with gates
+    gates.forEach((gate) => {
+      const gateBoundingBox = new THREE.Box3().setFromObject(gate);
+
+      if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
+      }
+    });
+
+    // Check for collisions with cylinders
+    cylinders.forEach((cylinder) => {
+      const cylinderBoundingBox = new THREE.Box3().setFromObject(cylinder);
+
+      if (playerBoundingBox.intersectsBox(cylinderBoundingBox)) {
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
         }
       }
     });
@@ -1980,7 +2134,7 @@ async function animate() {
         if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
           isPlayerDead = true;
           lastDeathTime = currentTime;
-          //die();
+          die();
 
           // Reset the dead state after the cooldown
           setTimeout(() => {
@@ -1995,15 +2149,38 @@ async function animate() {
       playerHelper.update();
     }
 
+    //Particle system
+    if (particleSystem) {
+      // Remove rotation line
+      // particleSystem.rotation.y += 0.001; // Remove this line
+
+      let positionArray = particleSystem.geometry.attributes.position.array;
+      for (let i = 0; i < particleCount; i++) {
+        positionArray[3 * i] += velocities[3 * i];
+        positionArray[3 * i + 1] += velocities[3 * i + 1];
+        positionArray[3 * i + 2] += velocities[3 * i + 2];
+
+        // Reset position if it goes out of bounds
+        if (positionArray[3 * i] > 50 || positionArray[3 * i] < -50) {
+          velocities[3 * i] *= -1;
+        }
+        if (positionArray[3 * i + 1] > 50 || positionArray[3 * i + 1] < -50) {
+          velocities[3 * i + 1] *= -1;
+        }
+        if (positionArray[3 * i + 2] > 50 || positionArray[3 * i + 2] < -50) {
+          velocities[3 * i + 2] *= -1;
+        }
+      }
+      particleSystem.geometry.attributes.position.needsUpdate = true;
+    }
+
     // Update camera
     updateCamera();
   }
 
-  // if (dieParticles) {
-  //   updateParticles();
-  // }
-
   // Animate obstacles
+  animateGates(deltaTime);
+  animateCylinders(deltaTime);
   animateCrown(deltaTime);
   animateTurnstile(deltaTime);
   animateHammer(deltaTime);
@@ -2018,6 +2195,7 @@ async function animate() {
   // Check if player has left starting platform
   if (!hasLeftStartingPlatform && playerBody.position.z > 30) { // Adjust 30 based on your platform size
     hasLeftStartingPlatform = true;
+    canSpawnBalls = true; // Enable cannon ball spawning when player leaves platform
   }
   
   // Update cannon balls with lifetime check
@@ -2130,14 +2308,25 @@ async function createHeartsContainer() {
 
 async function toggleMenu() {
   const gameMenu = document.getElementById("gameMenu");
+
   if (gameMenu.style.display === "block") {
     gameMenu.style.display = "none";
-    isPaused = false;
-    // unpauseGame();
+    isGamePaused = false; //unpauseGame
+    document.body.requestPointerLock(); //take control of mouse
+    document.body.click(); //click anywhere on the screen
   } else {
+    //pauseGame
+    isGamePaused = true;
+    document.exitPointerLock();
+
     const resumeButton = document.getElementById("resumeButton");
     const startButton = document.getElementById("startButton");
     const restartButton = document.getElementById("restartButton");
+
+    //show volume slider
+    const volumeControl = document.getElementById("volume-control");
+    console.log("volumeControl", volumeControl);
+    if (volumeControl) volumeControl.style.display = "block";
 
     startButton.style.display = "none";
     resumeButton.style.display = "block";
@@ -2166,8 +2355,7 @@ async function toggleMenu() {
     }
 
     gameMenu.style.display = "block";
-    isPaused = true;
-    // pauseGame();
+    //show the volume control
   }
 }
 
@@ -2179,11 +2367,13 @@ async function showWinScreen(elapsedTime) {
   document.getElementById("resumeButton").style.display = "none";
   document.getElementById("restartButton").style.display = "block"; // Show restart button
 
+  document.getElementById("volume-control").style.display = "none";
+
   //show the game menu
   gameMenu.style.display = "block";
 
   //disable player movement by removing event listers for wasd
-  window.removeEventListener("keydown", handleKeyDown);
+  removeEventListeners();
 
   //exit pointer lock
   document.exitPointerLock();
@@ -2200,10 +2390,16 @@ async function showWinScreen(elapsedTime) {
   winMessage.style.textAlign = "center"; // Center the text
   winMessage.style.color = "white";
 
+  //hide you lost message if it exists
+  const youLostMessage = document.getElementById("lostMessage");
+  if (youLostMessage) {
+    youLostMessage.remove();
+  }
+
   // Create the congratulatory message
   const congratsMessage = document.createElement("h2");
   congratsMessage.id = "congratsMessage";
-  congratsMessage.textContent = "Congratulations!";
+  congratsMessage.textContent = "Congratulations! ";
   winMessage.appendChild(congratsMessage);
 
   //store elapsed time in local storage as best time
@@ -2275,7 +2471,9 @@ async function resetGame() {
 }
 
 async function restartGame() {
-  canSpawnBalls = false; // Stop spawning during restart
+  hasLeftStartingPlatform = false;
+  canSpawnBalls = false;
+  isPlayerDead = false;
 
   // Remove all existing cannon balls
   await removeAllCannonBalls();
@@ -2288,11 +2486,13 @@ async function restartGame() {
     }
   }
 
-  // do countdown again
+  //reset timer to 0
   resetTimer();
-  // Start countdown will re-enable spawning when ready
   startCountdown();
-  playerBody.position.set(0, 10, 0);
+
+  playerBody.position.set(0, 2, 0);
+  //restart timer
+  //resetTimer();
   currentLives = 3;
   generateHearts(currentLives);
   gameWon = false;
@@ -2305,12 +2505,26 @@ async function startGame() {
     let resumeButton = document.getElementById("resumeButton");
     let restartButton = document.getElementById("restartButton");
 
+    // Add an event listener to the volume slider
+    function updateVolume() {
+      // Get the current slider value
+      const volume = volumeSlider.value;
+      // Update the game volume
+      gameVolume = volume;
+
+      updateGameVolume();
+    }
+
+    volumeSlider.addEventListener("input", updateVolume);
+    // Set the initial volume of the slider
+    volumeSlider.value = gameVolume;
+
     //Add event listener to the resume button
     resumeButton.addEventListener("click", () => {
       toggleMenu();
       //Add pointer lock to the document
       document.body.requestPointerLock();
-      canSpawnBalls = true; // Resume spawning when unpaused
+
       // unpauseGame();
     });
 
@@ -2339,15 +2553,6 @@ async function startGame() {
       renderer.setAnimationLoop(animate);
       //await panCameraToStart();
       startCountdown();
-
-      //Add pause event listener
-      document.addEventListener("keydown", (event) => {
-        if (event.key === "P" || event.key === "p") {
-          toggleMenu();
-          document.exitPointerLock();
-          canSpawnBalls = false; // Stop spawning when paused
-        }
-      });
     });
   } catch (error) {
     console.error("Error during initialization:", error);

@@ -670,7 +670,7 @@ async function initPhysics() {
 
 async function initPlayer() {
   return new Promise((resolve) => {
-    const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
+    const fatGuyURL = new URL("../assets/SmoothFatGuy.glb", import.meta.url);
     const assetLoader = new GLTFLoader();
 
     assetLoader.load(

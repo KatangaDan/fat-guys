@@ -506,6 +506,7 @@ async function createGateExplosion(
   });
 }
 
+let popedGates = [];
 // Collision check function
 function checkCollision(model) {
   const playerBoundingBox = new THREE.Box3().setFromObject(model)
@@ -516,6 +517,7 @@ function checkCollision(model) {
       gateExplosion(gate.position); // Trigger explosion at gate's position
       scene.remove(gate); // Remove gate after explosion
       gate.exploded = true; // Set exploded flag to true
+      popedGates.push(gate);
       gates.splice(index, 1); // Remove gate from array
     }
   }
@@ -524,6 +526,13 @@ function checkCollision(model) {
 
 async function die() {
   currentLives--;
+
+  popedGates.forEach((gate) => {
+    gate.exploded = false;
+    gateExplosion(gate.position);
+    scene.add(gate);
+  });
+    
 
   isPlayerDead = true;
 
@@ -831,7 +840,7 @@ async function initPhysics() {
 
 async function initPlayer() {
   return new Promise((resolve) => {
-    const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
+    const fatGuyURL = new URL("../assets/SmoothFatGuy.glb", import.meta.url);
     const assetLoader = new GLTFLoader();
 
     assetLoader.load(

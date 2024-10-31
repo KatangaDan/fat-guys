@@ -131,7 +131,7 @@ const audioLoader = new THREE.AudioLoader();
 
 // Cannon ball management
 let cannonBalls = [],
-hasLeftStartingPlatform = false;
+  hasLeftStartingPlatform = false;
 // Cannon positions array to cover the entire level
 const CANNON_POSITIONS = [
   // Section 1 - Fork paths
@@ -166,6 +166,9 @@ let particles = [];
 const particleCountDie = 100;
 const SPAWN_COOLDOWN_TIME = 1000; // 3 seconds cooldown after respawn
 
+// minimap setup
+let minimapElements, minimapScene, minimapCamera, minimapRenderer;
+
 //function to load all game audio into buffers before the game starts
 async function loadAudio() {}
 
@@ -186,6 +189,8 @@ async function init() {
       await initPlayer();
       await initBackgroundAudio();
 
+      // Initialize minimap
+      minimapElements = initMinimap();
 
       console.log("Creating obstacles + particles...");
 
@@ -212,6 +217,49 @@ async function init() {
       reject(error);
     }
   });
+}
+
+function initMinimap() {
+  minimapScene = scene;
+  
+  // Create orthographic camera
+  minimapCamera = new THREE.OrthographicCamera(
+    -50, 50,
+    50, -50,
+    1, 1000
+  );
+  minimapCamera.position.set(0, 200, 0);
+  minimapCamera.lookAt(0, 0, 0);
+  minimapCamera.up.set(0, 0, -1);
+  
+  // Setup minimap renderer
+  minimapRenderer = new THREE.WebGLRenderer({
+    canvas: document.getElementById('minimap'),
+    antialias: true
+  });
+  minimapRenderer.setSize(250, 250);
+  
+  return {};
+}
+
+function updateMinimap() {
+  if (!model) return;
+  
+  // Update minimap camera to follow player
+  minimapCamera.position.set(
+    model.position.x,
+    200,
+    model.position.z
+  );
+  
+  // Update camera target to look at player position
+  minimapCamera.lookAt(
+    model.position.x,
+    0,
+    model.position.z
+  );
+  
+  minimapRenderer.render(minimapScene, minimapCamera);
 }
 
 async function initBackgroundAudio() {
@@ -526,6 +574,13 @@ async function initScene() {
 
     //Setup controls
     setupControls();
+
+    try {
+      minimapElements = initMinimap();
+      console.log('Minimap initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize minimap:', error);
+    }
 
     resolve();
   });
@@ -1233,7 +1288,7 @@ async function initLevel3Layout() {
     await createStartingPlatform(world, scene, 0, 0, 420, 60, 0.1, 60), // Section 3
     await createStartingPlatform(world, scene, 0, 0, 480, 60, 0.1, 30), // Final platform
   ];
-  
+
   // Remove back fences from all remaining platforms
   platforms.forEach((platform) => {
     scene.remove(platform.fences.back.mesh);
@@ -1241,7 +1296,7 @@ async function initLevel3Layout() {
   });
 
   // Add crown at the finish line
-  crown = await createCrown(world, scene, 0, 5, 480)
+  crown = await createCrown(world, scene, 0, 5, 480);
 }
 
 async function initGates() {
@@ -1250,12 +1305,48 @@ async function initGates() {
   const pillarWidth = 3;
   const pillarHeight = 8;
   const pillarDepth = 6;
-  
+
   // Create first set of pillars
-  let pillar1 = await createPillar(world, scene, 28.5, 0, firstSetZ, pillarWidth, pillarHeight, pillarDepth);
-  let pillar2 = await createPillar(world, scene, 9.5, 0, firstSetZ, pillarWidth, pillarHeight, pillarDepth);
-  let pillar3 = await createPillar(world, scene, -9.5, 0, firstSetZ, pillarWidth, pillarHeight, pillarDepth);
-  let pillar4 = await createPillar(world, scene, -28.5, 0, firstSetZ, pillarWidth, pillarHeight, pillarDepth);
+  let pillar1 = await createPillar(
+    world,
+    scene,
+    28.5,
+    0,
+    firstSetZ,
+    pillarWidth,
+    pillarHeight,
+    pillarDepth
+  );
+  let pillar2 = await createPillar(
+    world,
+    scene,
+    9.5,
+    0,
+    firstSetZ,
+    pillarWidth,
+    pillarHeight,
+    pillarDepth
+  );
+  let pillar3 = await createPillar(
+    world,
+    scene,
+    -9.5,
+    0,
+    firstSetZ,
+    pillarWidth,
+    pillarHeight,
+    pillarDepth
+  );
+  let pillar4 = await createPillar(
+    world,
+    scene,
+    -28.5,
+    0,
+    firstSetZ,
+    pillarWidth,
+    pillarHeight,
+    pillarDepth
+  );
 
   // Create gates between pillars (first set)
   gates.push(
@@ -1299,12 +1390,48 @@ async function initGates() {
 
   // Second set of pillars, gates, and cylinders
   const secondSetZ = 430;
-  
+
   // Create second set of pillars
-  let pillar5 = await createPillar(world, scene, 28.5, 0, secondSetZ, pillarWidth, pillarHeight, pillarDepth);
-  let pillar6 = await createPillar(world, scene, 9.5, 0, secondSetZ, pillarWidth, pillarHeight, pillarDepth);
-  let pillar7 = await createPillar(world, scene, -9.5, 0, secondSetZ, pillarWidth, pillarHeight, pillarDepth);
-  let pillar8 = await createPillar(world, scene, -28.5, 0, secondSetZ, pillarWidth, pillarHeight, pillarDepth);
+  let pillar5 = await createPillar(
+    world,
+    scene,
+    28.5,
+    0,
+    secondSetZ,
+    pillarWidth,
+    pillarHeight,
+    pillarDepth
+  );
+  let pillar6 = await createPillar(
+    world,
+    scene,
+    9.5,
+    0,
+    secondSetZ,
+    pillarWidth,
+    pillarHeight,
+    pillarDepth
+  );
+  let pillar7 = await createPillar(
+    world,
+    scene,
+    -9.5,
+    0,
+    secondSetZ,
+    pillarWidth,
+    pillarHeight,
+    pillarDepth
+  );
+  let pillar8 = await createPillar(
+    world,
+    scene,
+    -28.5,
+    0,
+    secondSetZ,
+    pillarWidth,
+    pillarHeight,
+    pillarDepth
+  );
 
   // Create cylinders near second set
   cylinders.push(await createCylinder(scene, 30, 0, secondSetZ - 1.5, 1, 6));
@@ -1367,12 +1494,27 @@ async function initHammers() {
   const hammerl6 = createRotatingHammer(world, scene, 38, 0, 120, 1, 5); // Right path hammer
   const hammer6 = createRotatingHammer(world, scene, 30, 0, 140, 1, 6); // Right path hammer
   const hammer7 = createRotatingHammer(world, scene, -30, 0, 140, 1, 6); // Right path hammer
-  hammers.push(hammerr1, hammerr2, hammerl1, hammerl2, hammerr3, hammerr4, hammerl3, hammerl4, hammerr5, hammerr6, hammerl5, hammerl6, hammer6, hammer7);
+  hammers.push(
+    hammerr1,
+    hammerr2,
+    hammerl1,
+    hammerl2,
+    hammerr3,
+    hammerr4,
+    hammerl3,
+    hammerl4,
+    hammerr5,
+    hammerr6,
+    hammerl5,
+    hammerl6,
+    hammer6,
+    hammer7
+  );
 
   // Section 2 obstacles - Zigzag section
-  const hammer3 = createRotatingHammer(world, scene, -20, 0, 225, 1, 6); 
+  const hammer3 = createRotatingHammer(world, scene, -20, 0, 225, 1, 6);
   const hammer4 = createRotatingHammer(world, scene, -20, 0, 255, 1, 6);
-  const hammer5 = createRotatingHammer(world, scene, 20, 0, 295, 1, 6); 
+  const hammer5 = createRotatingHammer(world, scene, 20, 0, 295, 1, 6);
   const hammer8 = createRotatingHammer(world, scene, 20, 0, 325, 1, 6);
   hammers.push(hammer3, hammer4, hammer5, hammer8);
 
@@ -1528,9 +1670,13 @@ async function animateTurnstile(deltaTime) {
   return new Promise((resolve) => {
     turnstiles.forEach((turnstile) => {
       // Only animate if turnstile is ahead of player and within range
-      if (turnstile.mesh && turnstile.body && 
-          turnstile.mesh.position.z > playerBody.position.z - 30 && // Don't animate obstacles behind player
-          turnstile.mesh.position.z < playerBody.position.z + 100) { // Don't animate obstacles too far ahead
+      if (
+        turnstile.mesh &&
+        turnstile.body &&
+        turnstile.mesh.position.z > playerBody.position.z - 30 && // Don't animate obstacles behind player
+        turnstile.mesh.position.z < playerBody.position.z + 100
+      ) {
+        // Don't animate obstacles too far ahead
         const rotation = deltaTime * 1.0;
         turnstile.mesh.rotation.y += rotation;
         turnstile.body.quaternion.setFromAxisAngle(
@@ -1547,9 +1693,12 @@ async function animateHammer(deltaTime) {
   return new Promise((resolve) => {
     hammers.forEach((hammer) => {
       // Only animate if hammer is ahead of player and within range
-      if (hammer && hammer.updateRotation && 
-          hammer.mesh.position.z > playerBody.position.z - 30 &&
-          hammer.mesh.position.z < playerBody.position.z + 100) {
+      if (
+        hammer &&
+        hammer.updateRotation &&
+        hammer.mesh.position.z > playerBody.position.z - 30 &&
+        hammer.mesh.position.z < playerBody.position.z + 100
+      ) {
         hammer.updateRotation(deltaTime);
       }
     });
@@ -1562,8 +1711,10 @@ async function animateRods(deltaTime) {
 
   rods.forEach((rod) => {
     // Only animate if rod is ahead of player and within range
-    if (rod.position.z > playerBody.position.z - 30 &&
-        rod.position.z < playerBody.position.z + 100) {
+    if (
+      rod.position.z > playerBody.position.z - 30 &&
+      rod.position.z < playerBody.position.z + 100
+    ) {
       const maxX = Math.max(rod.maxX, rod.minX);
       const minX = Math.min(rod.maxX, rod.minX);
       const moveSpeed = rod.speed;
@@ -1605,10 +1756,15 @@ async function animateGates(deltaTime) {
 
   gates.forEach((gate) => {
     // Only animate if gate is ahead of player and within range
-    if (gate.position.z > playerBody.position.z - 30 &&
-        gate.position.z < playerBody.position.z + 100) {
+    if (
+      gate.position.z > playerBody.position.z - 30 &&
+      gate.position.z < playerBody.position.z + 100
+    ) {
       const pillar = gate.leftPillar;
-      const maxY = pillar.position.y + pillar.geometry.parameters.height / 2 - gate.geometry.parameters.height / 2;
+      const maxY =
+        pillar.position.y +
+        pillar.geometry.parameters.height / 2 -
+        gate.geometry.parameters.height / 2;
       const minY = 0 - gate.geometry.parameters.height / 2 - 1;
 
       // Initialize the gate direction if it doesn't exist
@@ -1623,7 +1779,10 @@ async function animateGates(deltaTime) {
       }
 
       // If gate is at max or min height, start waiting
-      if (!gate.waiting && (gate.position.y >= maxY || gate.position.y <= minY)) {
+      if (
+        !gate.waiting &&
+        (gate.position.y >= maxY || gate.position.y <= minY)
+      ) {
         gate.waiting = true;
         gate.lastWaitTime = clock.getElapsedTime(); // Record the time of the wait
       }
@@ -1658,8 +1817,10 @@ async function animateCylinders(deltaTime) {
 
     cylinders.forEach((cylinder) => {
       // Only animate if cylinder is ahead of player and within range
-      if (cylinder.position.z > playerBody.position.z - 30 &&
-          cylinder.position.z < playerBody.position.z + 100) {
+      if (
+        cylinder.position.z > playerBody.position.z - 30 &&
+        cylinder.position.z < playerBody.position.z + 100
+      ) {
         const maxX = 29;
         const minX = -29;
 
@@ -2005,7 +2166,9 @@ async function animate() {
     turnstiles.forEach((turnstile) => {
       if (turnstile.mesh && playerBody) {
         // Create bounding box for turnstile mesh
-        const turnstileBoundingBox = new THREE.Box3().setFromObject(turnstile.mesh);
+        const turnstileBoundingBox = new THREE.Box3().setFromObject(
+          turnstile.mesh
+        );
         const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
         if (playerBoundingBox.intersectsBox(turnstileBoundingBox)) {
@@ -2014,7 +2177,7 @@ async function animate() {
             isPlayerDead = true;
             lastDeathTime = currentTime;
             die();
-            
+
             setTimeout(() => {
               isPlayerDead = false;
             }, deathCooldown);
@@ -2023,7 +2186,7 @@ async function animate() {
       }
     });
 
-    // Check collision with hammers 
+    // Check collision with hammers
     hammers.forEach((hammer) => {
       if (hammer && hammer.mesh && playerBody) {
         // Create bounding box for hammer mesh
@@ -2036,7 +2199,7 @@ async function animate() {
             isPlayerDead = true;
             lastDeathTime = currentTime;
             die();
-            
+
             setTimeout(() => {
               isPlayerDead = false;
             }, deathCooldown);
@@ -2044,7 +2207,7 @@ async function animate() {
         }
       }
     });
-    
+
     // Check for collisions with gates
     gates.forEach((gate) => {
       const gateBoundingBox = new THREE.Box3().setFromObject(gate);
@@ -2193,13 +2356,13 @@ async function animate() {
   renderer.render(scene, camera);
   //controls.update();
 
-  
   // Check if player has left starting platform
-  if (!hasLeftStartingPlatform && playerBody.position.z > 30) { // Adjust 30 based on your platform size
+  if (!hasLeftStartingPlatform && playerBody.position.z > 30) {
+    // Adjust 30 based on your platform size
     hasLeftStartingPlatform = true;
     canSpawnBalls = true; // Enable cannon ball spawning when player leaves platform
   }
-  
+
   // Update cannon balls with lifetime check
   cannonBalls = cannonBalls.filter((ball, index) => {
     if (!ball || !ball.mesh || !ball.body) return false;
@@ -2212,7 +2375,7 @@ async function animate() {
     }
     return true;
   });
-  
+
   // Check for checkpoint 2
   if (playerBody.position.z >= SECOND_CHECKPOINT_Z) {
     // Stop cannon balls and remove existing ones
@@ -2221,6 +2384,10 @@ async function animate() {
   }
 
   stats.end();
+
+  if (minimapElements && model) {
+    updateMinimap(minimapElements.playerIndicator);
+  }
 }
 
 async function showLoadingScreen() {
@@ -2545,6 +2712,12 @@ async function startGame() {
       hideGameMenu();
       //render the game
       await init();
+      
+      //hide the controls ui
+      let controlsInfo = document.getElementById("controls-info");
+      if (controlsInfo) {
+        controlsInfo.style.display = "none";
+      }
 
       //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
       showTimer();
@@ -2554,6 +2727,10 @@ async function startGame() {
       generateBestTime();
       renderer.setAnimationLoop(animate);
       //await panCameraToStart();
+      // Show minimap
+      if (minimapElements && minimapElements.renderer) {
+        minimapElements.renderer.domElement.style.display = 'block';
+      }
       startCountdown();
     });
   } catch (error) {

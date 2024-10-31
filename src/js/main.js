@@ -128,6 +128,9 @@ const jumpCooldown = 250; // milliseconds between allowed jump attempts
 const listener = new THREE.AudioListener();
 const audioLoader = new THREE.AudioLoader();
 
+// minimap setup
+let minimapElements, minimapScene, minimapCamera, minimapRenderer;
+
 async function init() {
   return new Promise(async (resolve, reject) => {
     //audio setup for pre-loading
@@ -144,6 +147,9 @@ async function init() {
       await loadAudio();
       // don't call init event listeners here - it gives the user control too early (they can move while in the laoding screena & before countdown)
       await initBackgroundAudio();
+
+      // Initialize minimap
+      minimapElements = initMinimap();
 
       console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 260);
@@ -186,6 +192,49 @@ async function init() {
       reject(error);
     }
   });
+}
+
+function initMinimap() {
+  minimapScene = scene;
+  
+  // Create orthographic camera
+  minimapCamera = new THREE.OrthographicCamera(
+    -50, 50,
+    50, -50,
+    1, 1000
+  );
+  minimapCamera.position.set(0, 200, 0);
+  minimapCamera.lookAt(0, 0, 0);
+  minimapCamera.up.set(0, 0, -1);
+  
+  // Setup minimap renderer
+  minimapRenderer = new THREE.WebGLRenderer({
+    canvas: document.getElementById('minimap'),
+    antialias: true
+  });
+  minimapRenderer.setSize(250, 250);
+  
+  return {};
+}
+
+function updateMinimap() {
+  if (!model) return;
+  
+  // Update minimap camera to follow player
+  minimapCamera.position.set(
+    model.position.x,
+    200,
+    model.position.z
+  );
+  
+  // Update camera target to look at player position
+  minimapCamera.lookAt(
+    model.position.x,
+    0,
+    model.position.z
+  );
+  
+  minimapRenderer.render(minimapScene, minimapCamera);
 }
 
 //function to load all game audio into buffers before the game starts
@@ -532,6 +581,13 @@ async function initScene() {
 
     //Setup controls
     setupControls();
+
+    try {
+      minimapElements = initMinimap();
+      console.log('Minimap initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize minimap:', error);
+    }
 
     resolve();
   });
@@ -2280,6 +2336,10 @@ function animate() {
   //controls.update();
 
   stats.end();
+  
+  if (minimapElements && model) {
+    updateMinimap(minimapElements.playerIndicator);
+  }
 }
 
 // Create a function to show the loading screen
@@ -2528,12 +2588,6 @@ function generateBestTime() {
   document.body.appendChild(bestTimeContainer);
 }
 
-// Example reset function (you need to implement the actual logic)
-function resetGame() {
-  // Logic to reset your game
-  console.log("Game is restarting...");
-}
-
 function restartGame() {
   // do countdown again
 
@@ -2594,6 +2648,12 @@ async function startGame() {
       hideGameMenu();
       //render the game
       await init();
+
+      //hide the controls ui
+      let controlsInfo = document.getElementById("controls-info");
+      if (controlsInfo) {
+        controlsInfo.style.display = "none";
+      }   
 
       //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
       showTimer();

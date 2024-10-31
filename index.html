@@ -11,8 +11,48 @@
 
 <body>
 	<div id="gameMenu" class="menu">
-		<h1>Fat Guys Demo</h1>
+		<h1>Fat Guys</h1>
 		<button id="startButton">Start Game</button>
+
+		<!-- Controls -->
+		<div id="controls-info" class="controls-container">
+			<h2 class="controls-title">Controls</h2>
+			<div class="controls-grid">
+				<div class="control-item">
+					<div class="key-group">
+						<div>
+							<span class="key">W</span>
+						</div>
+						<div>
+							<span class="key">A</span>
+							<span class="key">S</span>
+							<span class="key">D</span>
+						</div>
+					</div>
+					<span class="control-desc">Movement</span>
+				</div>
+				<div class="control-item">
+					<span class="key">P</span>
+					<span class="control-desc">Pause Game</span>
+				</div>
+				<div class="control-item">
+					<img src="./src/img/mouse.png" alt="mouse" class="mouse-icon" />
+					<span class="control-desc">Camera Control</span>
+				</div>
+				<div class="control-item">
+					<span class="key">V</span>
+					<span class="control-desc">Switch View</span>
+				</div>
+				<div class="spacebar-row">
+					<div class="control-item">
+						<span class="key spacebar">SPACE</span>
+						<span class="control-desc">Jump</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+
 		<button id="resumeButton" style="display: none;">Resume Game</button>
 		<button id="restartButton" style="display: none;">Restart Game</button>
 		<div id="volume-control" class="volume-control" style="display: none;">
@@ -21,7 +61,10 @@
 		</div>
 	</div>
 	<div id="gameContainer"></div>
-	<script type="module" src="src/js/level3.js"></script>
+	<div id="minimap-container">
+		<canvas id="minimap"></canvas>
+	</div>
+	<script type="module" src="src/js/level2.js"></script>
 </body>
 
 </html>

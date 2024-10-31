@@ -607,9 +607,9 @@ async function die() {
   model.visible = false;
 
   const respawnPosition =
-    playerBody.position.z < 210
+    playerBody.position.z < 240
       ? { x: 0, y: 10, z: 10 }
-      : { x: 0, y: 10, z: 230 };
+      : { x: 0, y: 10, z: 270 };
 
   hitsound.play();
 

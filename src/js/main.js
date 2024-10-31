@@ -2528,12 +2528,6 @@ function generateBestTime() {
   document.body.appendChild(bestTimeContainer);
 }
 
-// Example reset function (you need to implement the actual logic)
-function resetGame() {
-  // Logic to reset your game
-  console.log("Game is restarting...");
-}
-
 function restartGame() {
   // do countdown again
 
@@ -2594,6 +2588,12 @@ async function startGame() {
       hideGameMenu();
       //render the game
       await init();
+
+      //hide the controls ui
+      let controlsInfo = document.getElementById("controls-info");
+      if (controlsInfo) {
+        controlsInfo.style.display = "none";
+      }   
 
       //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
       showTimer();

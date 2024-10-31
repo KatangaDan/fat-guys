@@ -18,7 +18,7 @@ import {
 import finish from "../img/finish.jpg";
 import basicBg from "../img/sample2.png";
 import heart from "../img/heart.png";
-import groundTexture from "../img/stoleItLol.jpg";
+import groundTexture from "../textures/image.png";
 import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
 import PjumpSound from "../sounds/jumpSound.wav";
 import Pjumpland from "../sounds/jumpland.wav";
@@ -915,7 +915,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 25);
+        model.position.set(0, 2, 270);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -1321,7 +1321,7 @@ async function createGroundPiece(x, y, z, width, length) {
     const texture = textureLoader.load(groundTexture);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(10, 10);
+    texture.repeat.set(4, 1);
     groundMaterial.map = texture;
 
     resolve();

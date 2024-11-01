@@ -202,7 +202,7 @@ async function init() {
       await initCheckpoints();
 
       // //Init particle background system
-      // await initBackgroundParticleSystem();
+      await initBackgroundParticleSystem();
 
       // Create finish line
       //await initFinishLine();

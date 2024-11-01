@@ -200,7 +200,7 @@ function createMinimapScene() {
   // Add simple ground pieces using basic geometries - updated to match main scene positioning
   function addMinimapGround(x, y, z, width, length) {
     const geometry = new THREE.PlaneGeometry(width, length);
-    const material = new THREE.MeshBasicMaterial({ color: 0x808080 });
+    const material = new THREE.MeshBasicMaterial({ color: "#d0b4a4" });
     const ground = new THREE.Mesh(geometry, material);
     // Match the exact positioning from createGroundPiece
     ground.position.set(x, y, -(z + length / 2)); // Negative z for correct orientation

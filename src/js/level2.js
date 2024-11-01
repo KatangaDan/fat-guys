@@ -150,9 +150,6 @@ async function init() {
       // don't call init event listeners here - it gives the user control too early (they can move while in the laoding screena & before countdown)
       await initBackgroundAudio();
 
-      // Initialize minimap
-      // minimapElements = initMinimap();
-
       console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 60);
       await initBackgroundParticleSystem();
@@ -193,6 +190,9 @@ async function init() {
 
       await initFinishLine();
 
+      // Initialize minimap
+      minimapElements = createMinimapScene();
+
       console.log("Game initialized successfully!");
 
       resolve();
@@ -204,35 +204,110 @@ async function init() {
   });
 }
 
-function initMinimap() {
-  minimapScene = scene;
+function createMinimapScene() {
+  const minimapScene = new THREE.Scene();
 
-  // Create orthographic camera
-  minimapCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 1000);
-  minimapCamera.position.set(0, 200, 0);
-  minimapCamera.lookAt(0, 0, 0);
-  minimapCamera.up.set(0, 0, -1);
+  // Add ground pieces using basic geometries
+  function addMinimapGround(x, y, z, width, length) {
+    const geometry = new THREE.PlaneGeometry(width, length);
+    const material = new THREE.MeshBasicMaterial({ color: "#2c13ad" });
+    const ground = new THREE.Mesh(geometry, material);
+    ground.position.set(x, y, -(z + length / 2));
+    ground.rotation.x = -Math.PI / 2;
+    minimapScene.add(ground);
+  }
 
-  // Setup minimap renderer
-  minimapRenderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById("minimap"),
-    antialias: true,
-  });
-  minimapRenderer.setSize(250, 250);
+  // Add cylinder representation
+  function addMinimapCylinder(x, y, z, radius, height) {
+    const geometry = new THREE.PlaneGeometry(radius * 2, height);
+    const material = new THREE.MeshBasicMaterial({ color: "#f834d4" });
+    const cylinder = new THREE.Mesh(geometry, material);
+    // Adjust position to match the actual cylinder position
+    cylinder.position.set(x, y, -(z + height / 2));
+    cylinder.rotation.x = -Math.PI / 2;
+    minimapScene.add(cylinder);
+  }
 
-  return {};
+  // Add player representation (simple dot)
+  function createPlayerDot() {
+    const geometry = new THREE.CircleGeometry(2, 16);
+    const material = new THREE.MeshBasicMaterial({ color: "#f874b4" });
+    const playerDot = new THREE.Mesh(geometry, material);
+    playerDot.rotation.x = -Math.PI / 2;
+    playerDot.position.y = 0.1;
+    minimapScene.add(playerDot);
+    return playerDot;
+  }
+
+  function initMinimap() {
+    const minimapCamera = new THREE.OrthographicCamera(
+      -50,
+      50,
+      50,
+      -50,
+      1,
+      1000
+    );
+    minimapCamera.position.set(0, 200, 0);
+    minimapCamera.lookAt(0, 0, 0);
+    minimapCamera.up.set(0, 0, -1);
+
+    const minimapRenderer = new THREE.WebGLRenderer({
+      canvas: document.getElementById("minimap"),
+      alpha: true,
+    });
+    minimapRenderer.setSize(150, 150);
+
+    // Add ground pieces matching the level layout
+    // First ground piece
+    addMinimapGround(0, 0, 0, 60, 60);
+
+    // Add cylinders with correct positions from initGroundCylinders
+    // Parameters match createHorizontalCylinder(world, scene, x, y, z, radius, height)
+    addMinimapCylinder(-20, 0, 65, 2, 40); // Left cylinder
+    addMinimapCylinder(0, 0, 65, 2, 40); // Middle cylinder
+    addMinimapCylinder(20, 0, 65, 2, 40); // Right cylinder
+
+    // Second set of ground pieces (platforms for wrecking balls)
+    addMinimapGround(0, 0, 115, 60, 10);
+    addMinimapGround(0, 0, 145, 60, 10);
+    addMinimapGround(0, 0, 175, 60, 10);
+    addMinimapGround(0, 0, 205, 60, 10);
+    addMinimapGround(0, 0, 235, 60, 10);
+
+    // Large ground piece for third section
+    addMinimapGround(0, 0, 265, 60, 240);
+
+    const playerDot = createPlayerDot();
+
+    return {
+      scene: minimapScene,
+      camera: minimapCamera,
+      renderer: minimapRenderer,
+      playerDot: playerDot,
+    };
+  }
+
+  return initMinimap();
 }
 
-function updateMinimap() {
-  if (!model) return;
+// Update minimap in render loop
+function updateMinimap(minimapElements, player) {
+  if (!minimapElements) return;
 
-  // Update minimap camera to follow player
-  minimapCamera.position.set(model.position.x, 200, model.position.z);
+  const { scene, camera, renderer, playerDot } = minimapElements;
 
-  // Update camera target to look at player position
-  minimapCamera.lookAt(model.position.x, 0, model.position.z);
+  // Update player dot position
+  playerDot.position.x = -player.position.x;
+  playerDot.position.z = -player.position.z;
 
-  minimapRenderer.render(minimapScene, minimapCamera);
+  // Update camera position to follow player
+  camera.position.x = -player.position.x;
+  camera.position.z = -player.position.z;
+  camera.lookAt(-player.position.x, 0, -player.position.z);
+
+  // Render minimap
+  renderer.render(scene, camera);
 }
 
 //function to load all game audio into buffers before the game starts
@@ -751,12 +826,12 @@ async function initScene() {
     //Setup controls
     setupControls();
 
-    try {
-      minimapElements = initMinimap();
-      console.log("Minimap initialized successfully");
-    } catch (error) {
-      console.error("Failed to initialize minimap:", error);
-    }
+    // try {
+    //   minimapElements = initMinimap();
+    //   console.log("Minimap initialized successfully");
+    // } catch (error) {
+    //   console.error("Failed to initialize minimap:", error);
+    // }
 
     resolve();
   });
@@ -1843,9 +1918,9 @@ function animate() {
 
   stats.end();
 
-  // if (minimapElements && model) {
-  //   updateMinimap(minimapElements.playerIndicator);
-  // }
+  if (minimapElements && model) {
+    updateMinimap(minimapElements, model);
+  }
 }
 
 // Create a function to show the loading screen
@@ -2115,7 +2190,6 @@ function resetGame() {
 }
 
 function restartGame() {
-
   //let loader = document.getElementById("loading-screen");
   //loader.style.display = "block";
   //showLoadingScreen();
@@ -2180,6 +2254,12 @@ async function startGame() {
 
     // Render the game
     await init();
+
+    //show minimap
+    let minimap = document.getElementById("minimap-container");
+    if (minimap) {
+      minimap.style.display = "block";
+    }
 
     // Hide the controls UI
     let controlsInfo = document.getElementById("controls-info");

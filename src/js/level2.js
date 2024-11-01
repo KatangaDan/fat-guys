@@ -18,7 +18,7 @@ import {
 import finish from "../img/finish.jpg";
 import basicBg from "../img/sample2.png";
 import heart from "../img/heart.png";
-import groundTexture from "../img/stoleItLol.jpg";
+import groundTexture from "../textures/floor.png";
 import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
 import PjumpSound from "../sounds/jumpSound.wav";
 import Pjumpland from "../sounds/jumpland.wav";
@@ -130,6 +130,9 @@ const jumpCooldown = 250; // milliseconds between allowed jump attempts
 const listener = new THREE.AudioListener();
 const audioLoader = new THREE.AudioLoader();
 
+// minimap setup
+let minimapElements, minimapScene, minimapCamera, minimapRenderer;
+
 async function init() {
   return new Promise(async (resolve, reject) => {
     //audio setup for pre-loading
@@ -146,6 +149,9 @@ async function init() {
       await loadAudio();
       // don't call init event listeners here - it gives the user control too early (they can move while in the laoding screena & before countdown)
       await initBackgroundAudio();
+
+      // Initialize minimap
+     // minimapElements = initMinimap();
 
       console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 60);
@@ -196,6 +202,49 @@ async function init() {
       reject(error);
     }
   });
+}
+
+function initMinimap() {
+  minimapScene = scene;
+  
+  // Create orthographic camera
+  minimapCamera = new THREE.OrthographicCamera(
+    -50, 50,
+    50, -50,
+    1, 1000
+  );
+  minimapCamera.position.set(0, 200, 0);
+  minimapCamera.lookAt(0, 0, 0);
+  minimapCamera.up.set(0, 0, -1);
+  
+  // Setup minimap renderer
+  minimapRenderer = new THREE.WebGLRenderer({
+    canvas: document.getElementById('minimap'),
+    antialias: true
+  });
+  minimapRenderer.setSize(250, 250);
+  
+  return {};
+}
+
+function updateMinimap() {
+  if (!model) return;
+  
+  // Update minimap camera to follow player
+  minimapCamera.position.set(
+    model.position.x,
+    200,
+    model.position.z
+  );
+  
+  // Update camera target to look at player position
+  minimapCamera.lookAt(
+    model.position.x,
+    0,
+    model.position.z
+  );
+  
+  minimapRenderer.render(minimapScene, minimapCamera);
 }
 
 //function to load all game audio into buffers before the game starts
@@ -518,24 +567,33 @@ async function createGateExplosion(
   });
 }
 
+let popedGates = [];
 // Collision check function
 function checkCollision(model) {
   const playerBoundingBox = new THREE.Box3().setFromObject(model);
   explosionGates.forEach((gate, index) => {
-    if (!gate.exploded) {
-      const gateBoundingBox = new THREE.Box3().setFromObject(gate);
-      if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
-        gateExplosion(gate.position); // Trigger explosion at gate's position
-        scene.remove(gate); // Remove gate after explosion
-        gate.exploded = true; // Set exploded flag to true
-        gates.splice(index, 1); // Remove gate from array
-      }
+    if(!gate.exploded) {
+    const gateBoundingBox = new THREE.Box3().setFromObject(gate);
+    if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
+      gateExplosion(gate.position); // Trigger explosion at gate's position
+      scene.remove(gate); // Remove gate after explosion
+      gate.exploded = true; // Set exploded flag to true
+      popedGates.push(gate);
+      gates.splice(index, 1); // Remove gate from array
     }
+  }
   });
 }
 
 async function die() {
   currentLives--;
+
+  popedGates.forEach((gate) => {
+    gate.exploded = false;
+    gateExplosion(gate.position);
+    scene.add(gate);
+  });
+    
 
   isPlayerDead = true;
 
@@ -549,9 +607,9 @@ async function die() {
   model.visible = false;
 
   const respawnPosition =
-    playerBody.position.z < 210
+    playerBody.position.z < 265
       ? { x: 0, y: 10, z: 10 }
-      : { x: 0, y: 10, z: 230 };
+      : { x: 0, y: 10, z: 270 };
 
   hitsound.play();
 
@@ -706,6 +764,13 @@ async function initScene() {
     //Setup controls
     setupControls();
 
+    try {
+      minimapElements = initMinimap();
+      console.log('Minimap initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize minimap:', error);
+    }
+
     resolve();
   });
 }
@@ -795,6 +860,20 @@ async function initLighting() {
 
     scene.add(mainLight);
 
+    // create a second light at z =270, in the oposite direction to the mainlight so ot can illumintate the wrecking balls
+    const secondaryLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    secondaryLight.position.set(50, 100, 270);
+    secondaryLight.castShadow = true;
+    secondaryLight.shadow.mapSize.width = 4096;
+    secondaryLight.shadow.mapSize.height = 4096;
+    secondaryLight.shadow.camera.left = -shadowDistance;
+    secondaryLight.shadow.camera.right = shadowDistance;
+    secondaryLight.shadow.camera.top = shadowDistance;
+    secondaryLight.shadow.camera.bottom = -shadowDistance;
+
+    scene.add(secondaryLight);
+
+
     // Secondary fill light (no shadows) for better coverage
     const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
     fillLight.position.set(-50, 50, -50);
@@ -841,14 +920,14 @@ async function initPhysics() {
 
 async function initPlayer() {
   return new Promise((resolve) => {
-    const fatGuyURL = new URL("../assets/FatGuy.glb", import.meta.url);
+    const fatGuyURL = new URL("../assets/SmoothFatGuy.glb", import.meta.url);
     const assetLoader = new GLTFLoader();
 
     assetLoader.load(
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 10);
+        model.position.set(0, 2, 15);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -1254,7 +1333,7 @@ async function createGroundPiece(x, y, z, width, length) {
     const texture = textureLoader.load(groundTexture);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(10, 10);
+    texture.repeat.set(4, 1);
     groundMaterial.map = texture;
 
     resolve();
@@ -1263,527 +1342,59 @@ async function createGroundPiece(x, y, z, width, length) {
 
 async function initGateObstacles() {
   return new Promise(async (resolve) => {
-    //FIRST SET OF PILLARS AND GATES (4 pillars, 3 gates)
+    const pillarZPositions = [275, 300, 325, 350, 375, 400, 425];
+    const pillarXPositions = [28.5, 9.5, -9.5, -28.5]; // Replace with specific x-coordinates as needed
 
-    const firstSetZ = 275; // Z position for the first set of pillars
+    for (let z of pillarZPositions) {
+      let pillars = [];
+      for (let x of pillarXPositions) {
+        pillars.push(await createPillar2(world, scene, x, 0, z, 3, 8, 7));
+      }
 
-    let pillar1 = await createPillar2(
-      world,
-      scene,
-      28.5,
-      0,
-      firstSetZ,
-      3,
-      8,
-      7
-    );
-    let pillar2 = await createPillar2(world, scene, 9.5, 0, firstSetZ, 3, 8, 7);
-    let pillar3 = await createPillar2(
-      world,
-      scene,
-      -9.5,
-      0,
-      firstSetZ,
-      3,
-      8,
-      7
-    );
-    let pillar4 = await createPillar2(
-      world,
-      scene,
-      -28.5,
-      0,
-      firstSetZ,
-      3,
-      8,
-      7
-    );
+      // Randomly select one gate to be explosive in this z row
+      const gateIndex = Math.floor(Math.random() * (pillars.length - 1));
 
-    const x1 = pillar1.position.x;
-    const x2 = pillar2.position.x;
-    const x3 = pillar3.position.x;
-    const x4 = pillar4.position.x;
+      for (let i = 0; i < pillars.length - 1; i++) {
+        const leftPillar = pillars[i];
+        const rightPillar = pillars[i + 1];
 
-    //moving gates between pillar 1 and 2
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        x1,
-        0,
-        pillar1.position.z,
-        8,
-        2,
-        pillar1,
-        pillar2
-      )
-    );
-
-    gates.push(
-      await createGateExplosion(
-        scene,
-        model,
-        pillar2.position.x,
-        0,
-        pillar3.position.z,
-        8,
-        2,
-        pillar2,
-        pillar3
-      )
-    );
-
-    //moving gates between pillar 3 and 4
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        x3,
-        0,
-        pillar3.position.z,
-        8,
-        2,
-        pillar3,
-        pillar4
-      )
-    );
-
-    //SECOND SET OF PILLARS
-
-    const secondSetZ = 300; // Z position for the second set of pillars
-    const leftmostX = 28.5; // Fixed x position for the leftmost pillar
-    const rightmostX = -28.5; // Fixed x position for the rightmost pillar
-
-    // Calculate equal spacing between the pillars
-    const totalDistance = leftmostX - rightmostX; // Distance between leftmost and rightmost
-    const pillarSpacing = totalDistance / 4; // We have 4 gaps for 5 pillars
-
-    // Create 4 pillars with equal spacing between them
-    let pillar5 = await createPillar2(world, scene, x1, 0, secondSetZ, 3, 8, 7);
-
-    let pillar6 = await createPillar2(world, scene, x2, 0, secondSetZ, 3, 8, 7);
-
-    let pillar7 = await createPillar2(world, scene, x3, 0, secondSetZ, 3, 8, 7);
-    let pillar8 = await createPillar2(
-      world,
-      scene,
-      rightmostX,
-      0,
-      secondSetZ,
-      3,
-      8,
-      7
-    );
-
-    // Moving gates between pillar 6 and 7
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        pillar6.position.x,
-        0,
-        pillar6.position.z,
-        8,
-        2,
-        pillar6,
-        pillar7
-      )
-    );
-
-    gates.push(
-      await createGateExplosion(
-        scene,
-        model,
-        pillar5.position.x,
-        0,
-        pillar6.position.z,
-        8,
-        2,
-        pillar5,
-        pillar6
-      )
-    );
-
-    // Moving gates between pillar 7 and 8
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        pillar7.position.x,
-        0,
-        pillar7.position.z,
-        8,
-        2,
-        pillar7,
-        pillar8
-      )
-    );
-
-    // Third set of pillars
-    const thirdSetZ = 325;
-
-    let pillar9 = await createPillar2(world, scene, x1, 0, thirdSetZ, 3, 8, 7);
-
-    let pillar10 = await createPillar2(world, scene, x2, 0, thirdSetZ, 3, 8, 7);
-
-    let pillar11 = await createPillar2(world, scene, x3, 0, thirdSetZ, 3, 8, 7);
-    let pillar12 = await createPillar2(
-      world,
-      scene,
-      rightmostX,
-      0,
-      thirdSetZ,
-      3,
-      8,
-      7
-    );
-
-    // Moving gates between pillar 10 and 11
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        pillar10.position.x,
-        0,
-        pillar10.position.z,
-        8,
-        2,
-        pillar10,
-        pillar11
-      )
-    );
-
-    gates.push(
-      await createGateExplosion(
-        scene,
-        model,
-        pillar9.position.x,
-        0,
-        pillar10.position.z,
-        8,
-        2,
-        pillar9,
-        pillar10
-      )
-    );
-    // Moving gates between pillar 11 and 12
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        pillar11.position.x,
-        0,
-        pillar11.position.z,
-        8,
-        2,
-        pillar11,
-        pillar12
-      )
-    );
-
-    // Fourth set of pillars
-    const fourthSetZ = 350;
-
-    let pillar13 = await createPillar2(
-      world,
-      scene,
-      x1,
-      0,
-      fourthSetZ,
-      3,
-      8,
-      7
-    );
-
-    let pillar14 = await createPillar2(
-      world,
-      scene,
-      x2,
-      0,
-      fourthSetZ,
-      3,
-      8,
-      7
-    );
-
-    let pillar15 = await createPillar2(
-      world,
-      scene,
-      x3,
-      0,
-      fourthSetZ,
-      3,
-      8,
-      7
-    );
-    let pillar16 = await createPillar2(
-      world,
-      scene,
-      rightmostX,
-      0,
-      fourthSetZ,
-      3,
-      8,
-      7
-    );
-
-    // Moving gates between pillar 13 and 14
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        pillar13.position.x,
-        0,
-        pillar13.position.z,
-        8,
-        2,
-        pillar13,
-        pillar14
-      )
-    );
-    gates.push(
-      await createGateExplosion(
-        scene,
-        model,
-        pillar15.position.x,
-        0,
-        pillar16.position.z,
-        8,
-        2,
-        pillar15,
-        pillar16
-      )
-    );
-    // Moving gates between pillar 14 and 15
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        pillar14.position.x,
-        0,
-        pillar14.position.z,
-        8,
-        2,
-        pillar14,
-        pillar15
-      )
-    );
-
-    // Fifth set of pillars
-    const fifthSetZ = 375;
-
-    let pillar17 = await createPillar2(world, scene, x1, 0, fifthSetZ, 3, 8, 7);
-
-    let pillar18 = await createPillar2(world, scene, x2, 0, fifthSetZ, 3, 8, 7);
-
-    let pillar19 = await createPillar2(world, scene, x3, 0, fifthSetZ, 3, 8, 7);
-    let pillar20 = await createPillar2(
-      world,
-      scene,
-      rightmostX,
-      0,
-      fifthSetZ,
-      3,
-      8,
-      7
-    );
-
-    // Moving gates between pillar 17 and 18
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        pillar17.position.x,
-        0,
-        pillar17.position.z,
-        8,
-        2,
-        pillar17,
-        pillar18
-      )
-    );
-    gates.push(
-      await createGateExplosion(
-        scene,
-        model,
-        pillar18.position.x,
-        0,
-        pillar19.position.z,
-        8,
-        2,
-        pillar18,
-        pillar19
-      )
-    );
-    // Moving gates between pillar 19 and 20
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        pillar19.position.x,
-        0,
-        pillar19.position.z,
-        8,
-        2,
-        pillar19,
-        pillar20
-      )
-    );
-
-    // Sixth set of pillars
-    const sixthSetZ = 400;
-
-    let pillar21 = await createPillar2(world, scene, x1, 0, sixthSetZ, 3, 8, 7);
-
-    let pillar22 = await createPillar2(world, scene, x2, 0, sixthSetZ, 3, 8, 7);
-
-    let pillar23 = await createPillar2(world, scene, x3, 0, sixthSetZ, 3, 8, 7);
-    let pillar24 = await createPillar2(
-      world,
-      scene,
-      rightmostX,
-      0,
-      sixthSetZ,
-      3,
-      8,
-      7
-    );
-
-    // Moving gates between pillar 21 and 22
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        pillar21.position.x,
-        0,
-        pillar21.position.z,
-        8,
-        2,
-        pillar21,
-        pillar22
-      )
-    );
-    // Moving gates between pillar 22 and 23
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        pillar22.position.x,
-        0,
-        pillar22.position.z,
-        8,
-        2,
-        pillar22,
-        pillar23
-      )
-    );
-    gates.push(
-      await createGateExplosion(
-        scene,
-        model,
-        pillar23.position.x,
-        0,
-        pillar24.position.z,
-        8,
-        2,
-        pillar23,
-        pillar24
-      )
-    );
-
-    // Seventh set of pillars
-    const seventhSetZ = 425;
-
-    let pillar25 = await createPillar2(
-      world,
-      scene,
-      x1,
-      0,
-      seventhSetZ,
-      3,
-      8,
-      7
-    );
-
-    let pillar26 = await createPillar2(
-      world,
-      scene,
-      x2,
-      0,
-      seventhSetZ,
-      3,
-      8,
-      7
-    );
-
-    let pillar27 = await createPillar2(
-      world,
-      scene,
-      x3,
-      0,
-      seventhSetZ,
-      3,
-      8,
-      7
-    );
-    let pillar28 = await createPillar2(
-      world,
-      scene,
-      rightmostX,
-      0,
-      seventhSetZ,
-      3,
-      8,
-      7
-    );
-
-    // Moving gates between pillar 26 and 27
-    gates.push(
-      await createGateExplosion(
-        scene,
-        model,
-        pillar25.position.x,
-        0,
-        pillar26.position.z,
-        8,
-        2,
-        pillar25,
-        pillar26
-      )
-    );
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        pillar26.position.x,
-        0,
-        pillar26.position.z,
-        8,
-        2,
-        pillar26,
-        pillar27
-      )
-    );
-    // Moving gates between pillar 27 and 28
-    gates.push(
-      await createGate2(
-        world,
-        scene,
-        pillar27.position.x,
-        0,
-        pillar27.position.z,
-        8,
-        2,
-        pillar27,
-        pillar28
-      )
-    );
+        if (i === gateIndex) {
+          gates.push(
+            await createGateExplosion(
+              scene,
+              model,
+              leftPillar.position.x,
+              0,
+              z+3,
+              8,
+              2,
+              leftPillar,
+              rightPillar
+            )
+          );
+        } else {
+          gates.push(
+            await createGate2(
+              world,
+              scene,
+              leftPillar.position.x,
+              0,
+              z+3,
+              8,
+              2,
+              leftPillar,
+              rightPillar
+            )
+          );
+        }
+      }
+    }
 
     AddVisualGateHelpers();
-    // AddVisualCylinderHelpers();
     resolve();
   });
 }
+
 
 async function initGroundCylinders() {
   return new Promise(async (resolve) => {
@@ -2151,7 +1762,24 @@ function animate() {
     //player bounding box
     const playerBoundingBox = new THREE.Box3().setFromObject(model);
 
-    /*Actual bounding boxes for the player and obstacles*/
+    //wreckingballs bounding boxes
+    wreckingBalls.forEach((wreckingBall) => {
+      const wreckingBallBoundingBox = new THREE.Box3().setFromObject(wreckingBall);
+
+      if (playerBoundingBox.intersectsBox(wreckingBallBoundingBox)) {
+        const currentTime = Date.now();
+        if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
+          isPlayerDead = true;
+          lastDeathTime = currentTime;
+          die();
+
+          // Reset the dead state after the cooldown
+          setTimeout(() => {
+            isPlayerDead = false;
+          }, deathCooldown);
+        }
+      }
+    });
 
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
     if (playerHelper) {
@@ -2222,6 +1850,10 @@ function animate() {
   //controls.update();
 
   stats.end();
+
+  // if (minimapElements && model) {
+  //   updateMinimap(minimapElements.playerIndicator);
+  // }
 }
 
 // Create a function to show the loading screen

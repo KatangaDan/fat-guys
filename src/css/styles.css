@@ -10,6 +10,7 @@ html {
     height: 100%;
     font-family: 'Titan One', cursive;
     background: linear-gradient(135deg, #1E3A8A, #3B82F6);
+    font-size: 0.8rem;
     overflow: hidden;
 }
 
@@ -19,7 +20,7 @@ html {
     left: 50%;
     transform: translate(-50%, -50%);
     background-color: #2563EB;
-    padding: 2rem;
+    padding: 1.5rem;
     border-radius: 20px;
     text-align: center;
     color: #fff;
@@ -30,15 +31,15 @@ html {
 }
 
 .menu h1 {
-    font-size: 3rem;
-    margin-bottom: 1.5rem;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
     text-shadow: 3px 3px 0px #1E40AF;
     color: #FDF4FF;
 }
 
 .menu p {
-    font-size: 1.2rem;
-    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    margin-bottom: 1.2rem;
     color: #fff;
 }
 

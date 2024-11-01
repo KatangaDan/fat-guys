@@ -1948,13 +1948,13 @@ function toggleMenu() {
     document.exitPointerLock();
 
     const resumeButton = document.getElementById("resumeButton");
-    const startButton = document.getElementById("startButton");
+
     const restartButton = document.getElementById("restartButton");
     const level3Button = document.getElementById("level3Button");
 
     //hide advance to level 3 button
-    if (level2Button) {
-      level2Button.style.display = "none";
+    if (level3Button) {
+      level3Button.style.display = "none";
     }
 
     //show volume slider
@@ -1962,7 +1962,6 @@ function toggleMenu() {
     console.log("volumeControl", volumeControl);
     if (volumeControl) volumeControl.style.display = "block";
 
-    startButton.style.display = "none";
     resumeButton.style.display = "block";
     restartButton.style.display = "block";
 
@@ -1999,7 +1998,7 @@ function showWinScreen(elapsedTime) {
   const gameMenu = document.getElementById("gameMenu");
   elapsedTime = elapsedTime / 1000;
   // Hide start and resume buttons
-  document.getElementById("startButton").style.display = "none";
+
   document.getElementById("resumeButton").style.display = "none";
   document.getElementById("restartButton").style.display = "block"; // Show restart button
 
@@ -2134,6 +2133,12 @@ async function startGame() {
   try {
     let resumeButton = document.getElementById("resumeButton");
     let restartButton = document.getElementById("restartButton");
+    let menuButton = document.getElementById("mainMenuButton");
+
+    // Add event listener to the menu button
+    menuButton.addEventListener("click", () => {
+      window.location.href = "/";
+    });
 
     // Add an event listener to the volume slider
     function updateVolume() {

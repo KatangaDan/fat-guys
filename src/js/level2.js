@@ -367,7 +367,7 @@ async function loadAudio() {
 
   // Assign each load operation to the audioPromises array
   audioPromises.push(
-    loadSound(PbackGroundMusic, backGroundMusic, true, gameVolume / 2)
+    loadSound(PbackGroundMusic, backGroundMusic, true, gameVolume / 4)
   );
   audioPromises.push(loadSound(PjumpSound, jumpSound));
   audioPromises.push(loadSound(Pjumpland, jumpland));
@@ -2176,9 +2176,9 @@ function showWinScreen(elapsedTime) {
   }
 
   // Create the congratulatory message
-  const congratsMessage = document.createElement("h2");
+  const congratsMessage = document.createElement("h1");
   congratsMessage.id = "congratsMessage";
-  congratsMessage.textContent = "Congratulations! ";
+  congratsMessage.textContent = "You've completed the level! ";
   winMessage.appendChild(congratsMessage);
 
   //store elapsed time in local storage as best time
@@ -2198,7 +2198,8 @@ function showWinScreen(elapsedTime) {
   //new best time
   if (elapsedTime <= bestTime) {
     localStorage.setItem("bestTimeLevel2", elapsedTime);
-    congratsMessage.textContent = "Congratulations! New Best Time!";
+    congratsMessage.textContent =
+      "You've completed the level with a new best time!";
   }
 
   // Create the final time message

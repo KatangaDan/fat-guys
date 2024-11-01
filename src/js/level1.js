@@ -17,7 +17,7 @@ import {
 
 // Import assets
 import finish from "../img/finish.jpg";
-import basicBg from "../img/sky.jpg";
+import basicBg from "../img/sample2.png";
 import heart from "../img/heart.png";
 import groundTexture from "../textures/floor.png";
 import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
@@ -359,7 +359,7 @@ async function loadAudio() {
 
   // Assign each load operation to the audioPromises array
   audioPromises.push(
-    loadSound(PbackGroundMusic, backGroundMusic, true, gameVolume / 2)
+    loadSound(PbackGroundMusic, backGroundMusic, true, gameVolume / 4)
   );
   audioPromises.push(loadSound(PjumpSound, jumpSound));
   audioPromises.push(loadSound(Pjumpland, jumpland));
@@ -633,7 +633,7 @@ async function initStats() {
 async function initScene() {
   return new Promise((resolve) => {
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x202020, 100, 500); // Add depth fog
+    scene.fog = new THREE.Fog(0x202020, 150, 700); // Add depth fog
     camera = new THREE.PerspectiveCamera(
       70, // Field of view (45-75)
       window.innerWidth / window.innerHeight,

@@ -585,7 +585,7 @@ export async function createTurnstile(
           barDepth + 0.01
         );
         const stripeMaterial = new THREE.MeshStandardMaterial({
-          color: 0x3b0b3b,
+          color: 0xff69b4,
           roughness: 0.2,
           metalness: 0.1,
         });
@@ -713,7 +713,7 @@ export function createRotatingHammer(
   const headHeight = 2.5;
   const headGeometry = new THREE.CylinderGeometry(headRadius, headRadius, headHeight, 32);
   const headMaterial = new THREE.MeshStandardMaterial({
-    color: 0x3b0b3b,
+    color: 0xff69b4,
     metalness: 0.3,
     roughness: 0.4
   });
@@ -1055,7 +1055,7 @@ export async function createStartingPlatform(
       // Create fences
       const fenceHeight = 5;
       const fenceThickness = 0.2;
-      const fenceMaterial = new THREE.MeshStandardMaterial({ color: 0xffc0cb });
+      const fenceMaterial = new THREE.MeshStandardMaterial({ map: texture });
 
       // Left fence
       const leftFenceGeometry = new THREE.BoxGeometry(

@@ -845,7 +845,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 180);
+        model.position.set(0, 2, 360);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -1807,7 +1807,7 @@ async function updateCannonBalls(deltaTime) {
         if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
           isPlayerDead = true;
           lastDeathTime = currentTime;
-          //die();
+          die();
 
           // Remove the cannon ball after hit
           scene.remove(cannonBall.mesh);
@@ -2353,7 +2353,7 @@ async function animate() {
           if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
             isPlayerDead = true;
             lastDeathTime = currentTime;
-            //die();
+            die();
 
             setTimeout(() => {
               isPlayerDead = false;
@@ -2375,7 +2375,7 @@ async function animate() {
           if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
             isPlayerDead = true;
             lastDeathTime = currentTime;
-            //die();
+            die();
 
             setTimeout(() => {
               isPlayerDead = false;
@@ -2394,7 +2394,7 @@ async function animate() {
         if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
           isPlayerDead = true;
           lastDeathTime = currentTime;
-          //die();
+          die();
 
           // Reset the dead state after the cooldown
           setTimeout(() => {
@@ -2413,7 +2413,7 @@ async function animate() {
         if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
           isPlayerDead = true;
           lastDeathTime = currentTime;
-          //die();
+          die();
 
           // Reset the dead state after the cooldown
           setTimeout(() => {
@@ -2476,7 +2476,7 @@ async function animate() {
         if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
           isPlayerDead = true;
           lastDeathTime = currentTime;
-          //die();
+          die();
 
           // Reset the dead state after the cooldown
           setTimeout(() => {

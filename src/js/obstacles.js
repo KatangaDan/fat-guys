@@ -80,7 +80,11 @@ export async function createGate(
 
       //Create a simple plane for the ground
       const gateGeometry = new THREE.BoxGeometry(width, height, length);
-      const gateMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const gateMaterial = new THREE.MeshStandardMaterial({ 
+        map: texture,
+        metalness: 3,
+        roughness: 0.2
+       });
       const gate = new THREE.Mesh(gateGeometry, gateMaterial);
       gate.position.set(newX, y + height / 2, z);
       gate.castShadow = true;
@@ -1035,9 +1039,13 @@ export async function createStartingPlatform(
   return new Promise((resolve) => {
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load(tile, (texture) => {
-      // Create the platform mesh
+      // Create the platform mesh with emissive color for a subtle glow
       const platformGeometry = new THREE.BoxGeometry(width, height, depth);
-      const platformMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const platformMaterial = new THREE.MeshStandardMaterial({
+        map: texture,
+        emissive: new THREE.Color(0x0000ff), // Blue emissive color
+        emissiveIntensity: 0.2, // Adjust as needed for subtle glow
+      });
       const platform = new THREE.Mesh(platformGeometry, platformMaterial);
       platform.position.set(x, y + height / 2, z);
       platform.castShadow = true;
@@ -1051,6 +1059,10 @@ export async function createStartingPlatform(
       const platformBody = new CANNON.Body({ mass: 0, shape: platformShape });
       platformBody.position.set(x, y + height / 2, z);
       world.addBody(platformBody);
+
+      // Add blue ambient light for the platform area
+      const platformAmbientLight = new THREE.AmbientLight(0x0000ff, 0.4); // Blue light with low intensity
+      scene.add(platformAmbientLight);
 
       // Create fences
       const fenceHeight = 5;
@@ -1121,6 +1133,7 @@ export async function createStartingPlatform(
       resolve({
         mesh: platform,
         body: platformBody,
+        ambientLight: platformAmbientLight, // Return the ambient light for reference if needed
         fences: {
           left: { mesh: leftFence, body: leftFenceBody },
           right: { mesh: rightFence, body: rightFenceBody },
@@ -1130,4 +1143,5 @@ export async function createStartingPlatform(
     });
   });
 }
+
 

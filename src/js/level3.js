@@ -81,6 +81,8 @@ let scene,
   targetRotationY = 0,
   rotationDamping = 0.1; // Controls how smoothly the rotation changes
 
+let turnstileHelpers = [];
+
 //Global variables for the background particle system
 let particleSystem;
 let positions;
@@ -1323,7 +1325,17 @@ async function initTurnstiles() {
   turnstiles.push(await createTurnstile(world, scene, 0, 0, 440, 2, 15));
   turnstiles.push(await createTurnstile(world, scene, 20, 0, 440, 2, 15));
   // turnstiles.push(await createTurnstile(world, scene, -15, 0, 420, 2, 15));
+  console.log("turnstiles:", turnstiles);
+  //turnstileVisualHelper();
 }
+
+// function turnstileVisualHelper() {
+//   turnstiles.forEach((turnstile) => {
+//     const helper = new THREE.BoxHelper(turnstile, 0x00ff00);
+//     turnstileHelpers.push(helper);
+//     scene.add(helper);
+//   });
+// }
 
 async function initHorizontalCylinders() {
   // Section 2 - left
@@ -2302,6 +2314,29 @@ async function panCameraToStart() {
   });
 }
 
+function checkPlayerCollisions(playerBody, turnstilesArray, hammersArray) {
+  // Create a collision event listener for the player body
+  playerBody.addEventListener("collide", function (event) {
+    // The event contains information about the collision
+    const collidedBody = event.body;
+
+    // Check if the collided body is from the obstacles or hammers array
+    const isTurnstileCollision = turnstilesArray.some(
+      (obstacle) => obstacle.body === collidedBody
+    );
+
+    const isHammerCollision = hammersArray.some(
+      (hammer) => hammer.body === collidedBody
+    );
+
+    // If collision is with an obstacle or hammer, trigger the die function
+    if ((isTurnstileCollision || isHammerCollision) && !isPlayerDead) {
+      die();
+      isPlayerDead = true;
+    }
+  });
+}
+
 async function animate() {
   frame++;
   stats.begin();
@@ -2382,52 +2417,6 @@ async function animate() {
         world.addBody(crown.body);
       }
     }
-
-    // Check collision with turnstiles
-    turnstiles.forEach((turnstile) => {
-      if (turnstile.mesh && playerBody) {
-        // Create bounding box for turnstile mesh
-        const turnstileBoundingBox = new THREE.Box3().setFromObject(
-          turnstile.mesh
-        );
-        const playerBoundingBox = new THREE.Box3().setFromObject(model);
-
-        if (playerBoundingBox.intersectsBox(turnstileBoundingBox)) {
-          const currentTime = Date.now();
-          if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
-            isPlayerDead = true;
-            lastDeathTime = currentTime;
-            die();
-
-            setTimeout(() => {
-              isPlayerDead = false;
-            }, deathCooldown);
-          }
-        }
-      }
-    });
-
-    // Check collision with hammers
-    hammers.forEach((hammer) => {
-      if (hammer && hammer.mesh && playerBody) {
-        // Create bounding box for hammer mesh
-        const hammerBoundingBox = new THREE.Box3().setFromObject(hammer.mesh);
-        const playerBoundingBox = new THREE.Box3().setFromObject(model);
-
-        if (playerBoundingBox.intersectsBox(hammerBoundingBox)) {
-          const currentTime = Date.now();
-          if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
-            isPlayerDead = true;
-            lastDeathTime = currentTime;
-            die();
-
-            setTimeout(() => {
-              isPlayerDead = false;
-            }, deathCooldown);
-          }
-        }
-      }
-    });
 
     // Check for collisions with gates
     gates.forEach((gate) => {
@@ -2535,6 +2524,11 @@ async function animate() {
       playerHelper.update();
     }
 
+    //update each turnstile
+    // turnstileHelpers.forEach((turnstileHelper) => {
+    //   turnstileHelper.update();
+    // });
+
     //Particle system
     if (particleSystem) {
       // Remove rotation line
@@ -2573,7 +2567,7 @@ async function animate() {
   animateRods(deltaTime);
   updateCannonBalls(deltaTime);
 
-  //cannonDebugger.update();
+  cannonDebugger.update();
   renderer.render(scene, camera);
   //controls.update();
 
@@ -2940,6 +2934,9 @@ async function startGame() {
     hideGameMenu();
     //render the game
     await init();
+
+    //setup collision detection for turnstile
+    checkPlayerCollisions(playerBody, turnstiles, hammers);
 
     //hide the controls ui
     let controlsInfo = document.getElementById("controls-info");

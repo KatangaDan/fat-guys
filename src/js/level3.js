@@ -169,8 +169,66 @@ const SPAWN_COOLDOWN_TIME = 1000; // 3 seconds cooldown after respawn
 // minimap setup
 let minimapElements, minimapScene, minimapCamera, minimapRenderer;
 
+let jumpSound,
+  jumpland,
+  hitsound,
+  winsound,
+  countdownOneSound,
+  countdownTwoSound,
+  countdownThreeSound,
+  countdownGoSound;
+
 //function to load all game audio into buffers before the game starts
-async function loadAudio() {}
+async function loadAudio() {
+  // Initialize audio objects
+  backGroundMusic = new THREE.Audio(listener);
+  jumpSound = new THREE.Audio(listener);
+  jumpland = new THREE.Audio(listener);
+  hitsound = new THREE.Audio(listener);
+  winsound = new THREE.Audio(listener);
+  countdownOneSound = new THREE.Audio(listener);
+  countdownTwoSound = new THREE.Audio(listener);
+  countdownThreeSound = new THREE.Audio(listener);
+  countdownGoSound = new THREE.Audio(listener);
+
+  const audioPromises = [];
+
+  // Helper function to load a sound file and set up audio properties
+  function loadSound(filePath, audioObject, loop = false, volume = gameVolume) {
+    return new Promise((resolve, reject) => {
+      audioLoader.load(
+        filePath,
+        (buffer) => {
+          audioObject.setBuffer(buffer);
+          audioObject.setLoop(loop);
+          audioObject.setVolume(volume);
+          resolve();
+        },
+        undefined,
+        reject
+      );
+    });
+  }
+
+  // Assign each load operation to the audioPromises array
+  audioPromises.push(
+    loadSound(PbackGroundMusic, backGroundMusic, true, gameVolume / 4)
+  );
+  audioPromises.push(loadSound(PjumpSound, jumpSound));
+  audioPromises.push(loadSound(Pjumpland, jumpland));
+  audioPromises.push(loadSound(Phitsound, hitsound));
+  audioPromises.push(loadSound(Pwinsound, winsound));
+  audioPromises.push(loadSound(countdownOne, countdownOneSound));
+  audioPromises.push(loadSound(countdownTwo, countdownTwoSound));
+  audioPromises.push(loadSound(countdownThree, countdownThreeSound));
+  audioPromises.push(loadSound(countdownGo, countdownGoSound));
+
+  // Wait for all audio files to load
+  await Promise.all(audioPromises);
+
+  // Optional: Play background music immediately if desired
+  backGroundMusic.play();
+}
 
 async function init() {
   return new Promise(async (resolve, reject) => {
@@ -187,12 +245,14 @@ async function init() {
       await initBackground();
       await initPhysics();
       await initPlayer();
-      await initBackgroundAudio();
 
       // Initialize minimap
       minimapElements = initMinimap();
 
       console.log("Creating obstacles + particles...");
+
+      await loadAudio();
+      await initBackgroundAudio();
 
       await initLevel3Layout();
       await initTurnstiles();
@@ -281,6 +341,21 @@ function createMinimapLayout() {
   // Checkpoint 2
   createMinimapPlatform(0, 360, 60, 30, checkpointMaterial);
 
+  // //cylinder paths
+
+  //  await createHorizontalCylinder(world, scene, 10, -2, 210, 2, 50);
+  // await createHorizontalCylinder(world, scene, 25, -2, 210, 2, 50);
+  // // Section 2 - right
+  // await createHorizontalCylinder(world, scene, -10, -2, 270, 2, 60);
+  // await createHorizontalCylinder(world, scene, -25, -2, 270, 2, 60);
+
+  // create minimap obstacles for the above
+  // addMinimapCylinder(x, y, z, radius, height)
+  addMinimapCylinder(-10, 0, 210, 2, 50);
+  addMinimapCylinder(-25, 0, 210, 2, 50);
+  addMinimapCylinder(10, 0, 270, 2, 60);
+  addMinimapCylinder(25, 0, 270, 2, 60);
+
   // Final sections
   createMinimapPlatform(0, 420, 60, 60, platformMaterial);
   createMinimapPlatform(0, 480, 60, 30, platformMaterial);
@@ -294,6 +369,16 @@ function createMinimapPlatform(x, z, width, depth, material) {
   platform.rotation.x = -Math.PI / 2;
   platform.position.set(x, 0, -z);
   minimapScene.add(platform);
+}
+
+function addMinimapCylinder(x, y, z, radius, height) {
+  const geometry = new THREE.PlaneGeometry(radius * 2, height);
+  const material = new THREE.MeshBasicMaterial({ color: "#f834d4" });
+  const cylinder = new THREE.Mesh(geometry, material);
+  // Adjust position to match the actual cylinder position
+  cylinder.position.set(x, y, -(z + height / 2));
+  cylinder.rotation.x = -Math.PI / 2;
+  minimapScene.add(cylinder);
 }
 
 // Updated minimap update function to match working version's structure
@@ -361,15 +446,8 @@ function addMinimapObstacles() {
 
 async function initBackgroundAudio() {
   return new Promise((resolve) => {
-    backGroundMusic = new THREE.Audio(listener);
-    audioLoader.load(PbackGroundMusic, function (buffer) {
-      backGroundMusic.setBuffer(buffer);
-      backGroundMusic.setLoop(true);
-      backGroundMusic.setVolume(gameVolume / 4);
-      backGroundMusic.play();
-
-      resolve();
-    });
+    backGroundMusic.play();
+    resolve();
   });
 }
 
@@ -378,40 +456,6 @@ function updateGameVolume() {
     backGroundMusic.setVolume(gameVolume / 2);
   }
 }
-
-// async function initFinishLine() {
-//   return new Promise((resolve, reject) => {
-//     const textureLoader = new THREE.TextureLoader();
-
-//     textureLoader.load(
-//       finish,
-//       async (texture) => {
-//         const finishLineGeometry = new THREE.BoxGeometry(60, 0, 1); // Changed width to 60 to match platform
-//         const finishLineMaterial = new THREE.MeshStandardMaterial({
-//           map: texture,
-//         });
-//         const finishLine = new THREE.Mesh(
-//           finishLineGeometry,
-//           finishLineMaterial
-//         );
-//         finishLine.position.set(0, 0, 480);
-//         finishLine.scale.z = 15;
-//         scene.add(finishLine);
-
-//         // Add crown at the finish line
-//         crown = await createCrown(world, scene, 0, 5, 480); // Position crown above finish line
-//         resolve();
-//       },
-//       undefined,
-//       (error) => {
-//         console.error("Error loading texture:", error);
-//         reject(error);
-//       }
-//     );
-//   });
-// }
-
-// First, add these variables at the top with your other global variables
 
 const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
 const particleMaterial = new THREE.MeshBasicMaterial({
@@ -642,7 +686,7 @@ async function initStats() {
 async function initScene() {
   return new Promise((resolve) => {
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x202020, 100, 500); // Add depth fog
+    scene.fog = new THREE.Fog(0x202020, 200, 700); // Add depth fog
     camera = new THREE.PerspectiveCamera(
       70, // Field of view (45-75)
       window.innerWidth / window.innerHeight,

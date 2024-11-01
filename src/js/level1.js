@@ -181,7 +181,7 @@ async function init() {
       await initFinishLine();
 
       // Initialize minimap
-      await initMinimap();
+      minimapElements = createMinimapScene();
 
       console.log("Game initialized successfully!");
 
@@ -194,44 +194,114 @@ async function init() {
   });
 }
 
-async function initMinimap() {
-  return new Promise(async (resolve, reject) => {
-    // Clone the main scene to create the minimap scene
-    minimapScene = scene.clone();
-    //remove the player model from the minimap
-    minimapScene.remove(model);
+function createMinimapScene() {
+  const minimapScene = new THREE.Scene();
 
-    // Create orthographic camera
-    minimapCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 1000);
+  // Add simple ground pieces using basic geometries - updated to match main scene positioning
+  function addMinimapGround(x, y, z, width, length) {
+    const geometry = new THREE.PlaneGeometry(width, length);
+    const material = new THREE.MeshBasicMaterial({ color: 0x808080 });
+    const ground = new THREE.Mesh(geometry, material);
+    // Match the exact positioning from createGroundPiece
+    ground.position.set(x, y, -(z + length / 2)); // Negative z for correct orientation
+    ground.rotation.x = -Math.PI / 2;
+    minimapScene.add(ground);
+  }
+
+  // Add player representation (simple dot)
+  function createPlayerDot() {
+    const geometry = new THREE.CircleGeometry(2, 16);
+    const material = new THREE.MeshBasicMaterial({ color: "#f874b4" });
+    const playerDot = new THREE.Mesh(geometry, material);
+    playerDot.rotation.x = -Math.PI / 2;
+    playerDot.position.y = 0.1; // Slightly above ground to avoid z-fighting
+    minimapScene.add(playerDot);
+    return playerDot;
+  }
+
+  // Initialize minimap setup
+  function initMinimap() {
+    const minimapCamera = new THREE.OrthographicCamera(
+      -50,
+      50,
+      50,
+      -50,
+      1,
+      1000
+    );
     minimapCamera.position.set(0, 200, 0);
     minimapCamera.lookAt(0, 0, 0);
     minimapCamera.up.set(0, 0, -1);
 
-    // Setup minimap renderer
-    minimapRenderer = new THREE.WebGLRenderer({
+    const minimapRenderer = new THREE.WebGLRenderer({
       canvas: document.getElementById("minimap"),
-      //antialias: true,
+      alpha: true,
     });
-    minimapRenderer.setSize(250, 250);
+    minimapRenderer.setSize(150, 150);
 
-    resolve();
-    return {};
-  });
+    // Add main ground pieces with correct positioning
+    addMinimapGround(0, 0, 0, 60, 260);
+    addMinimapGround(0, 0, 490, 60, 260);
+
+    // Add smaller ground pieces for obstacles with correct positioning
+    const smallGrounds = [
+      [0, 0, 290],
+      [-29, 0, 275],
+      [29, 0, 275],
+      [20, 0, 300],
+      [-18, 0, 305],
+      [27, 0, 350],
+      [5, 0, 330],
+      [-15, 0, 350],
+      [25, 0, 380],
+      [0, 0, 390],
+      [-20, 0, 387],
+      [-10, 0, 410],
+      [10, 0, 430],
+      [-29, 0, 450],
+      [20, 0, 460],
+    ];
+
+    // Add each ground piece with the proper dimensions
+    smallGrounds.forEach(([x, y, z]) => {
+      addMinimapGround(x, y, z, 10, 10);
+    });
+
+    // Create player dot
+    const playerDot = createPlayerDot();
+
+    return {
+      scene: minimapScene,
+      camera: minimapCamera,
+      renderer: minimapRenderer,
+      playerDot: playerDot,
+    };
+  }
+
+  return initMinimap();
 }
 
-function updateMinimap() {
-  if (!model) return;
+// Update minimap in your render loop with corrected positioning
+function updateMinimap(minimapElements, player) {
+  if (!minimapElements) return;
 
-  // Update minimap camera to follow player
-  minimapCamera.position.set(model.position.x, 200, model.position.z);
+  const { scene, camera, renderer, playerDot } = minimapElements;
 
-  // Update camera target to look at player position
-  minimapCamera.lookAt(model.position.x, 0, model.position.z);
+  // Update player dot position
+  playerDot.position.x = player.position.x;
+  playerDot.position.z = -player.position.z; // Negative z for correct orientation
 
-  minimapRenderer.render(minimapScene, minimapCamera);
+  // Update camera position to follow player
+  camera.position.x = player.position.x;
+  camera.position.z = -player.position.z;
+  camera.lookAt(player.position.x, 0, -player.position.z);
+
+  // Render minimap
+  renderer.render(scene, camera);
 }
 
 //function to load all game audio into buffers before the game starts
+
 async function loadAudio() {
   // Initialize audio objects
   backGroundMusic = new THREE.Audio(listener);
@@ -2318,7 +2388,7 @@ function animate() {
   stats.end();
 
   if (model) {
-    updateMinimap();
+    updateMinimap(minimapElements, model);
   }
 }
 

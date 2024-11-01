@@ -923,7 +923,6 @@ function handleKeyUp(event) {
   }
 }
 
-// Functions to handle jumping
 function checkJumpState() {
   let startingY =
     playerBody.position.y -
@@ -936,13 +935,7 @@ function checkJumpState() {
       isJumping = false;
       // Play landing sound
       try {
-        const jumpland = new THREE.Audio(listener);
-        audioLoader.load(Pjumpland, function (buffer) {
-          jumpland.setBuffer(buffer);
-          jumpland.setLoop(false);
-          jumpland.setVolume(gameVolume);
-          jumpland.play();
-        });
+        jumpland.play();
       } catch (e) {
         console.warn("Landing sound failed to play:", e);
       }
@@ -967,13 +960,7 @@ function jump() {
 
     // Play jump sound
     try {
-      const jumpSound = new THREE.Audio(listener);
-      audioLoader.load(PjumpSound, function (buffer) {
-        jumpSound.setBuffer(buffer);
-        jumpSound.setLoop(false);
-        jumpSound.setVolume(gameVolume);
-        jumpSound.play();
-      });
+      jumpSound.play();
     } catch (e) {
       console.warn("Jump sound failed to play:", e);
     }
@@ -987,24 +974,41 @@ function jump() {
   }
 }
 
-async function crossfadeAction(fromAction, toAction, duration) {
+function isInAir() {
+  //if(currentAction!=fallingAction){
+  let startingY =
+    playerBody.position.y -
+    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+    0.1;
+  const GROUND_THRESHOLD = 0.15;
+  
+  return startingY >= GROUND_THRESHOLD || Math.abs(playerBody.velocity.y) >= 0.2;
+  //}
+}
+
+function crossfadeAction(fromAction, toAction, duration) {
   if (fromAction !== toAction) {
+    // Don't allow transition to running or idle animations while in air
+    if ((toAction===runningAction || toAction===backRunningAction || toAction===runningLeftAction || toAction===runningRightAction) && isInAir()) {
+      return;
+    }
+
     if (toAction == jumpAction) {
       isJumping = true;
-      console.log("imhere");
-      jumpAction.setLoop(THREE.LoopOnce); // Make jumpAction play only once
-      jumpAction.clampWhenFinished = true; // Ensure the animation holds the last frame
-      //jumpAction.enable = false; // Initially, disable it to prevent accidental play
+      jumpAction.setLoop(THREE.LoopOnce);
+      jumpAction.clampWhenFinished = true;
     }
+    
     if (playerBody.position.y < 0) {
       toAction = fallingAction;
     }
-    toAction.reset().fadeIn(duration).play(); // Fade in the new action
-    fromAction.fadeOut(duration); // Fade out th  e old action
+    
+    toAction.reset().fadeIn(duration).play();
+    fromAction.fadeOut(duration);
+    console.log(`Crossfade from ${fromAction.getClip().name} to ${toAction.getClip().name}`);
   }
 }
-
-async function checkIdleState() {
+function checkIdleState() {
   // If no movement keys are pressed and the current action isn't idle, switch to idle
   if (
     !moveForward &&
@@ -1012,8 +1016,8 @@ async function checkIdleState() {
     !moveRight &&
     !moveLeft &&
     currentAction !== idleAction &&
-    !isJumping &&
-    playerBody.position.y > 0
+    currentAction !== fallingAction &&
+    !isInAir()
   ) {
     console.log("Transitioning to idle");
     //playerBody.position.y = 0;
@@ -1037,6 +1041,7 @@ function updateMovement(delta) {
   const speed = PLAYER_SPEED * delta;
 
   // Calculate forward and right vectors based on camera rotation
+
   let forward;
   let right;
 
@@ -1068,6 +1073,7 @@ function updateMovement(delta) {
   if (isMoving) {
     let targetAction = runningAction;
 
+    if(!isInAir()){
     // Determine which movement animation to play
     if (moveBackward && !moveForward && !moveLeft && !moveRight) {
       targetAction = backRunningAction;
@@ -1078,31 +1084,38 @@ function updateMovement(delta) {
     if (moveRight && !moveForward && !moveBackward && !moveLeft) {
       targetAction = runningRightAction;
     }
+    
+    }
+    else if (currentAction !== jumpAction) {
+      // If we're in the air and not already jumping, keep the current animation
+      targetAction = currentAction;
+    }
+    
     if (
-      playerBody.position.y < 0 &&
-      (moveRight || moveForward || moveBackward || moveLeft)
+      playerBody.position.y < 0
     ) {
       targetAction = fallingAction;
     }
 
-    // Always prioritize jumpAction if space bar is pressed
-    if (isJumping) {
+     // Always prioritize jumpAction if we're jumping
+     if (isJumping) {
       targetAction = jumpAction;
     }
-
+    
     // Crossfade to the appropriate movement animation if it's different from the current one
-    if (currentAction !== targetAction && targetAction != jumpAction) {
+    if (currentAction !== targetAction && (!isInAir() || targetAction === jumpAction)) {
       crossfadeAction(currentAction, targetAction, fadeDuration);
       currentAction = targetAction; // Update current action to the new one
     }
     const targetRotation = Math.atan2(moveDirection.x, moveDirection.z);
-    // Create a quaternion for the target rotation
+    // // Create a quaternion for the target rotation
     playerBody.quaternion.setFromAxisAngle(
       new CANNON.Vec3(0, 1, 0),
       targetRotation
     );
   } else {
     // Check if the player should transition to the idle animation
+    console.log("Checking idle state");
     checkIdleState();
   }
 

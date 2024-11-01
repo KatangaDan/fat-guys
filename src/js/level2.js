@@ -138,14 +138,14 @@ async function init() {
     //audio setup for pre-loading
 
     try {
-      console.log("Initializing the game...");
+      //console.log("Initializing the game...");
       await initStats();
       await initScene();
       await initLighting();
       await initBackground();
       await initPhysics();
       await initPlayer();
-      console.log("Loading audio...");
+      //console.log("Loading audio...");
       await loadAudio();
       // don't call init event listeners here - it gives the user control too early (they can move while in the laoding screena & before countdown)
       await initBackgroundAudio();
@@ -153,7 +153,7 @@ async function init() {
       // Initialize minimap
       // minimapElements = initMinimap();
 
-      console.log("Creating obstacles + particles...");
+      //console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 60);
       await initBackgroundParticleSystem();
 
@@ -590,8 +590,16 @@ async function die() {
   // Create particle explosion at player's current position
   createParticleExplosion(model.position);
 
+
   //Hide the player model
   model.visible = false;
+
+  //Reset animations
+  currentAction.stop();
+  currentAction = idleAction;
+  currentAction.play();
+  // checkIdleState();
+
 
   const respawnPosition =
     playerBody.position.z < 265
@@ -753,9 +761,9 @@ async function initScene() {
 
     try {
       minimapElements = initMinimap();
-      console.log("Minimap initialized successfully");
+      //console.log("Minimap initialized successfully");
     } catch (error) {
-      console.error("Failed to initialize minimap:", error);
+      //console.error("Failed to initialize minimap:", error);
     }
 
     resolve();
@@ -812,11 +820,11 @@ function setupControls() {
   });
 
   controls.addEventListener("lock", () => {
-    console.log("PointerLock activated");
+    //("PointerLock activated");
   });
 
   controls.addEventListener("unlock", () => {
-    console.log("PointerLock deactivated");
+    //console.log("PointerLock deactivated");
   });
 }
 
@@ -1075,8 +1083,7 @@ function handleKeyDown(event) {
       break;
     case " ":
       // Jump when spacebar is pressed
-      console.log("Jumping");
-
+      //console.log("Jumping");
       if (!isJumping) {
         jump();
       }
@@ -1104,9 +1111,6 @@ function handleKeyUp(event) {
       break;
   }
 }
-
-// Move checkJumpState outside the jump function so it persists
-let isPlayingJumpAnimation = false;
 
 function checkJumpState() {
   let startingY =
@@ -1159,20 +1163,38 @@ function jump() {
   }
 }
 
+function isInAir() {
+  //if(currentAction!=fallingAction){
+  let startingY =
+    playerBody.position.y -
+    (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
+    0.1;
+  const GROUND_THRESHOLD = 0.15;
+  
+  return startingY >= GROUND_THRESHOLD || Math.abs(playerBody.velocity.y) >= 0.2;
+  //}
+}
+
 function crossfadeAction(fromAction, toAction, duration) {
   if (fromAction !== toAction) {
+    // Don't allow transition to running or idle animations while in air
+    if ((toAction===runningAction || toAction===backRunningAction || toAction===runningLeftAction || toAction===runningRightAction) && isInAir()) {
+      return;
+    }
+
     if (toAction == jumpAction) {
       isJumping = true;
-      console.log("imhere");
-      jumpAction.setLoop(THREE.LoopOnce); // Make jumpAction play only once
-      jumpAction.clampWhenFinished = true; // Ensure the animation holds the last frame
-      //jumpAction.enable = false; // Initially, disable it to prevent accidental play
+      jumpAction.setLoop(THREE.LoopOnce);
+      jumpAction.clampWhenFinished = true;
     }
+    
     if (playerBody.position.y < 0) {
       toAction = fallingAction;
     }
-    toAction.reset().fadeIn(duration).play(); // Fade in the new action
-    fromAction.fadeOut(duration); // Fade out th  e old action
+    
+    toAction.reset().fadeIn(duration).play();
+    fromAction.fadeOut(duration);
+    console.log(`Crossfade from ${fromAction.getClip().name} to ${toAction.getClip().name}`);
   }
 }
 function checkIdleState() {
@@ -1183,8 +1205,8 @@ function checkIdleState() {
     !moveRight &&
     !moveLeft &&
     currentAction !== idleAction &&
-    !isJumping &&
-    playerBody.position.y > 0
+    currentAction !== fallingAction &&
+    !isInAir()
   ) {
     console.log("Transitioning to idle");
     //playerBody.position.y = 0;
@@ -1240,6 +1262,7 @@ function updateMovement(delta) {
   if (isMoving) {
     let targetAction = runningAction;
 
+    if(!isInAir()){
     // Determine which movement animation to play
     if (moveBackward && !moveForward && !moveLeft && !moveRight) {
       targetAction = backRunningAction;
@@ -1250,20 +1273,26 @@ function updateMovement(delta) {
     if (moveRight && !moveForward && !moveBackward && !moveLeft) {
       targetAction = runningRightAction;
     }
+    
+    }
+    else if (currentAction !== jumpAction) {
+      // If we're in the air and not already jumping, keep the current animation
+      targetAction = currentAction;
+    }
+    
     if (
-      playerBody.position.y < 0 &&
-      (moveRight || moveForward || moveBackward || moveLeft)
+      playerBody.position.y < 0
     ) {
       targetAction = fallingAction;
     }
 
-    // Always prioritize jumpAction if space bar is pressed
-    if (isJumping) {
+     // Always prioritize jumpAction if we're jumping
+     if (isJumping) {
       targetAction = jumpAction;
     }
-
+    
     // Crossfade to the appropriate movement animation if it's different from the current one
-    if (currentAction !== targetAction && targetAction != jumpAction) {
+    if (currentAction !== targetAction && (!isInAir() || targetAction === jumpAction)) {
       crossfadeAction(currentAction, targetAction, fadeDuration);
       currentAction = targetAction; // Update current action to the new one
     }
@@ -1275,6 +1304,7 @@ function updateMovement(delta) {
     );
   } else {
     // Check if the player should transition to the idle animation
+    console.log("Checking idle state");
     checkIdleState();
   }
 

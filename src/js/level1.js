@@ -19,7 +19,7 @@ import {
 import finish from "../img/finish.jpg";
 import basicBg from "../img/sky.jpg";
 import heart from "../img/heart.png";
-import groundTexture from "../img/stoleItLol.jpg";
+import groundTexture from "../textures/floor.png";
 import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
 import PjumpSound from "../sounds/jumpSound.wav";
 import Pjumpland from "../sounds/jumpland.wav";

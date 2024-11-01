@@ -7,7 +7,8 @@
     "three": "^0.168.0"
   },
   "devDependencies": {
-    "vite": "^5.4.10"
+    "vite": "^5.4.10",
+    "vite-plugin-static-copy": "^2.0.0"
   },
   "name": "fat-guys",
   "description": "2024 CGV Project",

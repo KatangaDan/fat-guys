@@ -22,7 +22,7 @@ import {
 
 // Import assets
 import finish from "../img/finish.jpg";
-import basicBg from "../img/sky.jpg";
+import basicBg from "../img/sample2.png";
 import heart from "../img/heart.png";
 import groundTexture from "../img/stoleItLol.jpg";
 import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
@@ -209,7 +209,7 @@ async function init() {
 
       console.log("Game initialized successfully!");
 
-      // await initCannonBallSystem();
+      await initCannonBallSystem();
 
       resolve();
     } catch (error) {
@@ -671,14 +671,6 @@ async function initScene() {
 
     //Setup controls
     setupControls();
-
-    // try {
-    //   minimapElements = initMinimap();
-    //   console.log("Minimap initialized successfully");
-    // } catch (error) {
-    //   console.error("Failed to initialize minimap:", error);
-    // }
-
     resolve();
   });
 }
@@ -807,27 +799,26 @@ async function initLighting() {
 
 async function initBackground() {
   return new Promise((resolve) => {
-    //We have to do the background
     const textureLoader = new THREE.TextureLoader();
-    const skyboxTexture = textureLoader.load(basicBg, function (texture) {
-      texture.wrapS = THREE.ClampToEdgeWrapping;
-      texture.wrapT = THREE.ClampToEdgeWrapping;
-      texture.repeat.set(1, 1);
-      texture.offset.set(0, -0.3); // Move the image up by 0.3 units
+    textureLoader.load(basicBg, function (texture) {
+      // Set the texture mapping to equirectangular for a spherical effect
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
 
-      // // Enable texture matrix transformation
-      // texture.center.set(0.5, 0.5); // Set the center of rotation to the center of the texture
-      // texture.rotation = Math.PI/2; // Rotate the texture by 45 degrees (π/4 radians)
-    });
+      // Set up a large sphere geometry for the skybox
+      const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);
+      const skyboxMaterial = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.BackSide,
+      });
+      
+      // Create the skybox mesh and add it to the scene
+      const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+      scene.add(skybox);
 
-    const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);
-    const skyboxMaterial = new THREE.MeshBasicMaterial({
-      map: skyboxTexture,
-      side: THREE.BackSide,
+      resolve();
     });
-    const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
-    scene.add(skybox);
-    resolve();
   });
 }
 
@@ -849,7 +840,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 0);
+        model.position.set(0, 2, 180);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -1310,7 +1301,7 @@ async function initHorizontalCylinders() {
 }
 
 async function initLevel3Layout() {
-  // Starting platform with back fence
+  // Starting platform
   const startPlatform = await createStartingPlatform(
     world,
     scene,
@@ -1321,6 +1312,12 @@ async function initLevel3Layout() {
     0.1,
     30
   );
+  scene.remove(startPlatform.fences.back.mesh);
+  scene.remove(startPlatform.fences.left.mesh);
+  scene.remove(startPlatform.fences.right.mesh);
+  world.removeBody(startPlatform.fences.back.body);
+  world.removeBody(startPlatform.fences.left.body);
+  world.removeBody(startPlatform.fences.right.body);
 
   // Left path (no back fences)
   const leftPath1 = await createStartingPlatform(
@@ -1376,20 +1373,34 @@ async function initLevel3Layout() {
   scene.remove(rightPath2.fences.back.mesh);
   world.removeBody(rightPath2.fences.back.body);
 
+  const section2right = await createStartingPlatform(world, scene, -20, 0, 230, 40, 0.1, 60);
+  scene.remove(section2right.fences.back.mesh);
+  world.removeBody(section2right.fences.back.body);
+
+  const section2left = await createStartingPlatform(world, scene, 20, 0, 300, 40, 0.1, 60);
+  scene.remove(section2left.fences.back.mesh);
+  world.removeBody(section2left.fences.back.body);
+
+  const section3 = await createStartingPlatform(world, scene, 0, 0, 420, 60, 0.1, 60);
+  scene.remove(section3.fences.back.mesh);
+  world.removeBody(section3.fences.back.body);
+
+
   // Rest of platforms (no back fences)
   const platforms = [
     await createStartingPlatform(world, scene, 0, 0, 180, 60, 0.1, 30), // Checkpoint 1
-    await createStartingPlatform(world, scene, -20, 0, 230, 40, 0.1, 60), // Section 2
-    await createStartingPlatform(world, scene, 20, 0, 300, 40, 0.1, 60),
     await createStartingPlatform(world, scene, 0, 0, 360, 60, 0.1, 30), // Checkpoint 2
-    await createStartingPlatform(world, scene, 0, 0, 420, 60, 0.1, 60), // Section 3
     await createStartingPlatform(world, scene, 0, 0, 480, 60, 0.1, 30), // Final platform
   ];
 
   // Remove back fences from all remaining platforms
   platforms.forEach((platform) => {
     scene.remove(platform.fences.back.mesh);
+    scene.remove(platform.fences.left.mesh);
+    scene.remove(platform.fences.right.mesh);
     world.removeBody(platform.fences.back.body);
+    world.removeBody(platform.fences.left.body);
+    world.removeBody(platform.fences.right.body);
   });
 
   // Add crown at the finish line
@@ -1626,7 +1637,7 @@ async function initCheckpoints() {
   const checkpointMaterial = new THREE.MeshStandardMaterial({
     color: 0x00ff00,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0,
   });
 
   // Checkpoint 1
@@ -2441,7 +2452,7 @@ async function animate() {
   }
 
   // Animate obstacles
-  // animateGates(deltaTime);
+  animateGates(deltaTime);
   animateCylinders(deltaTime);
   animateCrown(deltaTime);
   animateTurnstile(deltaTime);
@@ -2449,7 +2460,7 @@ async function animate() {
   animateRods(deltaTime);
   updateCannonBalls(deltaTime);
 
-  cannonDebugger.update();
+  //cannonDebugger.update();
   renderer.render(scene, camera);
   //controls.update();
 

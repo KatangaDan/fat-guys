@@ -288,13 +288,13 @@ function updateMinimap(minimapElements, player) {
   const { scene, camera, renderer, playerDot } = minimapElements;
 
   // Update player dot position
-  playerDot.position.x = player.position.x;
+  playerDot.position.x = -player.position.x;
   playerDot.position.z = -player.position.z; // Negative z for correct orientation
 
   // Update camera position to follow player
-  camera.position.x = player.position.x;
+  camera.position.x = -player.position.x;
   camera.position.z = -player.position.z;
-  camera.lookAt(player.position.x, 0, -player.position.z);
+  camera.lookAt(-player.position.x, 0, -player.position.z);
 
   // Render minimap
   renderer.render(scene, camera);

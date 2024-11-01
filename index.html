@@ -4,7 +4,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Fat Guys Demo</title>
+	<title>Fat Guyss</title>
 	<link rel="stylesheet" href="src/css/styles.css">
 	<link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
 </head>
@@ -13,6 +13,7 @@
 	<div id="gameMenu" class="menu">
 		<h1>Fat Guys</h1>
 		<button id="startButton">Start Game</button>
+		<button id="level2Button" style="display: none;">Advance to Level 2</button>
 
 		<!-- Controls -->
 		<div id="controls-info" class="controls-container">
@@ -60,7 +61,7 @@
 			<input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5">
 		</div>
 	</div>
-	<script type="module" src="src/js/main.js"></script>
+	<script id="gameScript" type="module" src="src/js/level1.js"></script>
 </body>
 
 </html>

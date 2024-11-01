@@ -550,15 +550,13 @@ function checkForWin() {
     moveLeft = false;
     moveRight = false;
 
-    //stop run sound if playing
-    //runningAudio.setVolume(0);
+    timerRunning = false;
 
     //play win sound
     winsound.play();
 
     showWinScreen(elapsedTime);
     //Stop the timer
-    timerRunning = false;
   }
 }
 
@@ -2431,6 +2429,15 @@ function showWinScreen(elapsedTime) {
   document.getElementById("resumeButton").style.display = "none";
   document.getElementById("restartButton").style.display = "block"; // Show restart button
 
+  //show advance to level 2 button
+  document.getElementById("level2Button").style.display = "block";
+
+  // add event listener to the level 2 button
+  document.getElementById("level2Button").addEventListener("click", () => {
+    // go to level 2 here
+    window.location.href = "level2.html";
+  });
+
   document.getElementById("volume-control").style.display = "none";
 
   //show the game menu
@@ -2467,11 +2474,11 @@ function showWinScreen(elapsedTime) {
   winMessage.appendChild(congratsMessage);
 
   //store elapsed time in local storage as best time
-  let bestTime = localStorage.getItem("bestTime");
+  let bestTime = localStorage.getItem("levelOnebestTime");
 
   if (!bestTime) {
-    localStorage.setItem("bestTime", elapsedTime);
-    bestTime = localStorage.getItem("bestTime");
+    localStorage.setItem("levelOnebestTime", elapsedTime);
+    bestTime = localStorage.getItem("levelOnebestTime");
   }
 
   // Create a best time message
@@ -2482,7 +2489,7 @@ function showWinScreen(elapsedTime) {
 
   //new best time
   if (elapsedTime <= bestTime) {
-    localStorage.setItem("bestTime", elapsedTime);
+    localStorage.setItem("levelOnebestTime", elapsedTime);
     congratsMessage.textContent = "Congratulations! New Best Time!";
   }
 
@@ -2513,7 +2520,7 @@ function generateBestTime() {
   bestTimeContainer.style.zIndex = "10000"; // Higher than other game elements
 
   // Retrieve the best time from localStorage
-  let bestTime = localStorage.getItem("bestTime");
+  let bestTime = localStorage.getItem("levelOnebestTime");
 
   // Format the display message
   if (bestTime) {
@@ -2593,7 +2600,7 @@ async function startGame() {
       let controlsInfo = document.getElementById("controls-info");
       if (controlsInfo) {
         controlsInfo.style.display = "none";
-      }   
+      }
 
       //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
       showTimer();

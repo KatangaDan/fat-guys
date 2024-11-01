@@ -723,15 +723,13 @@ function checkForWin() {
     moveLeft = false;
     moveRight = false;
 
-    //stop run sound if playing
-    //runningAudio.setVolume(0);
+    //Stop the timer
+    timerRunning = false;
 
     //play win sound
     winsound.play();
 
     showWinScreen(elapsedTime);
-    //Stop the timer
-    timerRunning = false;
   }
 }
 
@@ -2377,6 +2375,15 @@ function showWinScreen(elapsedTime) {
 
   document.getElementById("volume-control").style.display = "none";
 
+  //show advance to level 2 button
+  document.getElementById("level3Button").style.display = "block";
+
+  // add event listener to the level 2 button
+  document.getElementById("level3Button").addEventListener("click", () => {
+    // go to level 3 here
+    window.location.href = "level3.html";
+  });
+
   //show the game menu
   gameMenu.style.display = "block";
 
@@ -2493,76 +2500,62 @@ function restartGame() {
   gameWon = false;
 }
 
-//Main function to start the game
 async function startGame() {
   try {
-    let startButton = document.getElementById("startButton");
     let resumeButton = document.getElementById("resumeButton");
     let restartButton = document.getElementById("restartButton");
 
     // Add an event listener to the volume slider
     function updateVolume() {
-      // Get the current slider value
       const volume = volumeSlider.value;
-      // Update the game volume
       gameVolume = volume;
-
       updateGameVolume();
     }
-
     volumeSlider.addEventListener("input", updateVolume);
-    // Set the initial volume of the slider
     volumeSlider.value = gameVolume;
 
-    //Add event listener to the resume button
+    // Add event listener to the resume button
     resumeButton.addEventListener("click", () => {
       toggleMenu();
-      //Add pointer lock to the document
       document.body.requestPointerLock();
-
-      // unpauseGame();
     });
 
-    //Add event listener to the restart button
+    // Add event listener to the restart button
     restartButton.addEventListener("click", () => {
-      // window.location.reload();
       toggleMenu();
       generateBestTime();
-
       restartGame();
     });
 
-    //Add event listener to the start button
-    startButton.addEventListener("click", async () => {
-      showLoadingScreen();
-      hideGameMenu();
-      //render the game
-      await init();
+    // Immediately start the game initialization process
+    //showLoadingScreen();
+    hideGameMenu();
 
-      //hide the controls ui
-      let controlsInfo = document.getElementById("controls-info");
-      if (controlsInfo) {
-        controlsInfo.style.display = "none";
-      }
+    // Render the game
+    await init();
 
-      //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
-      showTimer();
-      hideLoadingScreen();
-      createHeartsContainer();
-      generateHearts(3);
-      generateBestTime();
-      renderer.setAnimationLoop(animate);
-      //await panCameraToStart();
-      startCountdown();
-    });
+    // Hide the controls UI
+    let controlsInfo = document.getElementById("controls-info");
+    if (controlsInfo) {
+      controlsInfo.style.display = "none";
+    }
+
+    //take control of the mouse
+    document.body.requestPointerLock();
+
+    showTimer();
+    hideLoadingScreen();
+    createHeartsContainer();
+    generateHearts(3);
+    generateBestTime();
+    renderer.setAnimationLoop(animate);
+    startCountdown();
   } catch (error) {
     console.error("Error during initialization:", error);
     hideLoadingScreen();
-    // Show an error message to the user
     alert("An error occurred while loading the game. Please try again.");
   }
 }
 
+// Start the game immediately when the script loads
 startGame();
-
-// init();

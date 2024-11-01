@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fat Guys</title>
+    <link rel="stylesheet" href="src/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+    <script>
+        function showLoadingScreen() {
+            const loadingScreen = document.createElement("div");
+            loadingScreen.id = "loading-screen";
+            loadingScreen.style.position = "fixed";
+            loadingScreen.style.top = "0";
+            loadingScreen.style.left = "0";
+            loadingScreen.style.width = "100%";
+            loadingScreen.style.height = "100%";
+            loadingScreen.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+            loadingScreen.style.display = "flex";
+            loadingScreen.style.justifyContent = "center";
+            loadingScreen.style.alignItems = "center";
+            loadingScreen.style.zIndex = "9999";
+
+            const loadingText = document.createElement("h1");
+            loadingText.textContent = "Loading";
+            loadingText.style.color = "white";
+
+            loadingScreen.appendChild(loadingText);
+            document.body.appendChild(loadingScreen);
+
+            // Start the loading animation
+            let dots = "";
+            loadingAnimationInterval = setInterval(() => {
+                if (dots.length < 3) {
+                    dots += ".";
+                } else {
+                    dots = ""; // Reset the dots after reaching 3
+                }
+                loadingText.textContent = `Loading${dots}`; // Update the loading text
+            }, 200); // Adjust the interval duration as needed
+        }
+        showLoadingScreen();
+    </script>
+    <div id="gameMenu" style="display: none;" class="menu">
+        <h1>Fat Guys</h1>
+        <button id="startButton">Start Game</button>
+        <button id="level3Button" style="display: none;">Advance to Level 3</button>
+
+        <!-- Controls -->
+        <div id="controls-info" class="controls-container">
+            <h2 class="controls-title">Controls</h2>
+            <div class="controls-grid">
+                <div class="control-item">
+                    <div class="key-group">
+                        <div>
+                            <span class="key">W</span>
+                        </div>
+                        <div>
+                            <span class="key">A</span>
+                            <span class="key">S</span>
+                            <span class="key">D</span>
+                        </div>
+                    </div>
+                    <span class="control-desc">Movement</span>
+                </div>
+                <div class="control-item">
+                    <span class="key">P</span>
+                    <span class="control-desc">Pause Game</span>
+                </div>
+                <div class="control-item">
+                    <img src="./src/img/mouse.png" alt="mouse" class="mouse-icon" />
+                    <span class="control-desc">Camera Control</span>
+                </div>
+                <div class="control-item">
+                    <span class="key">V</span>
+                    <span class="control-desc">Switch View</span>
+                </div>
+                <div class="spacebar-row">
+                    <div class="control-item">
+                        <span class="key spacebar">SPACE</span>
+                        <span class="control-desc">Jump</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <button id="resumeButton" style="display: none;">Resume Game</button>
+        <button id="restartButton" style="display: none;">Restart Game</button>
+        <div id="volume-control" class="volume-control" style="display: none;">
+            <label for="volumeSlider">Volume</label>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5">
+        </div>
+    </div>
+    <script id="gameScript" type="module" src="src/js/level2.js"></script>
+</body>
+
+</html>

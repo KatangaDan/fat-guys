@@ -195,15 +195,15 @@ async function init() {
       await initGates();
       await initCheckpoints();
 
-      //Init particle background system
-      await initBackgroundParticleSystem();
+      // //Init particle background system
+      // await initBackgroundParticleSystem();
 
       // Create finish line
       //await initFinishLine();
 
       console.log("Game initialized successfully!");
 
-      await initCannonBallSystem();
+      // await initCannonBallSystem();
 
       resolve();
     } catch (error) {
@@ -2290,7 +2290,7 @@ async function animate() {
   }
 
   // Animate obstacles
-  animateGates(deltaTime);
+ // animateGates(deltaTime);
   animateCylinders(deltaTime);
   animateCrown(deltaTime);
   animateTurnstile(deltaTime);
@@ -2648,29 +2648,29 @@ async function startGame() {
       restartGame();
     });
 
-    //Add event listener to the start button
-    startButton.addEventListener("click", async () => {
-      showLoadingScreen();
-      hideGameMenu();
-      //render the game
-      await init();
-      
-      //hide the controls ui
-      let controlsInfo = document.getElementById("controls-info");
-      if (controlsInfo) {
-        controlsInfo.style.display = "none";
-      }
+    //start the game
 
-      //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
-      showTimer();
-      hideLoadingScreen();
-      createHeartsContainer();
-      generateHearts(3);
-      generateBestTime();
-      renderer.setAnimationLoop(animate);
-      //await panCameraToStart();
-      startCountdown();
-    });
+    hideGameMenu();
+    //render the game
+    await init();
+
+    //hide the controls ui
+    let controlsInfo = document.getElementById("controls-info");
+    if (controlsInfo) {
+      controlsInfo.style.display = "none";
+    }
+
+    //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
+    showTimer();
+    hideLoadingScreen();
+    createHeartsContainer();
+    generateHearts(3);
+    generateBestTime();
+    renderer.setAnimationLoop(animate);
+    //await panCameraToStart();
+    startCountdown();
+
+    
   } catch (error) {
     console.error("Error during initialization:", error);
     hideLoadingScreen();

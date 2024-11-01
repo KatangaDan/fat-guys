@@ -80,7 +80,11 @@ export async function createGate(
 
       //Create a simple plane for the ground
       const gateGeometry = new THREE.BoxGeometry(width, height, length);
-      const gateMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const gateMaterial = new THREE.MeshStandardMaterial({ 
+        map: texture,
+        metalness: 3,
+        roughness: 0.2
+       });
       const gate = new THREE.Mesh(gateGeometry, gateMaterial);
       gate.position.set(newX, y + height / 2, z);
       gate.castShadow = true;

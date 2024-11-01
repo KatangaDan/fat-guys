@@ -962,9 +962,11 @@ export async function createCrown(
   return new Promise((resolve) => {
     // Crown Base (cylinder)
     const crownMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffd700,
+      color: 0xffd700, // Gold color
       metalness: 0.7,
       roughness: 0.4,
+      emissive: 0xffd700, // Add emissive color for a glowing effect
+      emissiveIntensity: 1, // Adjust emissive intensity as desired
     });
     const crownBase = new THREE.Mesh(
       new THREE.CylinderGeometry(radius, radius, 0.5, 32),
@@ -1010,7 +1012,13 @@ export async function createCrown(
       spikes[i].add(ornament); // Attach the ornament to the tip of each spike
     }
 
-    resolve({ mesh: crownBase, body: crownBody });
+    // Add a golden light source near the crown
+    const crownLight = new THREE.PointLight(0xffd700, 1, 10); // 0xffd700 is a golden color
+    crownLight.position.set(x, y + 1, z); // Position it slightly above the crown
+    crownLight.castShadow = true; // Enable shadows if desired
+    scene.add(crownLight);
+
+    resolve({ mesh: crownBase, body: crownBody, light: crownLight });
   });
 }
 

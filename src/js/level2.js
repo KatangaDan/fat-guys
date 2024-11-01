@@ -2115,8 +2115,20 @@ function resetGame() {
 }
 
 function restartGame() {
-  // do countdown again
 
+  //let loader = document.getElementById("loading-screen");
+  //loader.style.display = "block";
+  //showLoadingScreen();
+  //initGateObstacles();
+  //hideLoadingScreen();
+  //loader.style.display = "none";
+  popedGates.forEach((gate) => {
+    gate.exploded = false;
+    gateExplosion(gate.position);
+    scene.add(gate);
+  });
+
+  // do countdown again
   //reset timer to 0
   resetTimer();
   startCountdown();

@@ -198,7 +198,7 @@ async function init() {
       await initTurnstiles();
       await initHorizontalCylinders();
       await initHammers();
-      await initGates();
+      //await initGates();
       await initCheckpoints();
 
       // //Init particle background system
@@ -845,7 +845,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 180);
+        model.position.set(0, 2, 0);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -1272,7 +1272,12 @@ async function initTurnstiles() {
   turnstiles.push(await createTurnstile(world, scene, 10, 0, 310, 2, 15));
   turnstiles.push(await createTurnstile(world, scene, 30, 0, 310, 2, 15));
   // Section 3 - Final stretch
-  // turnstiles.push(await createTurnstile(world, scene, 0, 0, 400, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, -20, 0, 400, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 0, 0, 400, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 20, 0, 400, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, -20, 0, 440, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 0, 0, 440, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 20, 0, 440, 2, 15));
   // turnstiles.push(await createTurnstile(world, scene, -15, 0, 420, 2, 15));
 }
 
@@ -1327,6 +1332,14 @@ async function initHorizontalCylinders() {
   const rod5 = await createRod(scene, -10, 1, 320, -30, -5, 0.5, 10, 20);
   rod5.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
   rods.push(rod5);
+
+  //Section 3
+  const rodzy = await createVertRod(scene, -29, 1, 420, -29, -13, 0.5, 10, 20);
+  rodzy.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rodzy);
+  const rodzt = await createVertRod(scene, 29, 1, 420, 13, 29, 0.5, 10, 20);
+  rodzt.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rodzt);
 }
 
 async function initLevel3Layout() {
@@ -1682,8 +1695,9 @@ async function initHammers() {
   hammers.push(hammer3, hammer4, hammer5, hammer8);
 
   // Section 3 obstacles - Final stretch
-  // const hammer5 = createRotatingHammer(world, scene, 0, 0, 440, 1, 2);
-  // hammers.push(hammer5);
+  const hammert = createRotatingHammer(world, scene, -7, 0, 420, 1, 7);
+  const hammery = createRotatingHammer(world, scene, 7, 0, 420, 1, 7);
+  hammers.push(hammert, hammery);
 }
 
 async function initCheckpoints() {

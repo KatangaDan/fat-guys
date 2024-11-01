@@ -222,49 +222,54 @@ async function init() {
 function initMinimap() {
   // Create a new scene specifically for the minimap
   minimapScene = new THREE.Scene();
-  //minimapScene.background = new THREE.Color(0x222222); // Dark background
 
   // Create orthographic camera
-  minimapCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 1000);
+  const minimapCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 1000);
   minimapCamera.position.set(0, 200, 0);
   minimapCamera.lookAt(0, 0, 0);
   minimapCamera.up.set(0, 0, -1);
 
   // Setup minimap renderer
-  minimapRenderer = new THREE.WebGLRenderer({
+  const minimapRenderer = new THREE.WebGLRenderer({
     canvas: document.getElementById("minimap"),
-    antialias: true,
+    alpha: true, // Changed from antialias to alpha
   });
-  minimapRenderer.setSize(250, 250);
+  minimapRenderer.setSize(150, 150); // Changed from 250x250 to 150x150 to match working version
 
   // Create player indicator (red dot)
-  const playerIndicator = new THREE.Mesh(
-    new THREE.CircleGeometry(3, 32),
+  const playerDot = new THREE.Mesh(
+    new THREE.CircleGeometry(2, 16), // Changed from 3,32 to 2,16 to match working version
     new THREE.MeshBasicMaterial({ color: "#f874b4" })
   );
-  playerIndicator.rotation.x = -Math.PI / 2; // Rotate to face up
-  playerIndicator.position.y = 0.1; // Elevate slightly to avoid being under platforms
-  minimapScene.add(playerIndicator);
+  playerDot.rotation.x = -Math.PI / 2;
+  playerDot.position.y = 0.1;
+  minimapScene.add(playerDot);
 
   // Create simplified level layout
   createMinimapLayout();
 
-  return { playerIndicator };
+  return {
+    scene: minimapScene,
+    camera: minimapCamera,
+    renderer: minimapRenderer,
+    playerDot: playerDot,
+  };
 }
 
+// Keep your original createMinimapLayout and createMinimapPlatform functions unchanged
 function createMinimapLayout() {
-  const platformMaterial = new THREE.MeshBasicMaterial({ color: 0x444444 }); // Gray platforms
-  const obstacleMaterial = new THREE.MeshBasicMaterial({ color: 0xff6b6b }); // Red obstacles
-  const checkpointMaterial = new THREE.MeshBasicMaterial({ color: 0x4ade80 }); // Green checkpoints
+  const platformMaterial = new THREE.MeshBasicMaterial({ color: "#a484b4" });
+  const obstacleMaterial = new THREE.MeshBasicMaterial({ color: 0xff6b6b });
+  const checkpointMaterial = new THREE.MeshBasicMaterial({ color: 0x4ade80 });
 
   // Starting platform
   createMinimapPlatform(0, 0, 60, 30, platformMaterial);
 
   // Fork paths
-  createMinimapPlatform(-30, 60, 30, 60, platformMaterial); // Left path
-  createMinimapPlatform(30, 60, 30, 60, platformMaterial); // Right path
-  createMinimapPlatform(-30, 120, 30, 60, platformMaterial); // Left path continued
-  createMinimapPlatform(30, 120, 30, 60, platformMaterial); // Right path continued
+  createMinimapPlatform(-30, 60, 30, 60, platformMaterial);
+  createMinimapPlatform(30, 60, 30, 60, platformMaterial);
+  createMinimapPlatform(-30, 120, 30, 60, platformMaterial);
+  createMinimapPlatform(30, 120, 30, 60, platformMaterial);
 
   // Checkpoint 1
   createMinimapPlatform(0, 180, 60, 30, checkpointMaterial);
@@ -279,9 +284,6 @@ function createMinimapLayout() {
   // Final sections
   createMinimapPlatform(0, 420, 60, 60, platformMaterial);
   createMinimapPlatform(0, 480, 60, 30, platformMaterial);
-
-  // Add simplified obstacles
-  //addMinimapObstacles();
 }
 
 function createMinimapPlatform(x, z, width, depth, material) {
@@ -289,25 +291,49 @@ function createMinimapPlatform(x, z, width, depth, material) {
     new THREE.PlaneGeometry(width, depth),
     material
   );
-  platform.rotation.x = -Math.PI / 2; // Rotate to lay flat
+  platform.rotation.x = -Math.PI / 2;
   platform.position.set(x, 0, -z);
   minimapScene.add(platform);
 }
 
+// Updated minimap update function to match working version's structure
+function updateMinimap(minimapElements, player) {
+  if (!minimapElements) return;
+
+  const { scene, camera, renderer, playerDot } = minimapElements;
+
+  // Update player dot position
+  playerDot.position.x = -player.position.x;
+  playerDot.position.z = -player.position.z;
+
+  // Update camera position to follow player
+  camera.position.x = -player.position.x;
+  camera.position.z = -player.position.z;
+  camera.lookAt(-player.position.x, 0, -player.position.z);
+
+  // Render minimap
+  renderer.render(scene, camera);
+}
 function addMinimapObstacles() {
   const obstacleMaterial = new THREE.MeshBasicMaterial({ color: 0xff6b6b });
 
   // Add simplified turnstiles
   const turnstilePositions = [
-    { x: -30, z: 60 }, { x: 30, z: 60 },
-    { x: -30, z: 100 }, { x: 30, z: 100 },
-    { x: 10, z: 210 }, { x: 30, z: 210 },
-    { x: 10, z: 240 }, { x: 30, z: 240 },
-    { x: -10, z: 280 }, { x: -30, z: 280 },
-    { x: -10, z: 310 }, { x: -30, z: 310 }
+    { x: -30, z: 60 },
+    { x: 30, z: 60 },
+    { x: -30, z: 100 },
+    { x: 30, z: 100 },
+    { x: 10, z: 210 },
+    { x: 30, z: 210 },
+    { x: 10, z: 240 },
+    { x: 30, z: 240 },
+    { x: -10, z: 280 },
+    { x: -30, z: 280 },
+    { x: -10, z: 310 },
+    { x: -30, z: 310 },
   ];
 
-  turnstilePositions.forEach(pos => {
+  turnstilePositions.forEach((pos) => {
     const turnstile = new THREE.Mesh(
       new THREE.CircleGeometry(5, 32),
       obstacleMaterial
@@ -320,10 +346,10 @@ function addMinimapObstacles() {
   // Add simplified gates
   const gatePositions = [
     { x: 0, z: 400 },
-    { x: 0, z: 430 }
+    { x: 0, z: 430 },
   ];
 
-  gatePositions.forEach(pos => {
+  gatePositions.forEach((pos) => {
     const gate = new THREE.Mesh(
       new THREE.BoxGeometry(50, 1, 5),
       obstacleMaterial
@@ -331,25 +357,6 @@ function addMinimapObstacles() {
     gate.position.set(pos.x, 0, -pos.z);
     minimapScene.add(gate);
   });
-}
-
-function updateMinimap() {
-  if (!model) return;
-
-  // Update player indicator position
-  const playerIndicator = minimapScene.children.find(
-    child => child.geometry instanceof THREE.CircleGeometry
-  );
-  if (playerIndicator) {
-    playerIndicator.position.x = -model.position.x;
-    playerIndicator.position.z = -model.position.z;
-  }
-
-  // Update minimap camera to follow player
-  minimapCamera.position.set(-model.position.x, 200, -model.position.z);
-  minimapCamera.lookAt(-model.position.x, 0, -model.position.z);
-
-  minimapRenderer.render(minimapScene, minimapCamera);
 }
 
 async function initBackgroundAudio() {
@@ -495,7 +502,7 @@ async function die() {
 
   // Define checkpoint positions
   const checkpoints = {
-    start: { x: 0, y: 10, z: 10 },
+    start: { x: 0, y: 10, z: 0 },
     checkpoint1: { x: 0, y: 10, z: 180 },
     checkpoint2: { x: 0, y: 10, z: 360 },
   };
@@ -842,7 +849,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 360);
+        model.position.set(0, 2, 0);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -2476,7 +2483,7 @@ async function animate() {
   stats.end();
 
   if (minimapElements && model) {
-    updateMinimap(minimapElements.playerIndicator);
+    updateMinimap(minimapElements, model);
   }
 }
 

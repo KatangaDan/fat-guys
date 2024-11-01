@@ -1061,7 +1061,7 @@ export async function createStartingPlatform(
       world.addBody(platformBody);
 
       // Add blue ambient light for the platform area
-      const platformAmbientLight = new THREE.AmbientLight(0x0000ff, 0.2); // Blue light with low intensity
+      const platformAmbientLight = new THREE.AmbientLight(0x0000ff, 0.05); // Blue light with low intensity
       scene.add(platformAmbientLight);
 
       // Create fences

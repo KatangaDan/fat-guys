@@ -221,44 +221,32 @@ async function init() {
 
 function initMinimap() {
   minimapScene = scene;
-  
+
   // Create orthographic camera
-  minimapCamera = new THREE.OrthographicCamera(
-    -50, 50,
-    50, -50,
-    1, 1000
-  );
+  minimapCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 1000);
   minimapCamera.position.set(0, 200, 0);
   minimapCamera.lookAt(0, 0, 0);
   minimapCamera.up.set(0, 0, -1);
-  
+
   // Setup minimap renderer
   minimapRenderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById('minimap'),
-    antialias: true
+    canvas: document.getElementById("minimap"),
+    antialias: true,
   });
   minimapRenderer.setSize(250, 250);
-  
+
   return {};
 }
 
 function updateMinimap() {
   if (!model) return;
-  
+
   // Update minimap camera to follow player
-  minimapCamera.position.set(
-    model.position.x,
-    200,
-    model.position.z
-  );
-  
+  minimapCamera.position.set(model.position.x, 200, model.position.z);
+
   // Update camera target to look at player position
-  minimapCamera.lookAt(
-    model.position.x,
-    0,
-    model.position.z
-  );
-  
+  minimapCamera.lookAt(model.position.x, 0, model.position.z);
+
   minimapRenderer.render(minimapScene, minimapCamera);
 }
 
@@ -577,9 +565,9 @@ async function initScene() {
 
     try {
       minimapElements = initMinimap();
-      console.log('Minimap initialized successfully');
+      console.log("Minimap initialized successfully");
     } catch (error) {
-      console.error('Failed to initialize minimap:', error);
+      console.error("Failed to initialize minimap:", error);
     }
 
     resolve();
@@ -2344,7 +2332,7 @@ async function animate() {
   }
 
   // Animate obstacles
- // animateGates(deltaTime);
+  // animateGates(deltaTime);
   animateCylinders(deltaTime);
   animateCrown(deltaTime);
   animateTurnstile(deltaTime);
@@ -2718,20 +2706,15 @@ async function startGame() {
       controlsInfo.style.display = "none";
     }
 
-      //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
-      showTimer();
-      hideLoadingScreen();
-      createHeartsContainer();
-      generateHearts(3);
-      generateBestTime();
-      renderer.setAnimationLoop(animate);
-      //await panCameraToStart();
-      // Show minimap
-      if (minimapElements && minimapElements.renderer) {
-        minimapElements.renderer.domElement.style.display = 'block';
-      }
-      startCountdown();
-    });
+    //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
+    showTimer();
+    hideLoadingScreen();
+    createHeartsContainer();
+    generateHearts(3);
+    generateBestTime();
+    renderer.setAnimationLoop(animate);
+    //await panCameraToStart();
+    startCountdown();
   } catch (error) {
     console.error("Error during initialization:", error);
     hideLoadingScreen();

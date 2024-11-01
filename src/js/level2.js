@@ -12,6 +12,7 @@ import {
   createGate2,
   createWreckingBall,
   createHorizontalCylinder,
+  createCrown,
 } from "./obstacles";
 
 // Import assets
@@ -64,7 +65,8 @@ let scene,
   gameVolume = 0.5,
   isGamePaused = false,
   runningAudio,
-  isRunningPlaying = false;
+  isRunningPlaying = false,
+  crown;
 
 let backGroundMusic,
   jumpSound,
@@ -150,10 +152,7 @@ async function init() {
       // don't call init event listeners here - it gives the user control too early (they can move while in the laoding screena & before countdown)
       await initBackgroundAudio();
 
-      // Initialize minimap
-      // minimapElements = initMinimap();
-
-      //console.log("Creating obstacles + particles...");
+      console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 60);
       await initBackgroundParticleSystem();
 
@@ -191,7 +190,14 @@ async function init() {
       // Third set of obstacles
       await initGateObstacles();
 
-      await initFinishLine();
+      //await initFinishLine();
+      // Add crown at the finish line
+      crown = await createCrown(world, scene, 0, 3, 460);
+
+      // Initialize minimap
+      minimapElements = createMinimapScene();
+
+      createEnd(0, 0, 495, 60, 10);
 
       console.log("Game initialized successfully!");
 
@@ -204,35 +210,127 @@ async function init() {
   });
 }
 
-function initMinimap() {
-  minimapScene = scene;
+function createEnd(x, y, z, length, height) {
+  //create a box
+  const geometry = new THREE.BoxGeometry(length, height, 5);
+  const material = new THREE.MeshBasicMaterial({ color: "#2c13ad" });
+  const end = new THREE.Mesh(geometry, material);
+  end.position.set(x, y + height / 2, z);
 
-  // Create orthographic camera
-  minimapCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 1000);
-  minimapCamera.position.set(0, 200, 0);
-  minimapCamera.lookAt(0, 0, 0);
-  minimapCamera.up.set(0, 0, -1);
+  //add a physics body
+  const endShape = new CANNON.Box(new CANNON.Vec3(length / 2, height / 2, 2.5));
+  const endBody = new CANNON.Body({ mass: 0 });
+  endBody.addShape(endShape);
+  endBody.position.set(x, y + height / 2, z);
+  world.addBody(endBody);
 
-  // Setup minimap renderer
-  minimapRenderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById("minimap"),
-    antialias: true,
-  });
-  minimapRenderer.setSize(250, 250);
-
-  return {};
+  scene.add(end);
 }
 
-function updateMinimap() {
-  if (!model) return;
+function createMinimapScene() {
+  const minimapScene = new THREE.Scene();
 
-  // Update minimap camera to follow player
-  minimapCamera.position.set(model.position.x, 200, model.position.z);
+  // Add ground pieces using basic geometries
+  function addMinimapGround(x, y, z, width, length) {
+    const geometry = new THREE.PlaneGeometry(width, length);
+    const material = new THREE.MeshBasicMaterial({ color: "#2c13ad" });
+    const ground = new THREE.Mesh(geometry, material);
+    ground.position.set(x, y, -(z + length / 2));
+    ground.rotation.x = -Math.PI / 2;
+    minimapScene.add(ground);
+  }
 
-  // Update camera target to look at player position
-  minimapCamera.lookAt(model.position.x, 0, model.position.z);
+  // Add cylinder representation
+  function addMinimapCylinder(x, y, z, radius, height) {
+    const geometry = new THREE.PlaneGeometry(radius * 2, height);
+    const material = new THREE.MeshBasicMaterial({ color: "#f834d4" });
+    const cylinder = new THREE.Mesh(geometry, material);
+    // Adjust position to match the actual cylinder position
+    cylinder.position.set(x, y, -(z + height / 2));
+    cylinder.rotation.x = -Math.PI / 2;
+    minimapScene.add(cylinder);
+  }
 
-  minimapRenderer.render(minimapScene, minimapCamera);
+  // Add player representation (simple dot)
+  function createPlayerDot() {
+    const geometry = new THREE.CircleGeometry(2, 16);
+    const material = new THREE.MeshBasicMaterial({ color: "#f874b4" });
+    const playerDot = new THREE.Mesh(geometry, material);
+    playerDot.rotation.x = -Math.PI / 2;
+    playerDot.position.y = 0.1;
+    minimapScene.add(playerDot);
+    return playerDot;
+  }
+
+  function initMinimap() {
+    const minimapCamera = new THREE.OrthographicCamera(
+      -50,
+      50,
+      50,
+      -50,
+      1,
+      1000
+    );
+    minimapCamera.position.set(0, 200, 0);
+    minimapCamera.lookAt(0, 0, 0);
+    minimapCamera.up.set(0, 0, -1);
+
+    const minimapRenderer = new THREE.WebGLRenderer({
+      canvas: document.getElementById("minimap"),
+      alpha: true,
+    });
+    minimapRenderer.setSize(150, 150);
+
+    // Add ground pieces matching the level layout
+    // First ground piece
+    addMinimapGround(0, 0, 0, 60, 60);
+
+    // Add cylinders with correct positions from initGroundCylinders
+    // Parameters match createHorizontalCylinder(world, scene, x, y, z, radius, height)
+    addMinimapCylinder(-20, 0, 65, 2, 40); // Left cylinder
+    addMinimapCylinder(0, 0, 65, 2, 40); // Middle cylinder
+    addMinimapCylinder(20, 0, 65, 2, 40); // Right cylinder
+
+    // Second set of ground pieces (platforms for wrecking balls)
+    addMinimapGround(0, 0, 115, 60, 10);
+    addMinimapGround(0, 0, 145, 60, 10);
+    addMinimapGround(0, 0, 175, 60, 10);
+    addMinimapGround(0, 0, 205, 60, 10);
+    addMinimapGround(0, 0, 235, 60, 10);
+
+    // Large ground piece for third section
+    addMinimapGround(0, 0, 265, 60, 240);
+
+    const playerDot = createPlayerDot();
+
+    return {
+      scene: minimapScene,
+      camera: minimapCamera,
+      renderer: minimapRenderer,
+      playerDot: playerDot,
+    };
+  }
+
+  return initMinimap();
+}
+
+// Update minimap in render loop
+function updateMinimap(minimapElements, player) {
+  if (!minimapElements) return;
+
+  const { scene, camera, renderer, playerDot } = minimapElements;
+
+  // Update player dot position
+  playerDot.position.x = -player.position.x;
+  playerDot.position.z = -player.position.z;
+
+  // Update camera position to follow player
+  camera.position.x = -player.position.x;
+  camera.position.z = -player.position.z;
+  camera.lookAt(-player.position.x, 0, -player.position.z);
+
+  // Render minimap
+  renderer.render(scene, camera);
 }
 
 //function to load all game audio into buffers before the game starts
@@ -759,42 +857,42 @@ async function initScene() {
     //Setup controls
     setupControls();
 
-    try {
-      minimapElements = initMinimap();
-      //console.log("Minimap initialized successfully");
-    } catch (error) {
-      //console.error("Failed to initialize minimap:", error);
-    }
+    // try {
+    //   minimapElements = initMinimap();
+    //   console.log("Minimap initialized successfully");
+    // } catch (error) {
+    //   console.error("Failed to initialize minimap:", error);
+    // }
 
     resolve();
   });
 }
 
 function checkForWin() {
-  if (
-    playerBody.position.z > 492 &&
-    playerBody.position.y > 0 &&
-    gameWon == false
-  ) {
-    gameWon = true;
-    //set all movement flags to false
-    moveForward = false;
-    moveBackward = false;
-    moveLeft = false;
-    moveRight = false;
+  if (!gameWon && crown && crown.mesh) {
+    const playerBoundingBox = new THREE.Box3().setFromObject(model);
+    const crownBoundingBox = new THREE.Box3().setFromObject(crown.mesh);
+    if (playerBoundingBox.intersectsBox(crownBoundingBox)) {
+      gameWon = true;
+      //set all movement flags to false
+      moveForward = false;
+      moveBackward = false;
+      moveLeft = false;
+      moveRight = false;
 
-    //Stop the timer
-    timerRunning = false;
+      //Stop the timer
+      timerRunning = false;
 
-    //in local storage, check if level2Unlocked is true,if it doesnt exist, set it to true
-    if (localStorage.getItem("level3Unlocked") === null) {
-      localStorage.setItem("level3Unlocked", "true");
+      //in local storage, check if level2Unlocked is true,if it doesnt exist, set it to true
+      if (localStorage.getItem("level3Unlocked") === null) {
+        localStorage.setItem("level3Unlocked", "true");
+      }
+
+      //play win sound
+      winsound.play();
+
+      showWinScreen(elapsedTime);
     }
-
-    //play win sound
-    winsound.play();
-
-    showWinScreen(elapsedTime);
   }
 }
 
@@ -926,7 +1024,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 15);
+        model.position.set(0, 2, 490);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -1873,9 +1971,9 @@ function animate() {
 
   stats.end();
 
-  // if (minimapElements && model) {
-  //   updateMinimap(minimapElements.playerIndicator);
-  // }
+  if (minimapElements && model) {
+    updateMinimap(minimapElements, model);
+  }
 }
 
 // Create a function to show the loading screen
@@ -2145,7 +2243,6 @@ function resetGame() {
 }
 
 function restartGame() {
-
   //let loader = document.getElementById("loading-screen");
   //loader.style.display = "block";
   //showLoadingScreen();
@@ -2210,6 +2307,12 @@ async function startGame() {
 
     // Render the game
     await init();
+
+    //show minimap
+    let minimap = document.getElementById("minimap-container");
+    if (minimap) {
+      minimap.style.display = "block";
+    }
 
     // Hide the controls UI
     let controlsInfo = document.getElementById("controls-info");

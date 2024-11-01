@@ -5,7 +5,7 @@ import neon_wall from "../textures/neon.png";
 import chain from "../textures/silver_texture.jpg";
 import texture2 from "../textures/pink.jpg";
 import texture3 from "../textures/texture 3.jpg";
-import tile from "../textures/hexagon-tile.jpg";
+import tile from "../textures/floor.png";
 import stripes from "../textures/texture 4.png";
 
 export async function createPillar(
@@ -67,7 +67,7 @@ export async function createGate(
   return new Promise((resolve) => {
     // load the texture
     const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(stripes, (texture) => {
+    textureLoader.load(neon_wall, (texture) => {
       // work out exact width of gate using the positions of the pillars
       let leftPillarPosition =
         leftPillar.position.x - leftPillar.geometry.parameters.width / 2;
@@ -80,7 +80,11 @@ export async function createGate(
 
       //Create a simple plane for the ground
       const gateGeometry = new THREE.BoxGeometry(width, height, length);
-      const gateMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const gateMaterial = new THREE.MeshStandardMaterial({ 
+        map: texture,
+        metalness: 3,
+        roughness: 0.2
+       });
       const gate = new THREE.Mesh(gateGeometry, gateMaterial);
       gate.position.set(newX, y + height / 2, z);
       gate.castShadow = true;
@@ -567,7 +571,7 @@ export async function createTurnstile(
     const barDepth = radius * 0.2;
     const barGeometry = new THREE.BoxGeometry(barWidth, barHeight, barDepth);
     const barMaterial = new THREE.MeshStandardMaterial({
-      color: 0xff1493, // Hot pink
+      color: 0xd3d3d3,
       roughness: 0.2,
       metalness: 0.1,
     });
@@ -585,7 +589,7 @@ export async function createTurnstile(
           barDepth + 0.01
         );
         const stripeMaterial = new THREE.MeshStandardMaterial({
-          color: 0xffb6c1, // Light pink
+          color: 0xff69b4,
           roughness: 0.2,
           metalness: 0.1,
         });
@@ -616,7 +620,7 @@ export async function createTurnstile(
       32
     );
     const ringMaterial = new THREE.MeshStandardMaterial({
-      color: 0x00bfff,
+      color: 0xd3d3d3,
       roughness: 0.2,
       metalness: 0.1,
     });
@@ -680,7 +684,7 @@ export function createRotatingHammer(
   const poleHeight = 3;
   const poleGeometry = new THREE.CylinderGeometry(poleRadius, poleRadius, poleHeight, 32);
   const poleMaterial = new THREE.MeshStandardMaterial({
-    color: 0xff69b4,
+    color: 0xd3d3d3,
     metalness: 0.3,
     roughness: 0.4
   });
@@ -697,7 +701,7 @@ export function createRotatingHammer(
   const handleLength = 3;
   const handleGeometry = new THREE.CylinderGeometry(handleRadius, handleRadius, handleLength, 32);
   const handleMaterial = new THREE.MeshStandardMaterial({
-    color: 0xff69b4,
+    color: 0xd3d3d3,
     metalness: 0.2,
     roughness: 0.5
   });
@@ -962,9 +966,11 @@ export async function createCrown(
   return new Promise((resolve) => {
     // Crown Base (cylinder)
     const crownMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffd700,
+      color: 0xffd700, // Gold color
       metalness: 0.7,
       roughness: 0.4,
+      emissive: 0xffd700, // Add emissive color for a glowing effect
+      emissiveIntensity: 1, // Adjust emissive intensity as desired
     });
     const crownBase = new THREE.Mesh(
       new THREE.CylinderGeometry(radius, radius, 0.5, 32),
@@ -1010,7 +1016,13 @@ export async function createCrown(
       spikes[i].add(ornament); // Attach the ornament to the tip of each spike
     }
 
-    resolve({ mesh: crownBase, body: crownBody });
+    // Add a golden light source near the crown
+    const crownLight = new THREE.PointLight(0xffd700, 1, 10); // 0xffd700 is a golden color
+    crownLight.position.set(x, y + 1, z); // Position it slightly above the crown
+    crownLight.castShadow = true; // Enable shadows if desired
+    scene.add(crownLight);
+
+    resolve({ mesh: crownBase, body: crownBody, light: crownLight });
   });
 }
 
@@ -1027,9 +1039,13 @@ export async function createStartingPlatform(
   return new Promise((resolve) => {
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load(tile, (texture) => {
-      // Create the platform mesh
+      // Create the platform mesh with emissive color for a subtle glow
       const platformGeometry = new THREE.BoxGeometry(width, height, depth);
-      const platformMaterial = new THREE.MeshStandardMaterial({ map: texture });
+      const platformMaterial = new THREE.MeshStandardMaterial({
+        map: texture,
+        emissive: new THREE.Color(0x0000ff), // Blue emissive color
+        emissiveIntensity: 0.2, // Adjust as needed for subtle glow
+      });
       const platform = new THREE.Mesh(platformGeometry, platformMaterial);
       platform.position.set(x, y + height / 2, z);
       platform.castShadow = true;
@@ -1044,10 +1060,14 @@ export async function createStartingPlatform(
       platformBody.position.set(x, y + height / 2, z);
       world.addBody(platformBody);
 
+      // Add blue ambient light for the platform area
+      const platformAmbientLight = new THREE.AmbientLight(0x0000ff, 0.4); // Blue light with low intensity
+      scene.add(platformAmbientLight);
+
       // Create fences
       const fenceHeight = 5;
       const fenceThickness = 0.2;
-      const fenceMaterial = new THREE.MeshStandardMaterial({ color: 0xffc0cb });
+      const fenceMaterial = new THREE.MeshStandardMaterial({ map: texture });
 
       // Left fence
       const leftFenceGeometry = new THREE.BoxGeometry(
@@ -1113,6 +1133,7 @@ export async function createStartingPlatform(
       resolve({
         mesh: platform,
         body: platformBody,
+        ambientLight: platformAmbientLight, // Return the ambient light for reference if needed
         fences: {
           left: { mesh: leftFence, body: leftFenceBody },
           right: { mesh: rightFence, body: rightFenceBody },
@@ -1122,4 +1143,5 @@ export async function createStartingPlatform(
     });
   });
 }
+
 

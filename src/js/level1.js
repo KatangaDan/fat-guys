@@ -12,13 +12,14 @@ import {
   createCylinder,
   createFan,
   createRod,
+  createCrown,
 } from "./obstacles";
 
 // Import assets
 import finish from "../img/finish.jpg";
 import basicBg from "../img/sky.jpg";
 import heart from "../img/heart.png";
-import groundTexture from "../img/stoleItLol.jpg";
+import groundTexture from "../textures/floor.png";
 import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
 import PjumpSound from "../sounds/jumpSound.wav";
 import Pjumpland from "../sounds/jumpland.wav";
@@ -64,7 +65,8 @@ let scene,
   gameVolume = 0.5,
   isGamePaused = false,
   runningAudio,
-  isRunningPlaying = false;
+  isRunningPlaying = false,
+  crown;
 
 let backGroundMusic,
   jumpSound,
@@ -148,9 +150,6 @@ async function init() {
       // don't call init event listeners here - it gives the user control too early (they can move while in the laoding screena & before countdown)
       await initBackgroundAudio();
 
-      // Initialize minimap
-      //minimapElements = initMinimap();
-
       console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 260);
       //Init particle background system
@@ -181,7 +180,15 @@ async function init() {
 
       await createGroundPiece(0, 0, 490, 60, 260);
 
-      await initFinishLine();
+      //await initFinishLine();
+
+      // Add crown at the finish line
+      crown = await createCrown(world, scene, 0, 3, 495);
+
+      createEnd(0, 0, 500, 60, 10);
+
+      // Initialize minimap
+      minimapElements = createMinimapScene();
 
       console.log("Game initialized successfully!");
 
@@ -194,38 +201,131 @@ async function init() {
   });
 }
 
-function initMinimap() {
-  minimapScene = scene;
+function createEnd(x, y, z, length, height) {
+  //create a box
+  const geometry = new THREE.BoxGeometry(length, height, 5);
+  const material = new THREE.MeshBasicMaterial({ color: "#d0b4a4" });
+  const end = new THREE.Mesh(geometry, material);
+  end.position.set(x, y + height / 2, z);
 
-  // Create orthographic camera
-  minimapCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 1000);
-  minimapCamera.position.set(0, 200, 0);
-  minimapCamera.lookAt(0, 0, 0);
-  minimapCamera.up.set(0, 0, -1);
+  //add a physics body
+  const endShape = new CANNON.Box(new CANNON.Vec3(length / 2, height / 2, 2.5));
+  const endBody = new CANNON.Body({ mass: 0 });
+  endBody.addShape(endShape);
+  endBody.position.set(x, y + height / 2, z);
+  world.addBody(endBody);
 
-  // Setup minimap renderer
-  minimapRenderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById("minimap"),
-    antialias: true,
-  });
-  minimapRenderer.setSize(250, 250);
-
-  return {};
+  scene.add(end);
 }
 
-function updateMinimap() {
-  if (!model) return;
+function createMinimapScene() {
+  const minimapScene = new THREE.Scene();
 
-  // Update minimap camera to follow player
-  minimapCamera.position.set(model.position.x, 200, model.position.z);
+  // Add simple ground pieces using basic geometries - updated to match main scene positioning
+  function addMinimapGround(x, y, z, width, length) {
+    const geometry = new THREE.PlaneGeometry(width, length);
+    const material = new THREE.MeshBasicMaterial({ color: "#d0b4a4" });
+    const ground = new THREE.Mesh(geometry, material);
+    // Match the exact positioning from createGroundPiece
+    ground.position.set(x, y, -(z + length / 2)); // Negative z for correct orientation
+    ground.rotation.x = -Math.PI / 2;
+    minimapScene.add(ground);
+  }
 
-  // Update camera target to look at player position
-  minimapCamera.lookAt(model.position.x, 0, model.position.z);
+  // Add player representation (simple dot)
+  function createPlayerDot() {
+    const geometry = new THREE.CircleGeometry(2, 16);
+    const material = new THREE.MeshBasicMaterial({ color: "#f874b4" });
+    const playerDot = new THREE.Mesh(geometry, material);
+    playerDot.rotation.x = -Math.PI / 2;
+    playerDot.position.y = 0.1; // Slightly above ground to avoid z-fighting
+    minimapScene.add(playerDot);
+    return playerDot;
+  }
 
-  minimapRenderer.render(minimapScene, minimapCamera);
+  // Initialize minimap setup
+  function initMinimap() {
+    const minimapCamera = new THREE.OrthographicCamera(
+      -50,
+      50,
+      50,
+      -50,
+      1,
+      1000
+    );
+    minimapCamera.position.set(0, 200, 0);
+    minimapCamera.lookAt(0, 0, 0);
+    minimapCamera.up.set(0, 0, -1);
+
+    const minimapRenderer = new THREE.WebGLRenderer({
+      canvas: document.getElementById("minimap"),
+      alpha: true,
+    });
+    minimapRenderer.setSize(150, 150);
+
+    // Add main ground pieces with correct positioning
+    addMinimapGround(0, 0, 0, 60, 260);
+    addMinimapGround(0, 0, 490, 60, 260);
+
+    // Add smaller ground pieces for obstacles with correct positioning
+    const smallGrounds = [
+      [0, 0, 290],
+      [-29, 0, 275],
+      [29, 0, 275],
+      [20, 0, 300],
+      [-18, 0, 305],
+      [27, 0, 350],
+      [5, 0, 330],
+      [-15, 0, 350],
+      [25, 0, 380],
+      [0, 0, 390],
+      [-20, 0, 387],
+      [-10, 0, 410],
+      [10, 0, 430],
+      [-29, 0, 450],
+      [20, 0, 460],
+    ];
+
+    // Add each ground piece with the proper dimensions
+    smallGrounds.forEach(([x, y, z]) => {
+      addMinimapGround(x, y, z, 10, 10);
+    });
+
+    // Create player dot
+    const playerDot = createPlayerDot();
+
+    return {
+      scene: minimapScene,
+      camera: minimapCamera,
+      renderer: minimapRenderer,
+      playerDot: playerDot,
+    };
+  }
+
+  return initMinimap();
+}
+
+// Update minimap in your render loop with corrected positioning
+function updateMinimap(minimapElements, player) {
+  if (!minimapElements) return;
+
+  const { scene, camera, renderer, playerDot } = minimapElements;
+
+  // Update player dot position
+  playerDot.position.x = -player.position.x;
+  playerDot.position.z = -player.position.z; // Negative z for correct orientation
+
+  // Update camera position to follow player
+  camera.position.x = -player.position.x;
+  camera.position.z = -player.position.z;
+  camera.lookAt(-player.position.x, 0, -player.position.z);
+
+  // Render minimap
+  renderer.render(scene, camera);
 }
 
 //function to load all game audio into buffers before the game starts
+
 async function loadAudio() {
   // Initialize audio objects
   backGroundMusic = new THREE.Audio(listener);
@@ -570,42 +670,43 @@ async function initScene() {
     //Setup controls
     setupControls();
 
-    try {
-      minimapElements = initMinimap();
-      console.log("Minimap initialized successfully");
-    } catch (error) {
-      console.error("Failed to initialize minimap:", error);
-    }
+    // try {
+    //   minimapElements = initMinimap();
+    //   console.log("Minimap initialized successfully");
+    // } catch (error) {
+    //   console.error("Failed to initialize minimap:", error);
+    // }
 
     resolve();
   });
 }
 
 function checkForWin() {
-  if (
-    playerBody.position.z > 492 &&
-    playerBody.position.y > 0 &&
-    gameWon == false
-  ) {
-    gameWon = true;
-    //set all movement flags to false
-    moveForward = false;
-    moveBackward = false;
-    moveLeft = false;
-    moveRight = false;
+  if (!gameWon && crown && crown.mesh) {
+    const playerBoundingBox = new THREE.Box3().setFromObject(model);
+    const crownBoundingBox = new THREE.Box3().setFromObject(crown.mesh);
 
-    timerRunning = false;
+    if (playerBoundingBox.intersectsBox(crownBoundingBox)) {
+      gameWon = true;
+      //set all movement flags to false
+      moveForward = false;
+      moveBackward = false;
+      moveLeft = false;
+      moveRight = false;
 
-    //in local storage, check if level2Unlocked is true,if it doesnt exist, set it to true
-    if (localStorage.getItem("level2Unlocked") === null) {
-      localStorage.setItem("level2Unlocked", "true");
+      timerRunning = false;
+
+      //in local storage, check if level2Unlocked is true,if it doesnt exist, set it to true
+      if (localStorage.getItem("level2Unlocked") === null) {
+        localStorage.setItem("level2Unlocked", "true");
+      }
+
+      //play win sound
+      winsound.play();
+
+      showWinScreen(elapsedTime);
+      //Stop the timer
     }
-
-    //play win sound
-    winsound.play();
-
-    showWinScreen(elapsedTime);
-    //Stop the timer
   }
 }
 
@@ -2256,23 +2357,6 @@ function animate() {
       }
     });
 
-    // fans.forEach((fan) => {
-    //   fan.children.forEach((child) => {
-    //     const fanBoundingBox = new THREE.Box3().setFromObject(child);
-
-    //     if (playerBoundingBox.intersectsBox(fanBoundingBox)) {
-    //       //Reset the players position
-    //       playerBody.position.set(0, 10, 10);
-    //     }
-    //   });
-    //   // const fanBoundingBox = new THREE.Box3().setFromObject(fan);
-
-    //   // if (playerBoundingBox.intersectsBox(fanBoundingBox)) {
-    //   //   //Reset the players position
-    //   //   playerBody.position.set(0, 10, 10);
-    //   // }
-    // });
-
     /*Actual bounding boxes for the player and obstacles*/
 
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
@@ -2351,9 +2435,9 @@ function animate() {
 
   stats.end();
 
-  // if (minimapElements && model) {
-  //   updateMinimap(minimapElements.playerIndicator);
-  // }
+  if (model) {
+    updateMinimap(minimapElements, model);
+  }
 }
 
 // Create a function to show the loading screen
@@ -2550,9 +2634,9 @@ function showWinScreen(elapsedTime) {
   }
 
   // Create the congratulatory message
-  const congratsMessage = document.createElement("h2");
+  const congratsMessage = document.createElement("h1");
   congratsMessage.id = "congratsMessage";
-  congratsMessage.textContent = "Congratulations! ";
+  congratsMessage.textContent = "You've completed the level! ";
   winMessage.appendChild(congratsMessage);
 
   //store elapsed time in local storage as best time
@@ -2572,7 +2656,8 @@ function showWinScreen(elapsedTime) {
   //new best time
   if (elapsedTime <= bestTime) {
     localStorage.setItem("levelOnebestTime", elapsedTime);
-    congratsMessage.textContent = "Congratulations! New Best Time!";
+    congratsMessage.textContent =
+      "You've completed the level with a new best time!";
   }
 
   // Create the final time message
@@ -2698,6 +2783,7 @@ async function startGame() {
     startButton.addEventListener("click", async () => {
       showLoadingScreen();
       hideGameMenu();
+
       //render the game
       await init();
 
@@ -2705,6 +2791,21 @@ async function startGame() {
       let controlsInfo = document.getElementById("controls-info");
       if (controlsInfo) {
         controlsInfo.style.display = "none";
+      }
+
+      //show minimap
+      let minimap = document.getElementById("minimap-container");
+      if (minimap) {
+        minimap.style.display = "block";
+      }
+
+      // hide playLevel2 and playLevel3 buttons
+      if (playLevel2Button) {
+        playLevel2Button.style.display = "none";
+      }
+
+      if (playLevel3Button) {
+        playLevel3Button.style.display = "none";
       }
 
       //show menu button

@@ -751,12 +751,9 @@ async function die() {
       respawnPosition.y,
       respawnPosition.z
     );
-
-    //reset player animation
     currentAction.stop();
     currentAction = idleAction;
     currentAction.play();
-
     generateHearts(currentLives);
   }
 
@@ -1267,7 +1264,7 @@ function jump() {
 }
 
 function isInAir() {
-  if(playerBody.position.y < 0){
+  //if(currentAction!=fallingAction){
   let startingY =
     playerBody.position.y -
     (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
@@ -1275,7 +1272,7 @@ function isInAir() {
   const GROUND_THRESHOLD = 0.15;
   
   return startingY >= GROUND_THRESHOLD || Math.abs(playerBody.velocity.y) >= 0.2;
-  }
+  //}
 }
 
 function crossfadeAction(fromAction, toAction, duration) {
@@ -1291,9 +1288,9 @@ function crossfadeAction(fromAction, toAction, duration) {
       jumpAction.clampWhenFinished = true;
     }
     
-    // if (playerBody.position.y < 0) {
-    //   toAction = fallingAction;
-    // }
+    if (playerBody.position.y < 0) {
+      toAction = fallingAction;
+    }
     
     toAction.reset().fadeIn(duration).play();
     fromAction.fadeOut(duration);
@@ -1393,12 +1390,9 @@ function updateMovement(delta) {
      if (isJumping) {
       targetAction = jumpAction;
     }
-    // if(currentAction===fallingAction && isInAir()){
-    //   targetAction = fallingAction;
-    // }
     
     // Crossfade to the appropriate movement animation if it's different from the current one
-    if (currentAction !== targetAction && (!isInAir() || targetAction === jumpAction || targetAction === fallingAction)) {
+    if (currentAction !== targetAction && (!isInAir() || targetAction === jumpAction)) {
       crossfadeAction(currentAction, targetAction, fadeDuration);
       currentAction = targetAction; // Update current action to the new one
     }
@@ -1408,29 +1402,11 @@ function updateMovement(delta) {
       new CANNON.Vec3(0, 1, 0),
       targetRotation
     );
+  } else {
+    // Check if the player should transition to the idle animation
+    console.log("Checking idle state");
+    checkIdleState();
   }
-  else if(!isMoving){
-    let targetAction = idleAction;
-    if(isInAir()){
-      if (
-        playerBody.position.y < 0
-      ) {
-        console.log("Checking falling state");
-        targetAction = fallingAction;
-      }
-      else{
-        targetAction = idleAction;
-      }
-      crossfadeAction(currentAction, targetAction, fadeDuration);
-      currentAction = targetAction;
-    }
-    else {
-      // Check if the player should transition to the idle animation
-      console.log("Checking idle state");
-      checkIdleState();
-    }
-  } 
- 
 
   // Normalize and apply movement
   if (moveDirection.length() > 0) {

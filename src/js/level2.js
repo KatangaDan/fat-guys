@@ -688,16 +688,10 @@ async function die() {
   // Create particle explosion at player's current position
   createParticleExplosion(model.position);
 
-
   //Hide the player model
   model.visible = false;
 
-  //Reset animations
-  currentAction.stop();
-  currentAction = idleAction;
-  currentAction.play();
   // checkIdleState();
-
 
   const respawnPosition =
     playerBody.position.z < 265
@@ -1270,15 +1264,23 @@ function isInAir() {
     (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
     0.1;
   const GROUND_THRESHOLD = 0.15;
-  
-  return startingY >= GROUND_THRESHOLD || Math.abs(playerBody.velocity.y) >= 0.2;
+
+  return (
+    startingY >= GROUND_THRESHOLD || Math.abs(playerBody.velocity.y) >= 0.2
+  );
   //}
 }
 
 function crossfadeAction(fromAction, toAction, duration) {
   if (fromAction !== toAction) {
     // Don't allow transition to running or idle animations while in air
-    if ((toAction===runningAction || toAction===backRunningAction || toAction===runningLeftAction || toAction===runningRightAction) && isInAir()) {
+    if (
+      (toAction === runningAction ||
+        toAction === backRunningAction ||
+        toAction === runningLeftAction ||
+        toAction === runningRightAction) &&
+      isInAir()
+    ) {
       return;
     }
 
@@ -1287,14 +1289,18 @@ function crossfadeAction(fromAction, toAction, duration) {
       jumpAction.setLoop(THREE.LoopOnce);
       jumpAction.clampWhenFinished = true;
     }
-    
+
     if (playerBody.position.y < 0) {
       toAction = fallingAction;
     }
-    
+
     toAction.reset().fadeIn(duration).play();
     fromAction.fadeOut(duration);
-    console.log(`Crossfade from ${fromAction.getClip().name} to ${toAction.getClip().name}`);
+    console.log(
+      `Crossfade from ${fromAction.getClip().name} to ${
+        toAction.getClip().name
+      }`
+    );
   }
 }
 function checkIdleState() {
@@ -1362,37 +1368,36 @@ function updateMovement(delta) {
   if (isMoving) {
     let targetAction = runningAction;
 
-    if(!isInAir()){
-    // Determine which movement animation to play
-    if (moveBackward && !moveForward && !moveLeft && !moveRight) {
-      targetAction = backRunningAction;
-    }
-    if (moveLeft && !moveForward && !moveBackward && !moveRight) {
-      targetAction = runningLeftAction;
-    }
-    if (moveRight && !moveForward && !moveBackward && !moveLeft) {
-      targetAction = runningRightAction;
-    }
-    
-    }
-    else if (currentAction !== jumpAction) {
+    if (!isInAir()) {
+      // Determine which movement animation to play
+      if (moveBackward && !moveForward && !moveLeft && !moveRight) {
+        targetAction = backRunningAction;
+      }
+      if (moveLeft && !moveForward && !moveBackward && !moveRight) {
+        targetAction = runningLeftAction;
+      }
+      if (moveRight && !moveForward && !moveBackward && !moveLeft) {
+        targetAction = runningRightAction;
+      }
+    } else if (currentAction !== jumpAction) {
       // If we're in the air and not already jumping, keep the current animation
       targetAction = currentAction;
     }
-    
-    if (
-      playerBody.position.y < 0
-    ) {
+
+    if (playerBody.position.y < 0) {
       targetAction = fallingAction;
     }
 
-     // Always prioritize jumpAction if we're jumping
-     if (isJumping) {
+    // Always prioritize jumpAction if we're jumping
+    if (isJumping) {
       targetAction = jumpAction;
     }
-    
+
     // Crossfade to the appropriate movement animation if it's different from the current one
-    if (currentAction !== targetAction && (!isInAir() || targetAction === jumpAction)) {
+    if (
+      currentAction !== targetAction &&
+      (!isInAir() || targetAction === jumpAction)
+    ) {
       crossfadeAction(currentAction, targetAction, fadeDuration);
       currentAction = targetAction; // Update current action to the new one
     }
@@ -2256,6 +2261,10 @@ function restartGame() {
     gateExplosion(gate.position);
     scene.add(gate);
   });
+
+  currentAction.stop();
+  currentAction = idleAction;
+  currentAction.play();
 
   // do countdown again
   //reset timer to 0

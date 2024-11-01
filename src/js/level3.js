@@ -562,6 +562,11 @@ async function die() {
       respawnPosition.y,
       respawnPosition.z
     );
+
+    currentAction.stop();
+    currentAction = idleAction;
+    currentAction.play();
+
     generateHearts(currentLives);
   }
 
@@ -812,7 +817,7 @@ async function initBackground() {
         map: texture,
         side: THREE.BackSide,
       });
-      
+
       // Create the skybox mesh and add it to the scene
       const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
       scene.add(skybox);
@@ -1081,15 +1086,23 @@ function isInAir() {
     (playerBody.aabb.upperBound.y - playerBody.aabb.lowerBound.y) / 2 -
     0.1;
   const GROUND_THRESHOLD = 0.15;
-  
-  return startingY >= GROUND_THRESHOLD || Math.abs(playerBody.velocity.y) >= 0.2;
+
+  return (
+    startingY >= GROUND_THRESHOLD || Math.abs(playerBody.velocity.y) >= 0.2
+  );
   //}
 }
 
 function crossfadeAction(fromAction, toAction, duration) {
   if (fromAction !== toAction) {
     // Don't allow transition to running or idle animations while in air
-    if ((toAction===runningAction || toAction===backRunningAction || toAction===runningLeftAction || toAction===runningRightAction) && isInAir()) {
+    if (
+      (toAction === runningAction ||
+        toAction === backRunningAction ||
+        toAction === runningLeftAction ||
+        toAction === runningRightAction) &&
+      isInAir()
+    ) {
       return;
     }
 
@@ -1098,14 +1111,18 @@ function crossfadeAction(fromAction, toAction, duration) {
       jumpAction.setLoop(THREE.LoopOnce);
       jumpAction.clampWhenFinished = true;
     }
-    
+
     if (playerBody.position.y < 0) {
       toAction = fallingAction;
     }
-    
+
     toAction.reset().fadeIn(duration).play();
     fromAction.fadeOut(duration);
-    console.log(`Crossfade from ${fromAction.getClip().name} to ${toAction.getClip().name}`);
+    console.log(
+      `Crossfade from ${fromAction.getClip().name} to ${
+        toAction.getClip().name
+      }`
+    );
   }
 }
 function checkIdleState() {
@@ -1173,37 +1190,36 @@ function updateMovement(delta) {
   if (isMoving) {
     let targetAction = runningAction;
 
-    if(!isInAir()){
-    // Determine which movement animation to play
-    if (moveBackward && !moveForward && !moveLeft && !moveRight) {
-      targetAction = backRunningAction;
-    }
-    if (moveLeft && !moveForward && !moveBackward && !moveRight) {
-      targetAction = runningLeftAction;
-    }
-    if (moveRight && !moveForward && !moveBackward && !moveLeft) {
-      targetAction = runningRightAction;
-    }
-    
-    }
-    else if (currentAction !== jumpAction) {
+    if (!isInAir()) {
+      // Determine which movement animation to play
+      if (moveBackward && !moveForward && !moveLeft && !moveRight) {
+        targetAction = backRunningAction;
+      }
+      if (moveLeft && !moveForward && !moveBackward && !moveRight) {
+        targetAction = runningLeftAction;
+      }
+      if (moveRight && !moveForward && !moveBackward && !moveLeft) {
+        targetAction = runningRightAction;
+      }
+    } else if (currentAction !== jumpAction) {
       // If we're in the air and not already jumping, keep the current animation
       targetAction = currentAction;
     }
-    
-    if (
-      playerBody.position.y < 0
-    ) {
+
+    if (playerBody.position.y < 0) {
       targetAction = fallingAction;
     }
 
-     // Always prioritize jumpAction if we're jumping
-     if (isJumping) {
+    // Always prioritize jumpAction if we're jumping
+    if (isJumping) {
       targetAction = jumpAction;
     }
-    
+
     // Crossfade to the appropriate movement animation if it's different from the current one
-    if (currentAction !== targetAction && (!isInAir() || targetAction === jumpAction)) {
+    if (
+      currentAction !== targetAction &&
+      (!isInAir() || targetAction === jumpAction)
+    ) {
       crossfadeAction(currentAction, targetAction, fadeDuration);
       currentAction = targetAction; // Update current action to the new one
     }
@@ -1386,18 +1402,44 @@ async function initLevel3Layout() {
   scene.remove(rightPath2.fences.back.mesh);
   world.removeBody(rightPath2.fences.back.body);
 
-  const section2right = await createStartingPlatform(world, scene, -20, 0, 230, 40, 0.1, 60);
+  const section2right = await createStartingPlatform(
+    world,
+    scene,
+    -20,
+    0,
+    230,
+    40,
+    0.1,
+    60
+  );
   scene.remove(section2right.fences.back.mesh);
   world.removeBody(section2right.fences.back.body);
 
-  const section2left = await createStartingPlatform(world, scene, 20, 0, 300, 40, 0.1, 60);
+  const section2left = await createStartingPlatform(
+    world,
+    scene,
+    20,
+    0,
+    300,
+    40,
+    0.1,
+    60
+  );
   scene.remove(section2left.fences.back.mesh);
   world.removeBody(section2left.fences.back.body);
 
-  const section3 = await createStartingPlatform(world, scene, 0, 0, 420, 60, 0.1, 60);
+  const section3 = await createStartingPlatform(
+    world,
+    scene,
+    0,
+    0,
+    420,
+    60,
+    0.1,
+    60
+  );
   scene.remove(section3.fences.back.mesh);
   world.removeBody(section3.fences.back.body);
-
 
   // Rest of platforms (no back fences)
   const platforms = [
@@ -2765,6 +2807,10 @@ async function restartGame() {
 
   // Remove all existing cannon balls
   await removeAllCannonBalls();
+
+  currentAction.stop();
+  currentAction = idleAction;
+  currentAction.play();
 
   // Reset crown visibility
   if (crown && crown.mesh) {

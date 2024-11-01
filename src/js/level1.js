@@ -12,6 +12,7 @@ import {
   createCylinder,
   createFan,
   createRod,
+  createCrown,
 } from "./obstacles";
 
 // Import assets
@@ -64,7 +65,8 @@ let scene,
   gameVolume = 0.5,
   isGamePaused = false,
   runningAudio,
-  isRunningPlaying = false;
+  isRunningPlaying = false,
+  crown;
 
 let backGroundMusic,
   jumpSound,
@@ -178,7 +180,12 @@ async function init() {
 
       await createGroundPiece(0, 0, 490, 60, 260);
 
-      await initFinishLine();
+      //await initFinishLine();
+
+      // Add crown at the finish line
+      crown = await createCrown(world, scene, 0, 3, 495);
+
+      createEnd(0, 0, 500, 60, 10);
 
       // Initialize minimap
       minimapElements = createMinimapScene();
@@ -192,6 +199,23 @@ async function init() {
       reject(error);
     }
   });
+}
+
+function createEnd(x, y, z, length, height) {
+  //create a box
+  const geometry = new THREE.BoxGeometry(length, height, 5);
+  const material = new THREE.MeshBasicMaterial({ color: "#d0b4a4" });
+  const end = new THREE.Mesh(geometry, material);
+  end.position.set(x, y + height / 2, z);
+
+  //add a physics body
+  const endShape = new CANNON.Box(new CANNON.Vec3(length / 2, height / 2, 2.5));
+  const endBody = new CANNON.Body({ mass: 0 });
+  endBody.addShape(endShape);
+  endBody.position.set(x, y + height / 2, z);
+  world.addBody(endBody);
+
+  scene.add(end);
 }
 
 function createMinimapScene() {
@@ -658,30 +682,31 @@ async function initScene() {
 }
 
 function checkForWin() {
-  if (
-    playerBody.position.z > 492 &&
-    playerBody.position.y > 0 &&
-    gameWon == false
-  ) {
-    gameWon = true;
-    //set all movement flags to false
-    moveForward = false;
-    moveBackward = false;
-    moveLeft = false;
-    moveRight = false;
+  if (!gameWon && crown && crown.mesh) {
+    const playerBoundingBox = new THREE.Box3().setFromObject(model);
+    const crownBoundingBox = new THREE.Box3().setFromObject(crown.mesh);
 
-    timerRunning = false;
+    if (playerBoundingBox.intersectsBox(crownBoundingBox)) {
+      gameWon = true;
+      //set all movement flags to false
+      moveForward = false;
+      moveBackward = false;
+      moveLeft = false;
+      moveRight = false;
 
-    //in local storage, check if level2Unlocked is true,if it doesnt exist, set it to true
-    if (localStorage.getItem("level2Unlocked") === null) {
-      localStorage.setItem("level2Unlocked", "true");
+      timerRunning = false;
+
+      //in local storage, check if level2Unlocked is true,if it doesnt exist, set it to true
+      if (localStorage.getItem("level2Unlocked") === null) {
+        localStorage.setItem("level2Unlocked", "true");
+      }
+
+      //play win sound
+      winsound.play();
+
+      showWinScreen(elapsedTime);
+      //Stop the timer
     }
-
-    //play win sound
-    winsound.play();
-
-    showWinScreen(elapsedTime);
-    //Stop the timer
   }
 }
 
@@ -2586,9 +2611,9 @@ function showWinScreen(elapsedTime) {
   }
 
   // Create the congratulatory message
-  const congratsMessage = document.createElement("h2");
+  const congratsMessage = document.createElement("h1");
   congratsMessage.id = "congratsMessage";
-  congratsMessage.textContent = "Congratulations! ";
+  congratsMessage.textContent = "You've completed the level! ";
   winMessage.appendChild(congratsMessage);
 
   //store elapsed time in local storage as best time
@@ -2608,7 +2633,8 @@ function showWinScreen(elapsedTime) {
   //new best time
   if (elapsedTime <= bestTime) {
     localStorage.setItem("levelOnebestTime", elapsedTime);
-    congratsMessage.textContent = "Congratulations! New Best Time!";
+    congratsMessage.textContent =
+      "You've completed the level with a new best time!";
   }
 
   // Create the final time message

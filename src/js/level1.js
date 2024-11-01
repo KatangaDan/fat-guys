@@ -149,7 +149,7 @@ async function init() {
       await initBackgroundAudio();
 
       // Initialize minimap
-      minimapElements = initMinimap();
+      //minimapElements = initMinimap();
 
       console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 260);
@@ -196,44 +196,32 @@ async function init() {
 
 function initMinimap() {
   minimapScene = scene;
-  
+
   // Create orthographic camera
-  minimapCamera = new THREE.OrthographicCamera(
-    -50, 50,
-    50, -50,
-    1, 1000
-  );
+  minimapCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 1000);
   minimapCamera.position.set(0, 200, 0);
   minimapCamera.lookAt(0, 0, 0);
   minimapCamera.up.set(0, 0, -1);
-  
+
   // Setup minimap renderer
   minimapRenderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById('minimap'),
-    antialias: true
+    canvas: document.getElementById("minimap"),
+    antialias: true,
   });
   minimapRenderer.setSize(250, 250);
-  
+
   return {};
 }
 
 function updateMinimap() {
   if (!model) return;
-  
+
   // Update minimap camera to follow player
-  minimapCamera.position.set(
-    model.position.x,
-    200,
-    model.position.z
-  );
-  
+  minimapCamera.position.set(model.position.x, 200, model.position.z);
+
   // Update camera target to look at player position
-  minimapCamera.lookAt(
-    model.position.x,
-    0,
-    model.position.z
-  );
-  
+  minimapCamera.lookAt(model.position.x, 0, model.position.z);
+
   minimapRenderer.render(minimapScene, minimapCamera);
 }
 
@@ -584,9 +572,9 @@ async function initScene() {
 
     try {
       minimapElements = initMinimap();
-      console.log('Minimap initialized successfully');
+      console.log("Minimap initialized successfully");
     } catch (error) {
-      console.error('Failed to initialize minimap:', error);
+      console.error("Failed to initialize minimap:", error);
     }
 
     resolve();
@@ -607,6 +595,11 @@ function checkForWin() {
     moveRight = false;
 
     timerRunning = false;
+
+    //in local storage, check if level2Unlocked is true,if it doesnt exist, set it to true
+    if (localStorage.getItem("level2Unlocked") === null) {
+      localStorage.setItem("level2Unlocked", "true");
+    }
 
     //play win sound
     winsound.play();
@@ -2334,10 +2327,10 @@ function animate() {
   //controls.update();
 
   stats.end();
-  
-  if (minimapElements && model) {
-    updateMinimap(minimapElements.playerIndicator);
-  }
+
+  // if (minimapElements && model) {
+  //   updateMinimap(minimapElements.playerIndicator);
+  // }
 }
 
 // Create a function to show the loading screen
@@ -2442,6 +2435,12 @@ function toggleMenu() {
     const resumeButton = document.getElementById("resumeButton");
     const startButton = document.getElementById("startButton");
     const restartButton = document.getElementById("restartButton");
+    const level2Button = document.getElementById("level2Button");
+
+    //hide advance to level 2 button
+    if (level2Button) {
+      level2Button.style.display = "none";
+    }
 
     //show volume slider
     const volumeControl = document.getElementById("volume-control");
@@ -2616,6 +2615,12 @@ async function startGame() {
     let startButton = document.getElementById("startButton");
     let resumeButton = document.getElementById("resumeButton");
     let restartButton = document.getElementById("restartButton");
+    let menuButton = document.getElementById("menuButton");
+
+    //show menu button
+    if (menuButton) {
+      menuButton.style.display = "block";
+    }
 
     // Add an event listener to the volume slider
     function updateVolume() {

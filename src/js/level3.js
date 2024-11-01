@@ -190,7 +190,7 @@ async function init() {
       await initBackgroundAudio();
 
       // Initialize minimap
-      minimapElements = initMinimap();
+      //minimapElements = initMinimap();
 
       console.log("Creating obstacles + particles...");
 
@@ -2373,9 +2373,9 @@ async function animate() {
 
   stats.end();
 
-  if (minimapElements && model) {
-    updateMinimap(minimapElements.playerIndicator);
-  }
+  // if (minimapElements && model) {
+  //   updateMinimap(minimapElements.playerIndicator);
+  // }
 }
 
 async function showLoadingScreen() {
@@ -2560,11 +2560,11 @@ async function showWinScreen(elapsedTime) {
   winMessage.appendChild(congratsMessage);
 
   //store elapsed time in local storage as best time
-  let bestTime = localStorage.getItem("bestTime");
+  let bestTime = localStorage.getItem("levelThreeBestTime");
 
   if (!bestTime) {
-    localStorage.setItem("bestTime", elapsedTime);
-    bestTime = localStorage.getItem("bestTime");
+    localStorage.setItem("levelThreeBestTime", elapsedTime);
+    bestTime = localStorage.getItem("levelThreeBestTime");
   }
 
   // Create a best time message
@@ -2575,7 +2575,7 @@ async function showWinScreen(elapsedTime) {
 
   //new best time
   if (elapsedTime <= bestTime) {
-    localStorage.setItem("bestTime", elapsedTime);
+    localStorage.setItem("levelThreeBestTime", elapsedTime);
     congratsMessage.textContent = "Congratulations! New Best Time!";
   }
 
@@ -2606,7 +2606,7 @@ async function generateBestTime() {
   bestTimeContainer.style.zIndex = "10000"; // Higher than other game elements
 
   // Retrieve the best time from localStorage
-  let bestTime = localStorage.getItem("bestTime");
+  let bestTime = localStorage.getItem("levelThreeBestTime");
 
   // Format the display message
   if (bestTime) {

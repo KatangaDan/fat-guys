@@ -151,7 +151,7 @@ async function init() {
       await initBackgroundAudio();
 
       // Initialize minimap
-     // minimapElements = initMinimap();
+      // minimapElements = initMinimap();
 
       console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 60);
@@ -206,44 +206,32 @@ async function init() {
 
 function initMinimap() {
   minimapScene = scene;
-  
+
   // Create orthographic camera
-  minimapCamera = new THREE.OrthographicCamera(
-    -50, 50,
-    50, -50,
-    1, 1000
-  );
+  minimapCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 1000);
   minimapCamera.position.set(0, 200, 0);
   minimapCamera.lookAt(0, 0, 0);
   minimapCamera.up.set(0, 0, -1);
-  
+
   // Setup minimap renderer
   minimapRenderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById('minimap'),
-    antialias: true
+    canvas: document.getElementById("minimap"),
+    antialias: true,
   });
   minimapRenderer.setSize(250, 250);
-  
+
   return {};
 }
 
 function updateMinimap() {
   if (!model) return;
-  
+
   // Update minimap camera to follow player
-  minimapCamera.position.set(
-    model.position.x,
-    200,
-    model.position.z
-  );
-  
+  minimapCamera.position.set(model.position.x, 200, model.position.z);
+
   // Update camera target to look at player position
-  minimapCamera.lookAt(
-    model.position.x,
-    0,
-    model.position.z
-  );
-  
+  minimapCamera.lookAt(model.position.x, 0, model.position.z);
+
   minimapRenderer.render(minimapScene, minimapCamera);
 }
 
@@ -572,16 +560,16 @@ let popedGates = [];
 function checkCollision(model) {
   const playerBoundingBox = new THREE.Box3().setFromObject(model);
   explosionGates.forEach((gate, index) => {
-    if(!gate.exploded) {
-    const gateBoundingBox = new THREE.Box3().setFromObject(gate);
-    if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
-      gateExplosion(gate.position); // Trigger explosion at gate's position
-      scene.remove(gate); // Remove gate after explosion
-      gate.exploded = true; // Set exploded flag to true
-      popedGates.push(gate);
-      gates.splice(index, 1); // Remove gate from array
+    if (!gate.exploded) {
+      const gateBoundingBox = new THREE.Box3().setFromObject(gate);
+      if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
+        gateExplosion(gate.position); // Trigger explosion at gate's position
+        scene.remove(gate); // Remove gate after explosion
+        gate.exploded = true; // Set exploded flag to true
+        popedGates.push(gate);
+        gates.splice(index, 1); // Remove gate from array
+      }
     }
-  }
   });
 }
 
@@ -593,7 +581,6 @@ async function die() {
     gateExplosion(gate.position);
     scene.add(gate);
   });
-    
 
   isPlayerDead = true;
 
@@ -766,9 +753,9 @@ async function initScene() {
 
     try {
       minimapElements = initMinimap();
-      console.log('Minimap initialized successfully');
+      console.log("Minimap initialized successfully");
     } catch (error) {
-      console.error('Failed to initialize minimap:', error);
+      console.error("Failed to initialize minimap:", error);
     }
 
     resolve();
@@ -790,6 +777,11 @@ function checkForWin() {
 
     //Stop the timer
     timerRunning = false;
+
+    //in local storage, check if level2Unlocked is true,if it doesnt exist, set it to true
+    if (localStorage.getItem("level3Unlocked") === null) {
+      localStorage.setItem("level3Unlocked", "true");
+    }
 
     //play win sound
     winsound.play();
@@ -872,7 +864,6 @@ async function initLighting() {
     secondaryLight.shadow.camera.bottom = -shadowDistance;
 
     scene.add(secondaryLight);
-
 
     // Secondary fill light (no shadows) for better coverage
     const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
@@ -1365,7 +1356,7 @@ async function initGateObstacles() {
               model,
               leftPillar.position.x,
               0,
-              z+3,
+              z + 3,
               8,
               2,
               leftPillar,
@@ -1379,7 +1370,7 @@ async function initGateObstacles() {
               scene,
               leftPillar.position.x,
               0,
-              z+3,
+              z + 3,
               8,
               2,
               leftPillar,
@@ -1394,7 +1385,6 @@ async function initGateObstacles() {
     resolve();
   });
 }
-
 
 async function initGroundCylinders() {
   return new Promise(async (resolve) => {
@@ -1764,7 +1754,9 @@ function animate() {
 
     //wreckingballs bounding boxes
     wreckingBalls.forEach((wreckingBall) => {
-      const wreckingBallBoundingBox = new THREE.Box3().setFromObject(wreckingBall);
+      const wreckingBallBoundingBox = new THREE.Box3().setFromObject(
+        wreckingBall
+      );
 
       if (playerBoundingBox.intersectsBox(wreckingBallBoundingBox)) {
         const currentTime = Date.now();
@@ -1958,6 +1950,12 @@ function toggleMenu() {
     const resumeButton = document.getElementById("resumeButton");
     const startButton = document.getElementById("startButton");
     const restartButton = document.getElementById("restartButton");
+    const level3Button = document.getElementById("level3Button");
+
+    //hide advance to level 3 button
+    if (level2Button) {
+      level2Button.style.display = "none";
+    }
 
     //show volume slider
     const volumeControl = document.getElementById("volume-control");

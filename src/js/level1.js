@@ -148,9 +148,6 @@ async function init() {
       // don't call init event listeners here - it gives the user control too early (they can move while in the laoding screena & before countdown)
       await initBackgroundAudio();
 
-      // Initialize minimap
-      //minimapElements = initMinimap();
-
       console.log("Creating obstacles + particles...");
       await createGroundPiece(0, 0, 0, 60, 260);
       //Init particle background system
@@ -183,6 +180,9 @@ async function init() {
 
       await initFinishLine();
 
+      // Initialize minimap
+      await initMinimap();
+
       console.log("Game initialized successfully!");
 
       resolve();
@@ -194,23 +194,29 @@ async function init() {
   });
 }
 
-function initMinimap() {
-  minimapScene = scene;
+async function initMinimap() {
+  return new Promise(async (resolve, reject) => {
+    // Clone the main scene to create the minimap scene
+    minimapScene = scene.clone();
+    //remove the player model from the minimap
+    minimapScene.remove(model);
 
-  // Create orthographic camera
-  minimapCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 1000);
-  minimapCamera.position.set(0, 200, 0);
-  minimapCamera.lookAt(0, 0, 0);
-  minimapCamera.up.set(0, 0, -1);
+    // Create orthographic camera
+    minimapCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 1000);
+    minimapCamera.position.set(0, 200, 0);
+    minimapCamera.lookAt(0, 0, 0);
+    minimapCamera.up.set(0, 0, -1);
 
-  // Setup minimap renderer
-  minimapRenderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById("minimap"),
-    antialias: true,
+    // Setup minimap renderer
+    minimapRenderer = new THREE.WebGLRenderer({
+      canvas: document.getElementById("minimap"),
+      //antialias: true,
+    });
+    minimapRenderer.setSize(250, 250);
+
+    resolve();
+    return {};
   });
-  minimapRenderer.setSize(250, 250);
-
-  return {};
 }
 
 function updateMinimap() {
@@ -570,12 +576,12 @@ async function initScene() {
     //Setup controls
     setupControls();
 
-    try {
-      minimapElements = initMinimap();
-      console.log("Minimap initialized successfully");
-    } catch (error) {
-      console.error("Failed to initialize minimap:", error);
-    }
+    // try {
+    //   minimapElements = initMinimap();
+    //   console.log("Minimap initialized successfully");
+    // } catch (error) {
+    //   console.error("Failed to initialize minimap:", error);
+    // }
 
     resolve();
   });
@@ -2233,23 +2239,6 @@ function animate() {
       }
     });
 
-    // fans.forEach((fan) => {
-    //   fan.children.forEach((child) => {
-    //     const fanBoundingBox = new THREE.Box3().setFromObject(child);
-
-    //     if (playerBoundingBox.intersectsBox(fanBoundingBox)) {
-    //       //Reset the players position
-    //       playerBody.position.set(0, 10, 10);
-    //     }
-    //   });
-    //   // const fanBoundingBox = new THREE.Box3().setFromObject(fan);
-
-    //   // if (playerBoundingBox.intersectsBox(fanBoundingBox)) {
-    //   //   //Reset the players position
-    //   //   playerBody.position.set(0, 10, 10);
-    //   // }
-    // });
-
     /*Actual bounding boxes for the player and obstacles*/
 
     /*HELPERS TO VISUALIZE BOUNDING BOXES */
@@ -2328,9 +2317,9 @@ function animate() {
 
   stats.end();
 
-  // if (minimapElements && model) {
-  //   updateMinimap(minimapElements.playerIndicator);
-  // }
+  if (model) {
+    updateMinimap();
+  }
 }
 
 // Create a function to show the loading screen
@@ -2675,6 +2664,7 @@ async function startGame() {
     startButton.addEventListener("click", async () => {
       showLoadingScreen();
       hideGameMenu();
+
       //render the game
       await init();
 
@@ -2682,6 +2672,21 @@ async function startGame() {
       let controlsInfo = document.getElementById("controls-info");
       if (controlsInfo) {
         controlsInfo.style.display = "none";
+      }
+
+      //show minimap
+      let minimap = document.getElementById("minimap-container");
+      if (minimap) {
+        minimap.style.display = "block";
+      }
+
+      // hide playLevel2 and playLevel3 buttons
+      if (playLevel2Button) {
+        playLevel2Button.style.display = "none";
+      }
+
+      if (playLevel3Button) {
+        playLevel3Button.style.display = "none";
       }
 
       //show menu button

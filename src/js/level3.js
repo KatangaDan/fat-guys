@@ -190,7 +190,7 @@ async function init() {
       await initBackgroundAudio();
 
       // Initialize minimap
-      //minimapElements = initMinimap();
+      minimapElements = initMinimap();
 
       console.log("Creating obstacles + particles...");
 
@@ -563,12 +563,12 @@ async function initScene() {
     //Setup controls
     setupControls();
 
-    try {
-      minimapElements = initMinimap();
-      console.log("Minimap initialized successfully");
-    } catch (error) {
-      console.error("Failed to initialize minimap:", error);
-    }
+    // try {
+    //   minimapElements = initMinimap();
+    //   console.log("Minimap initialized successfully");
+    // } catch (error) {
+    //   console.error("Failed to initialize minimap:", error);
+    // }
 
     resolve();
   });
@@ -2373,9 +2373,9 @@ async function animate() {
 
   stats.end();
 
-  // if (minimapElements && model) {
-  //   updateMinimap(minimapElements.playerIndicator);
-  // }
+  if (minimapElements && model) {
+    updateMinimap(minimapElements.playerIndicator);
+  }
 }
 
 async function showLoadingScreen() {
@@ -2656,9 +2656,14 @@ async function restartGame() {
 //Main function to start the game
 async function startGame() {
   try {
-
     let resumeButton = document.getElementById("resumeButton");
     let restartButton = document.getElementById("restartButton");
+    let menuButton = document.getElementById("mainMenuButton");
+
+    //event listener for the menu button
+    menuButton.addEventListener("click", () => {
+      window.location.href = "/";
+    });
 
     // Add an event listener to the volume slider
     function updateVolume() {
@@ -2713,6 +2718,8 @@ async function startGame() {
     renderer.setAnimationLoop(animate);
     //await panCameraToStart();
     startCountdown();
+    //show minimap
+    document.getElementById("minimap-container").style.display = "block";
   } catch (error) {
     console.error("Error during initialization:", error);
     hideLoadingScreen();

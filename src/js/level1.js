@@ -204,7 +204,7 @@ async function init() {
 function createEnd(x, y, z, length, height) {
   //create a box
   const geometry = new THREE.BoxGeometry(length, height, 5);
-  const material = new THREE.MeshBasicMaterial({ color: "#d0b4a4" });
+  const material = new THREE.MeshBasicMaterial({ color: "#2c13ad" });
   const end = new THREE.Mesh(geometry, material);
   end.position.set(x, y + height / 2, z);
 
@@ -224,7 +224,7 @@ function createMinimapScene() {
   // Add simple ground pieces using basic geometries - updated to match main scene positioning
   function addMinimapGround(x, y, z, width, length) {
     const geometry = new THREE.PlaneGeometry(width, length);
-    const material = new THREE.MeshBasicMaterial({ color: "#d0b4a4" });
+    const material = new THREE.MeshBasicMaterial({ color: "#2c13ad" });
     const ground = new THREE.Mesh(geometry, material);
     // Match the exact positioning from createGroundPiece
     ground.position.set(x, y, -(z + length / 2)); // Negative z for correct orientation

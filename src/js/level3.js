@@ -258,9 +258,9 @@ function initMinimap() {
 
 // Keep your original createMinimapLayout and createMinimapPlatform functions unchanged
 function createMinimapLayout() {
-  const platformMaterial = new THREE.MeshBasicMaterial({ color: "#a484b4" });
+  const platformMaterial = new THREE.MeshBasicMaterial({ color: "#2c13ad" });
   const obstacleMaterial = new THREE.MeshBasicMaterial({ color: 0xff6b6b });
-  const checkpointMaterial = new THREE.MeshBasicMaterial({ color: 0x4ade80 });
+  const checkpointMaterial = new THREE.MeshBasicMaterial({ color: "#2c13ad" });
 
   // Starting platform
   createMinimapPlatform(0, 0, 60, 30, platformMaterial);

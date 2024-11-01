@@ -1024,7 +1024,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 10);
+        model.position.set(0, 2, 5);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model

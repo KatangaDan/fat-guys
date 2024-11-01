@@ -1393,7 +1393,7 @@ async function initLevel3Layout() {
   });
 
   // Add crown at the finish line
-  crown = await createCrown(world, scene, 0, 5, 480);
+  crown = await createCrown(world, scene, 0, 3, 480);
 }
 
 async function initGates() {

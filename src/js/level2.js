@@ -12,6 +12,7 @@ import {
   createGate2,
   createWreckingBall,
   createHorizontalCylinder,
+  createCrown,
 } from "./obstacles";
 
 // Import assets
@@ -64,7 +65,8 @@ let scene,
   gameVolume = 0.5,
   isGamePaused = false,
   runningAudio,
-  isRunningPlaying = false;
+  isRunningPlaying = false,
+  crown;
 
 let backGroundMusic,
   jumpSound,
@@ -188,10 +190,14 @@ async function init() {
       // Third set of obstacles
       await initGateObstacles();
 
-      await initFinishLine();
+      //await initFinishLine();
+      // Add crown at the finish line
+      crown = await createCrown(world, scene, 0, 3, 460);
 
       // Initialize minimap
       minimapElements = createMinimapScene();
+
+      createEnd(0, 0, 495, 60, 10);
 
       console.log("Game initialized successfully!");
 
@@ -202,6 +208,23 @@ async function init() {
       reject(error);
     }
   });
+}
+
+function createEnd(x, y, z, length, height) {
+  //create a box
+  const geometry = new THREE.BoxGeometry(length, height, 5);
+  const material = new THREE.MeshBasicMaterial({ color: "#2c13ad" });
+  const end = new THREE.Mesh(geometry, material);
+  end.position.set(x, y + height / 2, z);
+
+  //add a physics body
+  const endShape = new CANNON.Box(new CANNON.Vec3(length / 2, height / 2, 2.5));
+  const endBody = new CANNON.Body({ mass: 0 });
+  endBody.addShape(endShape);
+  endBody.position.set(x, y + height / 2, z);
+  world.addBody(endBody);
+
+  scene.add(end);
 }
 
 function createMinimapScene() {
@@ -838,30 +861,30 @@ async function initScene() {
 }
 
 function checkForWin() {
-  if (
-    playerBody.position.z > 492 &&
-    playerBody.position.y > 0 &&
-    gameWon == false
-  ) {
-    gameWon = true;
-    //set all movement flags to false
-    moveForward = false;
-    moveBackward = false;
-    moveLeft = false;
-    moveRight = false;
+  if (!gameWon && crown && crown.mesh) {
+    const playerBoundingBox = new THREE.Box3().setFromObject(model);
+    const crownBoundingBox = new THREE.Box3().setFromObject(crown.mesh);
+    if (playerBoundingBox.intersectsBox(crownBoundingBox)) {
+      gameWon = true;
+      //set all movement flags to false
+      moveForward = false;
+      moveBackward = false;
+      moveLeft = false;
+      moveRight = false;
 
-    //Stop the timer
-    timerRunning = false;
+      //Stop the timer
+      timerRunning = false;
 
-    //in local storage, check if level2Unlocked is true,if it doesnt exist, set it to true
-    if (localStorage.getItem("level3Unlocked") === null) {
-      localStorage.setItem("level3Unlocked", "true");
+      //in local storage, check if level2Unlocked is true,if it doesnt exist, set it to true
+      if (localStorage.getItem("level3Unlocked") === null) {
+        localStorage.setItem("level3Unlocked", "true");
+      }
+
+      //play win sound
+      winsound.play();
+
+      showWinScreen(elapsedTime);
     }
-
-    //play win sound
-    winsound.play();
-
-    showWinScreen(elapsedTime);
   }
 }
 
@@ -993,7 +1016,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 15);
+        model.position.set(0, 2, 490);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model

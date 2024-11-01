@@ -2477,7 +2477,7 @@ async function toggleMenu() {
     document.exitPointerLock();
 
     const resumeButton = document.getElementById("resumeButton");
-    const startButton = document.getElementById("startButton");
+
     const restartButton = document.getElementById("restartButton");
 
     //show volume slider
@@ -2485,7 +2485,6 @@ async function toggleMenu() {
     console.log("volumeControl", volumeControl);
     if (volumeControl) volumeControl.style.display = "block";
 
-    startButton.style.display = "none";
     resumeButton.style.display = "block";
     restartButton.style.display = "block";
 
@@ -2519,8 +2518,7 @@ async function toggleMenu() {
 async function showWinScreen(elapsedTime) {
   const gameMenu = document.getElementById("gameMenu");
   elapsedTime = elapsedTime / 1000;
-  // Hide start and resume buttons
-  document.getElementById("startButton").style.display = "none";
+
   document.getElementById("resumeButton").style.display = "none";
   document.getElementById("restartButton").style.display = "block"; // Show restart button
 
@@ -2658,7 +2656,7 @@ async function restartGame() {
 //Main function to start the game
 async function startGame() {
   try {
-    let startButton = document.getElementById("startButton");
+
     let resumeButton = document.getElementById("resumeButton");
     let restartButton = document.getElementById("restartButton");
 

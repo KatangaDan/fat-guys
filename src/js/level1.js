@@ -2615,11 +2615,28 @@ async function startGame() {
     let startButton = document.getElementById("startButton");
     let resumeButton = document.getElementById("resumeButton");
     let restartButton = document.getElementById("restartButton");
-    let menuButton = document.getElementById("menuButton");
+    let menuButton = document.getElementById("mainMenuButton");
+    let playLevel2Button = document.getElementById("playLevel2Button");
+    let playLevel3Button = document.getElementById("playLevel3Button");
 
-    //show menu button
-    if (menuButton) {
-      menuButton.style.display = "block";
+    // check if level2Unlocked is true in localStorage
+    let level2Unlocked = localStorage.getItem("level2Unlocked");
+    let level3Unlocked = localStorage.getItem("level3Unlocked");
+
+    if (level2Unlocked) {
+      playLevel2Button.style.display = "block";
+      //add event listener to the play level 2 button
+      playLevel2Button.addEventListener("click", () => {
+        window.location.href = "level2.html";
+      });
+    }
+
+    if (level3Unlocked) {
+      playLevel3Button.style.display = "block";
+      //add event listener to the play level 3 button
+      playLevel3Button.addEventListener("click", () => {
+        window.location.href = "level3.html";
+      });
     }
 
     // Add an event listener to the volume slider
@@ -2666,6 +2683,16 @@ async function startGame() {
       if (controlsInfo) {
         controlsInfo.style.display = "none";
       }
+
+      //show menu button
+      if (menuButton) {
+        menuButton.style.display = "block";
+      }
+
+      //event listener for the menu button
+      menuButton.addEventListener("click", () => {
+        window.location.href = "/";
+      });
 
       //startGameTimer(); happens in animate due to timing issues otherwise (inside startCountdown)
       showTimer();

@@ -5,7 +5,7 @@ import neon_wall from "../textures/neon.png";
 import chain from "../textures/silver_texture.jpg";
 import texture2 from "../textures/pink.jpg";
 import texture3 from "../textures/texture 3.jpg";
-import tile from "../textures/hexagon-tile.jpg";
+import tile from "../textures/floor.png";
 import stripes from "../textures/texture 4.png";
 
 export async function createPillar(
@@ -67,7 +67,7 @@ export async function createGate(
   return new Promise((resolve) => {
     // load the texture
     const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(stripes, (texture) => {
+    textureLoader.load(neon_wall, (texture) => {
       // work out exact width of gate using the positions of the pillars
       let leftPillarPosition =
         leftPillar.position.x - leftPillar.geometry.parameters.width / 2;
@@ -567,7 +567,7 @@ export async function createTurnstile(
     const barDepth = radius * 0.2;
     const barGeometry = new THREE.BoxGeometry(barWidth, barHeight, barDepth);
     const barMaterial = new THREE.MeshStandardMaterial({
-      color: 0xff1493, // Hot pink
+      color: 0xd3d3d3,
       roughness: 0.2,
       metalness: 0.1,
     });
@@ -585,7 +585,7 @@ export async function createTurnstile(
           barDepth + 0.01
         );
         const stripeMaterial = new THREE.MeshStandardMaterial({
-          color: 0xffb6c1, // Light pink
+          color: 0x3b0b3b,
           roughness: 0.2,
           metalness: 0.1,
         });
@@ -616,7 +616,7 @@ export async function createTurnstile(
       32
     );
     const ringMaterial = new THREE.MeshStandardMaterial({
-      color: 0x00bfff,
+      color: 0xd3d3d3,
       roughness: 0.2,
       metalness: 0.1,
     });
@@ -680,7 +680,7 @@ export function createRotatingHammer(
   const poleHeight = 3;
   const poleGeometry = new THREE.CylinderGeometry(poleRadius, poleRadius, poleHeight, 32);
   const poleMaterial = new THREE.MeshStandardMaterial({
-    color: 0xff69b4,
+    color: 0xd3d3d3,
     metalness: 0.3,
     roughness: 0.4
   });
@@ -697,7 +697,7 @@ export function createRotatingHammer(
   const handleLength = 3;
   const handleGeometry = new THREE.CylinderGeometry(handleRadius, handleRadius, handleLength, 32);
   const handleMaterial = new THREE.MeshStandardMaterial({
-    color: 0xff69b4,
+    color: 0xd3d3d3,
     metalness: 0.2,
     roughness: 0.5
   });
@@ -713,7 +713,7 @@ export function createRotatingHammer(
   const headHeight = 2.5;
   const headGeometry = new THREE.CylinderGeometry(headRadius, headRadius, headHeight, 32);
   const headMaterial = new THREE.MeshStandardMaterial({
-    color: 0xff69b4,
+    color: 0x3b0b3b,
     metalness: 0.3,
     roughness: 0.4
   });

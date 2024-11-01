@@ -22,7 +22,7 @@ import {
 
 // Import assets
 import finish from "../img/finish.jpg";
-import basicBg from "../img/sky.jpg";
+import basicBg from "../img/sample2.png";
 import heart from "../img/heart.png";
 import groundTexture from "../img/stoleItLol.jpg";
 import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
@@ -698,27 +698,26 @@ async function initLighting() {
 
 async function initBackground() {
   return new Promise((resolve) => {
-    //We have to do the background
     const textureLoader = new THREE.TextureLoader();
-    const skyboxTexture = textureLoader.load(basicBg, function (texture) {
-      texture.wrapS = THREE.ClampToEdgeWrapping;
-      texture.wrapT = THREE.ClampToEdgeWrapping;
-      texture.repeat.set(1, 1);
-      texture.offset.set(0, -0.3); // Move the image up by 0.3 units
+    textureLoader.load(basicBg, function (texture) {
+      // Set the texture mapping to equirectangular for a spherical effect
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
 
-      // // Enable texture matrix transformation
-      // texture.center.set(0.5, 0.5); // Set the center of rotation to the center of the texture
-      // texture.rotation = Math.PI/2; // Rotate the texture by 45 degrees (π/4 radians)
-    });
+      // Set up a large sphere geometry for the skybox
+      const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);
+      const skyboxMaterial = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.BackSide,
+      });
+      
+      // Create the skybox mesh and add it to the scene
+      const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+      scene.add(skybox);
 
-    const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);
-    const skyboxMaterial = new THREE.MeshBasicMaterial({
-      map: skyboxTexture,
-      side: THREE.BackSide,
+      resolve();
     });
-    const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
-    scene.add(skybox);
-    resolve();
   });
 }
 

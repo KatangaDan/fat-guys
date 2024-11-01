@@ -482,7 +482,7 @@ function createParticleExplosion(position) {
 }
 
 function animateWreckingBalls(deltaTime) {
-  const baseSwingSpeed = 1.5; // Base speed that will be modified per ball
+  const baseSwingSpeed = 2; // Base speed that will be modified per ball
   const swingAmplitude = 30;
   const maxVerticalLift = 10;
 
@@ -1024,7 +1024,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 490);
+        model.position.set(0, 2, 10);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -1243,7 +1243,6 @@ function jump() {
     Math.abs(playerBody.velocity.y) < 0.2
   ) {
     isJumping = true;
-    isPlayingJumpAnimation = true;
 
     // Play jump sound
     try {

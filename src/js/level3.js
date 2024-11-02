@@ -1396,6 +1396,9 @@ async function initHorizontalCylinders() {
   const rodzt = await createVertRod(scene, 29, 1, 420, 13, 29, 0.5, 10, 20);
   rodzt.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
   rods.push(rodzt);
+  const rodzv = await createVertRod(scene, -16, 1, 430, -16, 16, 0.5, 10, 20);
+  rodzv.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rodzv);
 }
 
 async function initLevel3Layout() {
@@ -1712,10 +1715,20 @@ async function initGates() {
 
 async function initHammers() {
   // Section 1 obstacles - Fork paths
-  const hammerr1 = createRotatingHammer(world, scene, -22, 0, 40, 1, 5); // Left path hammer
-  const hammerr2 = createRotatingHammer(world, scene, -38, 0, 40, 1, 5); // Right path hammer
-  const hammerl1 = createRotatingHammer(world, scene, 22, 0, 40, 1, 5); // Left path hammer
-  const hammerl2 = createRotatingHammer(world, scene, 38, 0, 40, 1, 5); // Right path hammer
+  const hammerr1 = createRotatingHammer(world, scene, -22, 0, 35, 1, 5); // Left path hammer
+  const hammerr2 = createRotatingHammer(world, scene, -38, 0, 35, 1, 5); // Right path hammer
+  const hammerr7 = createRotatingHammer(world, scene, -30, 0, 45, 1, 5); // Right path hammer
+  const hammerr8 = createRotatingHammer(world, scene, -20, 0, 60, 1, 5); // Right path hammer
+  const hammerr9 = createRotatingHammer(world, scene, -40, 0, 60, 1, 5); // Right path hammer
+  const hammerr10 = createRotatingHammer(world, scene, -20, 0, 100, 1, 5); // Right path hammer
+  const hammerr11 = createRotatingHammer(world, scene, -40, 0, 100, 1, 5); // Right path hammer
+  const hammerl1 = createRotatingHammer(world, scene, 22, 0, 35, 1, 5); // Left path hammer
+  const hammerl2 = createRotatingHammer(world, scene, 38, 0, 35, 1, 5); // Right path hammer
+  const hammerl7 = createRotatingHammer(world, scene, 30, 0, 45, 1, 5); // Right path hammer
+  const hammerl8 = createRotatingHammer(world, scene, 20, 0, 60, 1, 5); // Right path hammer
+  const hammerl9 = createRotatingHammer(world, scene, 40, 0, 60, 1, 5); // Right path hammer
+  const hammerl10 = createRotatingHammer(world, scene, 20, 0, 100, 1, 5); // Right path hammer
+  const hammerl11 = createRotatingHammer(world, scene, 40, 0, 100, 1, 5); // Right path hammer
   const hammerr3 = createRotatingHammer(world, scene, -22, 0, 80, 1, 5); // Left path hammer
   const hammerr4 = createRotatingHammer(world, scene, -38, 0, 80, 1, 5); // Right path hammer
   const hammerl3 = createRotatingHammer(world, scene, 22, 0, 80, 1, 5); // Left path hammer
@@ -1725,12 +1738,26 @@ async function initHammers() {
   const hammerl5 = createRotatingHammer(world, scene, 22, 0, 120, 1, 5); // Left path hammer
   const hammerl6 = createRotatingHammer(world, scene, 38, 0, 120, 1, 5); // Right path hammer
   const hammer6 = createRotatingHammer(world, scene, 30, 0, 140, 1, 6); // Right path hammer
+  const hammer9 = createRotatingHammer(world, scene, 20, 0, 140, 1, 6); // Right path hammer
+  const hammer10 = createRotatingHammer(world, scene, 40, 0, 140, 1, 6); // Right path hammer
   const hammer7 = createRotatingHammer(world, scene, -30, 0, 140, 1, 6); // Right path hammer
+  const hammer11 = createRotatingHammer(world, scene, -20, 0, 140, 1, 6); // Right path hammer
+  const hammer12 = createRotatingHammer(world, scene, -40, 0, 140, 1, 6); // Right path hammer
   hammers.push(
     hammerr1,
     hammerr2,
+    hammerr7,
+    hammerr8,
+    hammerr9,
+    hammerr10,
+    hammerr11,
     hammerl1,
     hammerl2,
+    hammerl7,
+    hammerl8,
+    hammerl9,
+    hammerl10,
+    hammerl11,
     hammerr3,
     hammerr4,
     hammerl3,
@@ -1740,20 +1767,36 @@ async function initHammers() {
     hammerl5,
     hammerl6,
     hammer6,
-    hammer7
+    hammer7,
+    hammer9,
+    hammer10,
+    hammer11,
+    hammer12
   );
 
   // Section 2 obstacles - Zigzag section
   const hammer3 = createRotatingHammer(world, scene, -20, 0, 225, 1, 6);
+  const hammer44 = createRotatingHammer(world, scene, -5, 0, 225, 1, 6);
+  const hammer55 = createRotatingHammer(world, scene, -35, 0, 225, 1, 6);
   const hammer4 = createRotatingHammer(world, scene, -20, 0, 255, 1, 6);
+  const hammer66 = createRotatingHammer(world, scene, -5, 0, 255, 1, 6);
+  const hammer77 = createRotatingHammer(world, scene, -35, 0, 255, 1, 6);
   const hammer5 = createRotatingHammer(world, scene, 20, 0, 295, 1, 6);
+  const hammer88 = createRotatingHammer(world, scene, 5, 0, 295, 1, 6);
+  const hammer99 = createRotatingHammer(world, scene, 35, 0, 295, 1, 6);
   const hammer8 = createRotatingHammer(world, scene, 20, 0, 325, 1, 6);
-  hammers.push(hammer3, hammer4, hammer5, hammer8);
+  const hammer81 = createRotatingHammer(world, scene, 5, 0, 325, 1, 6);
+  const hammer82 = createRotatingHammer(world, scene, 35, 0, 325, 1, 6);
+  hammers.push(hammer3, hammer4, hammer5, hammer8, hammer44, hammer55, hammer66, hammer77, hammer88, hammer99, hammer81, hammer82);
 
   // Section 3 obstacles - Final stretch
   const hammert = createRotatingHammer(world, scene, -7, 0, 420, 1, 7);
   const hammery = createRotatingHammer(world, scene, 7, 0, 420, 1, 7);
-  hammers.push(hammert, hammery);
+  const hammeru = createRotatingHammer(world, scene, -22, 0, 410, 1, 7);
+  const hammeri = createRotatingHammer(world, scene, 22, 0, 410, 1, 7);
+  const hammerx = createRotatingHammer(world, scene, -18, 0, 430, 1, 7);
+  const hammerz = createRotatingHammer(world, scene, 18, 0, 430, 1, 7);
+  hammers.push(hammert, hammery, hammerx, hammerz, hammeru, hammeri);
 }
 
 async function initCheckpoints() {
@@ -1910,7 +1953,7 @@ async function animateTurnstile(deltaTime) {
         turnstile.mesh.position.z < playerBody.position.z + 100
       ) {
         // Don't animate obstacles too far ahead
-        const rotation = deltaTime * 1.0;
+        const rotation = deltaTime * 2;
         turnstile.mesh.rotation.y += rotation;
         turnstile.body.quaternion.setFromAxisAngle(
           new CANNON.Vec3(0, 1, 0),

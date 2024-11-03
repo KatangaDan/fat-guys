@@ -81,6 +81,8 @@ let scene,
   targetRotationY = 0,
   rotationDamping = 0.1; // Controls how smoothly the rotation changes
 
+let turnstileHelpers = [];
+
 //Global variables for the background particle system
 let particleSystem;
 let positions;
@@ -138,14 +140,14 @@ const CANNON_POSITIONS = [
   { x: -30, y: 15, z: 120 }, // Left path
   { x: 30, y: 15, z: 120 }, // Right path
 
-  // // Section 2 - After first checkpoint
+  // Section 2 - After first checkpoint
   // { x: -20, y: 15, z: 230 }, // Left side
   // { x: 20, y: 15, z: 300 },  // Right side
 
-  // // Section 3 - Final stretch
-  // { x: -25, y: 15, z: 420 }, // Left path
-  // { x: 0, y: 15, z: 420 },   // Center path
-  // { x: 25, y: 15, z: 420 }   // Right path
+  // Section 3 - Final stretch
+  // { x: -25, y: 15, z: 460 }, // Left path
+  // { x: 0, y: 15, z: 460 },   // Center path
+  // { x: 25, y: 15, z: 460 }   // Right path
 ];
 
 // Modify shooting interval
@@ -169,8 +171,66 @@ const SPAWN_COOLDOWN_TIME = 1000; // 3 seconds cooldown after respawn
 // minimap setup
 let minimapElements, minimapScene, minimapCamera, minimapRenderer;
 
+let jumpSound,
+  jumpland,
+  hitsound,
+  winsound,
+  countdownOneSound,
+  countdownTwoSound,
+  countdownThreeSound,
+  countdownGoSound;
+
 //function to load all game audio into buffers before the game starts
-async function loadAudio() {}
+async function loadAudio() {
+  // Initialize audio objects
+  backGroundMusic = new THREE.Audio(listener);
+  jumpSound = new THREE.Audio(listener);
+  jumpland = new THREE.Audio(listener);
+  hitsound = new THREE.Audio(listener);
+  winsound = new THREE.Audio(listener);
+  countdownOneSound = new THREE.Audio(listener);
+  countdownTwoSound = new THREE.Audio(listener);
+  countdownThreeSound = new THREE.Audio(listener);
+  countdownGoSound = new THREE.Audio(listener);
+
+  const audioPromises = [];
+
+  // Helper function to load a sound file and set up audio properties
+  function loadSound(filePath, audioObject, loop = false, volume = gameVolume) {
+    return new Promise((resolve, reject) => {
+      audioLoader.load(
+        filePath,
+        (buffer) => {
+          audioObject.setBuffer(buffer);
+          audioObject.setLoop(loop);
+          audioObject.setVolume(volume);
+          resolve();
+        },
+        undefined,
+        reject
+      );
+    });
+  }
+
+  // Assign each load operation to the audioPromises array
+  audioPromises.push(
+    loadSound(PbackGroundMusic, backGroundMusic, true, gameVolume / 4)
+  );
+  audioPromises.push(loadSound(PjumpSound, jumpSound));
+  audioPromises.push(loadSound(Pjumpland, jumpland));
+  audioPromises.push(loadSound(Phitsound, hitsound));
+  audioPromises.push(loadSound(Pwinsound, winsound));
+  audioPromises.push(loadSound(countdownOne, countdownOneSound));
+  audioPromises.push(loadSound(countdownTwo, countdownTwoSound));
+  audioPromises.push(loadSound(countdownThree, countdownThreeSound));
+  audioPromises.push(loadSound(countdownGo, countdownGoSound));
+
+  // Wait for all audio files to load
+  await Promise.all(audioPromises);
+
+  // Optional: Play background music immediately if desired
+  backGroundMusic.play();
+}
 
 async function init() {
   return new Promise(async (resolve, reject) => {
@@ -187,18 +247,20 @@ async function init() {
       await initBackground();
       await initPhysics();
       await initPlayer();
-      await initBackgroundAudio();
 
       // Initialize minimap
       minimapElements = initMinimap();
 
       console.log("Creating obstacles + particles...");
 
+      await loadAudio();
+      await initBackgroundAudio();
+
       await initLevel3Layout();
       await initTurnstiles();
       await initHorizontalCylinders();
       await initHammers();
-      await initGates();
+      //await initGates();
       await initCheckpoints();
 
       // //Init particle background system
@@ -281,6 +343,21 @@ function createMinimapLayout() {
   // Checkpoint 2
   createMinimapPlatform(0, 360, 60, 30, checkpointMaterial);
 
+  // //cylinder paths
+
+  //  await createHorizontalCylinder(world, scene, 10, -2, 210, 2, 50);
+  // await createHorizontalCylinder(world, scene, 25, -2, 210, 2, 50);
+  // // Section 2 - right
+  // await createHorizontalCylinder(world, scene, -10, -2, 270, 2, 60);
+  // await createHorizontalCylinder(world, scene, -25, -2, 270, 2, 60);
+
+  // create minimap obstacles for the above
+  // addMinimapCylinder(x, y, z, radius, height)
+  addMinimapCylinder(-10, 0, 210, 2, 50);
+  addMinimapCylinder(-25, 0, 210, 2, 50);
+  addMinimapCylinder(10, 0, 270, 2, 60);
+  addMinimapCylinder(25, 0, 270, 2, 60);
+
   // Final sections
   createMinimapPlatform(0, 420, 60, 60, platformMaterial);
   createMinimapPlatform(0, 480, 60, 30, platformMaterial);
@@ -294,6 +371,16 @@ function createMinimapPlatform(x, z, width, depth, material) {
   platform.rotation.x = -Math.PI / 2;
   platform.position.set(x, 0, -z);
   minimapScene.add(platform);
+}
+
+function addMinimapCylinder(x, y, z, radius, height) {
+  const geometry = new THREE.PlaneGeometry(radius * 2, height);
+  const material = new THREE.MeshBasicMaterial({ color: "#f834d4" });
+  const cylinder = new THREE.Mesh(geometry, material);
+  // Adjust position to match the actual cylinder position
+  cylinder.position.set(x, y, -(z + height / 2));
+  cylinder.rotation.x = -Math.PI / 2;
+  minimapScene.add(cylinder);
 }
 
 // Updated minimap update function to match working version's structure
@@ -361,15 +448,8 @@ function addMinimapObstacles() {
 
 async function initBackgroundAudio() {
   return new Promise((resolve) => {
-    backGroundMusic = new THREE.Audio(listener);
-    audioLoader.load(PbackGroundMusic, function (buffer) {
-      backGroundMusic.setBuffer(buffer);
-      backGroundMusic.setLoop(true);
-      backGroundMusic.setVolume(gameVolume / 2);
-      backGroundMusic.play();
-
-      resolve();
-    });
+    backGroundMusic.play();
+    resolve();
   });
 }
 
@@ -378,40 +458,6 @@ function updateGameVolume() {
     backGroundMusic.setVolume(gameVolume / 2);
   }
 }
-
-// async function initFinishLine() {
-//   return new Promise((resolve, reject) => {
-//     const textureLoader = new THREE.TextureLoader();
-
-//     textureLoader.load(
-//       finish,
-//       async (texture) => {
-//         const finishLineGeometry = new THREE.BoxGeometry(60, 0, 1); // Changed width to 60 to match platform
-//         const finishLineMaterial = new THREE.MeshStandardMaterial({
-//           map: texture,
-//         });
-//         const finishLine = new THREE.Mesh(
-//           finishLineGeometry,
-//           finishLineMaterial
-//         );
-//         finishLine.position.set(0, 0, 480);
-//         finishLine.scale.z = 15;
-//         scene.add(finishLine);
-
-//         // Add crown at the finish line
-//         crown = await createCrown(world, scene, 0, 5, 480); // Position crown above finish line
-//         resolve();
-//       },
-//       undefined,
-//       (error) => {
-//         console.error("Error loading texture:", error);
-//         reject(error);
-//       }
-//     );
-//   });
-// }
-
-// First, add these variables at the top with your other global variables
 
 const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
 const particleMaterial = new THREE.MeshBasicMaterial({
@@ -642,7 +688,7 @@ async function initStats() {
 async function initScene() {
   return new Promise((resolve) => {
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x202020, 100, 500); // Add depth fog
+    scene.fog = new THREE.Fog(0x202020, 200, 700); // Add depth fog
     camera = new THREE.PerspectiveCamera(
       70, // Field of view (45-75)
       window.innerWidth / window.innerHeight,
@@ -669,7 +715,7 @@ async function initScene() {
 
     //Create an axis
     const axesHelper = new THREE.AxesHelper(1000); // Size of the axes
-    scene.add(axesHelper);
+    //scene.add(axesHelper);
 
     //Start clock
     clock = new THREE.Clock();
@@ -845,7 +891,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 180);
+        model.position.set(0, 2, 0);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -1272,9 +1318,24 @@ async function initTurnstiles() {
   turnstiles.push(await createTurnstile(world, scene, 10, 0, 310, 2, 15));
   turnstiles.push(await createTurnstile(world, scene, 30, 0, 310, 2, 15));
   // Section 3 - Final stretch
-  // turnstiles.push(await createTurnstile(world, scene, 0, 0, 400, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, -20, 0, 400, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 0, 0, 400, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 20, 0, 400, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, -20, 0, 440, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 0, 0, 440, 2, 15));
+  turnstiles.push(await createTurnstile(world, scene, 20, 0, 440, 2, 15));
   // turnstiles.push(await createTurnstile(world, scene, -15, 0, 420, 2, 15));
+  console.log("turnstiles:", turnstiles);
+  //turnstileVisualHelper();
 }
+
+// function turnstileVisualHelper() {
+//   turnstiles.forEach((turnstile) => {
+//     const helper = new THREE.BoxHelper(turnstile, 0x00ff00);
+//     turnstileHelpers.push(helper);
+//     scene.add(helper);
+//   });
+// }
 
 async function initHorizontalCylinders() {
   // Section 2 - left
@@ -1327,6 +1388,17 @@ async function initHorizontalCylinders() {
   const rod5 = await createRod(scene, -10, 1, 320, -30, -5, 0.5, 10, 20);
   rod5.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
   rods.push(rod5);
+
+  //Section 3
+  const rodzy = await createVertRod(scene, -29, 1, 420, -29, -13, 0.5, 10, 20);
+  rodzy.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rodzy);
+  const rodzt = await createVertRod(scene, 29, 1, 420, 13, 29, 0.5, 10, 20);
+  rodzt.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rodzt);
+  const rodzv = await createVertRod(scene, -16, 1, 430, -16, 16, 0.5, 10, 20);
+  rodzv.rotation.z = Math.PI / 2; // Rotate the rod to be horizontal
+  rods.push(rodzv);
 }
 
 async function initLevel3Layout() {
@@ -1643,10 +1715,20 @@ async function initGates() {
 
 async function initHammers() {
   // Section 1 obstacles - Fork paths
-  const hammerr1 = createRotatingHammer(world, scene, -22, 0, 40, 1, 5); // Left path hammer
-  const hammerr2 = createRotatingHammer(world, scene, -38, 0, 40, 1, 5); // Right path hammer
-  const hammerl1 = createRotatingHammer(world, scene, 22, 0, 40, 1, 5); // Left path hammer
-  const hammerl2 = createRotatingHammer(world, scene, 38, 0, 40, 1, 5); // Right path hammer
+  const hammerr1 = createRotatingHammer(world, scene, -22, 0, 35, 1, 5); // Left path hammer
+  const hammerr2 = createRotatingHammer(world, scene, -38, 0, 35, 1, 5); // Right path hammer
+  const hammerr7 = createRotatingHammer(world, scene, -30, 0, 45, 1, 5); // Right path hammer
+  const hammerr8 = createRotatingHammer(world, scene, -20, 0, 60, 1, 5); // Right path hammer
+  const hammerr9 = createRotatingHammer(world, scene, -40, 0, 60, 1, 5); // Right path hammer
+  const hammerr10 = createRotatingHammer(world, scene, -20, 0, 100, 1, 5); // Right path hammer
+  const hammerr11 = createRotatingHammer(world, scene, -40, 0, 100, 1, 5); // Right path hammer
+  const hammerl1 = createRotatingHammer(world, scene, 22, 0, 35, 1, 5); // Left path hammer
+  const hammerl2 = createRotatingHammer(world, scene, 38, 0, 35, 1, 5); // Right path hammer
+  const hammerl7 = createRotatingHammer(world, scene, 30, 0, 45, 1, 5); // Right path hammer
+  const hammerl8 = createRotatingHammer(world, scene, 20, 0, 60, 1, 5); // Right path hammer
+  const hammerl9 = createRotatingHammer(world, scene, 40, 0, 60, 1, 5); // Right path hammer
+  const hammerl10 = createRotatingHammer(world, scene, 20, 0, 100, 1, 5); // Right path hammer
+  const hammerl11 = createRotatingHammer(world, scene, 40, 0, 100, 1, 5); // Right path hammer
   const hammerr3 = createRotatingHammer(world, scene, -22, 0, 80, 1, 5); // Left path hammer
   const hammerr4 = createRotatingHammer(world, scene, -38, 0, 80, 1, 5); // Right path hammer
   const hammerl3 = createRotatingHammer(world, scene, 22, 0, 80, 1, 5); // Left path hammer
@@ -1656,12 +1738,26 @@ async function initHammers() {
   const hammerl5 = createRotatingHammer(world, scene, 22, 0, 120, 1, 5); // Left path hammer
   const hammerl6 = createRotatingHammer(world, scene, 38, 0, 120, 1, 5); // Right path hammer
   const hammer6 = createRotatingHammer(world, scene, 30, 0, 140, 1, 6); // Right path hammer
+  const hammer9 = createRotatingHammer(world, scene, 20, 0, 140, 1, 6); // Right path hammer
+  const hammer10 = createRotatingHammer(world, scene, 40, 0, 140, 1, 6); // Right path hammer
   const hammer7 = createRotatingHammer(world, scene, -30, 0, 140, 1, 6); // Right path hammer
+  const hammer11 = createRotatingHammer(world, scene, -20, 0, 140, 1, 6); // Right path hammer
+  const hammer12 = createRotatingHammer(world, scene, -40, 0, 140, 1, 6); // Right path hammer
   hammers.push(
     hammerr1,
     hammerr2,
+    hammerr7,
+    hammerr8,
+    hammerr9,
+    hammerr10,
+    hammerr11,
     hammerl1,
     hammerl2,
+    hammerl7,
+    hammerl8,
+    hammerl9,
+    hammerl10,
+    hammerl11,
     hammerr3,
     hammerr4,
     hammerl3,
@@ -1671,19 +1767,36 @@ async function initHammers() {
     hammerl5,
     hammerl6,
     hammer6,
-    hammer7
+    hammer7,
+    hammer9,
+    hammer10,
+    hammer11,
+    hammer12
   );
 
   // Section 2 obstacles - Zigzag section
   const hammer3 = createRotatingHammer(world, scene, -20, 0, 225, 1, 6);
+  const hammer44 = createRotatingHammer(world, scene, -5, 0, 225, 1, 6);
+  const hammer55 = createRotatingHammer(world, scene, -35, 0, 225, 1, 6);
   const hammer4 = createRotatingHammer(world, scene, -20, 0, 255, 1, 6);
+  const hammer66 = createRotatingHammer(world, scene, -5, 0, 255, 1, 6);
+  const hammer77 = createRotatingHammer(world, scene, -35, 0, 255, 1, 6);
   const hammer5 = createRotatingHammer(world, scene, 20, 0, 295, 1, 6);
+  const hammer88 = createRotatingHammer(world, scene, 5, 0, 295, 1, 6);
+  const hammer99 = createRotatingHammer(world, scene, 35, 0, 295, 1, 6);
   const hammer8 = createRotatingHammer(world, scene, 20, 0, 325, 1, 6);
-  hammers.push(hammer3, hammer4, hammer5, hammer8);
+  const hammer81 = createRotatingHammer(world, scene, 5, 0, 325, 1, 6);
+  const hammer82 = createRotatingHammer(world, scene, 35, 0, 325, 1, 6);
+  hammers.push(hammer3, hammer4, hammer5, hammer8, hammer44, hammer55, hammer66, hammer77, hammer88, hammer99, hammer81, hammer82);
 
   // Section 3 obstacles - Final stretch
-  // const hammer5 = createRotatingHammer(world, scene, 0, 0, 440, 1, 2);
-  // hammers.push(hammer5);
+  const hammert = createRotatingHammer(world, scene, -7, 0, 420, 1, 7);
+  const hammery = createRotatingHammer(world, scene, 7, 0, 420, 1, 7);
+  const hammeru = createRotatingHammer(world, scene, -22, 0, 410, 1, 7);
+  const hammeri = createRotatingHammer(world, scene, 22, 0, 410, 1, 7);
+  const hammerx = createRotatingHammer(world, scene, -18, 0, 430, 1, 7);
+  const hammerz = createRotatingHammer(world, scene, 18, 0, 430, 1, 7);
+  hammers.push(hammert, hammery, hammerx, hammerz, hammeru, hammeri);
 }
 
 async function initCheckpoints() {
@@ -1840,7 +1953,7 @@ async function animateTurnstile(deltaTime) {
         turnstile.mesh.position.z < playerBody.position.z + 100
       ) {
         // Don't animate obstacles too far ahead
-        const rotation = deltaTime * 1.0;
+        const rotation = deltaTime * 2;
         turnstile.mesh.rotation.y += rotation;
         turnstile.body.quaternion.setFromAxisAngle(
           new CANNON.Vec3(0, 1, 0),
@@ -2244,6 +2357,29 @@ async function panCameraToStart() {
   });
 }
 
+function checkPlayerCollisions(playerBody, turnstilesArray, hammersArray) {
+  // Create a collision event listener for the player body
+  playerBody.addEventListener("collide", function (event) {
+    // The event contains information about the collision
+    const collidedBody = event.body;
+
+    // Check if the collided body is from the obstacles or hammers array
+    const isTurnstileCollision = turnstilesArray.some(
+      (obstacle) => obstacle.body === collidedBody
+    );
+
+    const isHammerCollision = hammersArray.some(
+      (hammer) => hammer.body === collidedBody
+    );
+
+    // If collision is with an obstacle or hammer, trigger the die function
+    if ((isTurnstileCollision || isHammerCollision) && !isPlayerDead) {
+      die();
+      isPlayerDead = true;
+    }
+  });
+}
+
 async function animate() {
   frame++;
   stats.begin();
@@ -2324,52 +2460,6 @@ async function animate() {
         world.addBody(crown.body);
       }
     }
-
-    // Check collision with turnstiles
-    turnstiles.forEach((turnstile) => {
-      if (turnstile.mesh && playerBody) {
-        // Create bounding box for turnstile mesh
-        const turnstileBoundingBox = new THREE.Box3().setFromObject(
-          turnstile.mesh
-        );
-        const playerBoundingBox = new THREE.Box3().setFromObject(model);
-
-        if (playerBoundingBox.intersectsBox(turnstileBoundingBox)) {
-          const currentTime = Date.now();
-          if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
-            isPlayerDead = true;
-            lastDeathTime = currentTime;
-            die();
-
-            setTimeout(() => {
-              isPlayerDead = false;
-            }, deathCooldown);
-          }
-        }
-      }
-    });
-
-    // Check collision with hammers
-    hammers.forEach((hammer) => {
-      if (hammer && hammer.mesh && playerBody) {
-        // Create bounding box for hammer mesh
-        const hammerBoundingBox = new THREE.Box3().setFromObject(hammer.mesh);
-        const playerBoundingBox = new THREE.Box3().setFromObject(model);
-
-        if (playerBoundingBox.intersectsBox(hammerBoundingBox)) {
-          const currentTime = Date.now();
-          if (!isPlayerDead && currentTime - lastDeathTime > deathCooldown) {
-            isPlayerDead = true;
-            lastDeathTime = currentTime;
-            die();
-
-            setTimeout(() => {
-              isPlayerDead = false;
-            }, deathCooldown);
-          }
-        }
-      }
-    });
 
     // Check for collisions with gates
     gates.forEach((gate) => {
@@ -2476,6 +2566,11 @@ async function animate() {
     if (playerHelper) {
       playerHelper.update();
     }
+
+    //update each turnstile
+    // turnstileHelpers.forEach((turnstileHelper) => {
+    //   turnstileHelper.update();
+    // });
 
     //Particle system
     if (particleSystem) {
@@ -2727,9 +2822,9 @@ async function showWinScreen(elapsedTime) {
   }
 
   // Create the congratulatory message
-  const congratsMessage = document.createElement("h2");
+  const congratsMessage = document.createElement("h1");
   congratsMessage.id = "congratsMessage";
-  congratsMessage.textContent = "Congratulations! ";
+  congratsMessage.textContent = "You've completed the level! ";
   winMessage.appendChild(congratsMessage);
 
   //store elapsed time in local storage as best time
@@ -2749,7 +2844,8 @@ async function showWinScreen(elapsedTime) {
   //new best time
   if (elapsedTime <= bestTime) {
     localStorage.setItem("levelThreeBestTime", elapsedTime);
-    congratsMessage.textContent = "Congratulations! New Best Time!";
+    congratsMessage.textContent =
+      "You've completed the level with a new best time!";
   }
 
   // Create the final time message
@@ -2881,6 +2977,9 @@ async function startGame() {
     hideGameMenu();
     //render the game
     await init();
+
+    //setup collision detection for turnstile
+    checkPlayerCollisions(playerBody, turnstiles, hammers);
 
     //hide the controls ui
     let controlsInfo = document.getElementById("controls-info");

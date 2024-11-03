@@ -17,7 +17,7 @@ import {
 
 // Import assets
 import finish from "../img/finish.jpg";
-import basicBg from "../img/sky.jpg";
+import basicBg from "../img/sample2.png";
 import heart from "../img/heart.png";
 import groundTexture from "../textures/floor.png";
 import PbackGroundMusic from "../sounds/backGroundMusic.mp3";
@@ -359,7 +359,7 @@ async function loadAudio() {
 
   // Assign each load operation to the audioPromises array
   audioPromises.push(
-    loadSound(PbackGroundMusic, backGroundMusic, true, gameVolume / 2)
+    loadSound(PbackGroundMusic, backGroundMusic, true, gameVolume / 4)
   );
   audioPromises.push(loadSound(PjumpSound, jumpSound));
   audioPromises.push(loadSound(Pjumpland, jumpland));
@@ -633,7 +633,7 @@ async function initStats() {
 async function initScene() {
   return new Promise((resolve) => {
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x202020, 100, 500); // Add depth fog
+    scene.fog = new THREE.Fog(0x202020, 150, 700); // Add depth fog
     camera = new THREE.PerspectiveCamera(
       70, // Field of view (45-75)
       window.innerWidth / window.innerHeight,
@@ -1276,6 +1276,32 @@ async function createGroundPiece(x, y, z, width, length) {
   });
 }
 
+// ... existing code ...
+
+async function createInvisibleFence(world, scene, x, y, z, width, height, depth) {
+  return new Promise((resolve) => {
+    // Create invisible physics body
+    const fenceShape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, depth/2));
+    const fenceBody = new CANNON.Body({ mass: 0 }); // mass: 0 makes it static
+    fenceBody.addShape(fenceShape);
+    fenceBody.position.set(x, y + height/2, z);
+    world.addBody(fenceBody);
+
+    // Optional: Create a visible mesh for debugging
+    // const fenceGeometry = new THREE.BoxGeometry(width, height, depth);
+    // const fenceMaterial = new THREE.MeshBasicMaterial({ 
+    //   color: 0xff0000,
+    //   transparent: true,
+    //   opacity: 0.2
+    // });
+    // const fenceMesh = new THREE.Mesh(fenceGeometry, fenceMaterial);
+    // fenceMesh.position.set(x, y + height/2, z);
+    // scene.add(fenceMesh);
+
+    resolve(fenceBody);
+  });
+}
+
 async function initGateObstacles() {
   return new Promise(async (resolve) => {
     //FIRST SET OF PILLARS AND GATES (4 pillars, 3 gates)
@@ -1283,6 +1309,10 @@ async function initGateObstacles() {
     let pillar2 = await createPillar(world, scene, 9.5, 0, 50, 3, 8, 7);
     let pillar3 = await createPillar(world, scene, -9.5, 0, 50, 3, 8, 7);
     let pillar4 = await createPillar(world, scene, -28.5, 0, 50, 3, 8, 7);
+
+    // Add invisible fences after first set of pillars
+    await createInvisibleFence(world, scene, 33.5, 0, 50, 10, 20, 7); // Right fence
+    await createInvisibleFence(world, scene, -33.5, 0, 50, 10, 20, 7); // Left fence
 
     // //moving gates between pillar 1 and 2
     gates.push(
@@ -1385,6 +1415,10 @@ async function initGateObstacles() {
       8,
       7
     );
+
+    // Add invisible fences after second set
+    await createInvisibleFence(world, scene, 33.5, 0, secondSetZ, 10, 20, 7);
+    await createInvisibleFence(world, scene, -33.5, 0, secondSetZ, 10, 20, 7);
 
     //create cylinder obstacle
     cylinders.push(await createCylinder(scene, -29, 0, 98.5, 1, 6));
@@ -1496,6 +1530,10 @@ async function initGateObstacles() {
       8,
       7
     );
+
+    // Add invisible fences after third set
+    await createInvisibleFence(world, scene, 33.5, 0, thirdSetZ, 10, 20, 7);
+    await createInvisibleFence(world, scene, -33.5, 0, thirdSetZ, 10, 20, 7);
 
     //create cylinder obstacle
     cylinders.push(await createCylinder(scene, 30, 0, 148.5, 1, 6));
@@ -1613,6 +1651,10 @@ async function initGateObstacles() {
       8,
       7
     );
+
+    // Add invisible fences after fourth set
+    await createInvisibleFence(world, scene, 33.5, 0, fourthSetZ, 10, 20, 7);
+    await createInvisibleFence(world, scene, -33.5, 0, fourthSetZ, 10, 20, 7);
 
     // Moving gates between pillar 5 and 6
     gates.push(

@@ -1427,7 +1427,7 @@ async function initLevel3Layout() {
     -30,
     0,
     60,
-    30,
+    32,
     0.1,
     60
   );
@@ -1440,7 +1440,7 @@ async function initLevel3Layout() {
     -30,
     0,
     120,
-    30,
+    32,
     0.1,
     60
   );
@@ -1454,7 +1454,7 @@ async function initLevel3Layout() {
     30,
     0,
     60,
-    30,
+    32,
     0.1,
     60
   );
@@ -1467,7 +1467,7 @@ async function initLevel3Layout() {
     30,
     0,
     120,
-    30,
+    32,
     0.1,
     60
   );
@@ -1787,7 +1787,20 @@ async function initHammers() {
   const hammer8 = createRotatingHammer(world, scene, 20, 0, 325, 1, 6);
   const hammer81 = createRotatingHammer(world, scene, 5, 0, 325, 1, 6);
   const hammer82 = createRotatingHammer(world, scene, 35, 0, 325, 1, 6);
-  hammers.push(hammer3, hammer4, hammer5, hammer8, hammer44, hammer55, hammer66, hammer77, hammer88, hammer99, hammer81, hammer82);
+  hammers.push(
+    hammer3,
+    hammer4,
+    hammer5,
+    hammer8,
+    hammer44,
+    hammer55,
+    hammer66,
+    hammer77,
+    hammer88,
+    hammer99,
+    hammer81,
+    hammer82
+  );
 
   // Section 3 obstacles - Final stretch
   const hammert = createRotatingHammer(world, scene, -7, 0, 420, 1, 7);

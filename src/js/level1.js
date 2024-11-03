@@ -1288,15 +1288,15 @@ async function createInvisibleFence(world, scene, x, y, z, width, height, depth)
     world.addBody(fenceBody);
 
     // Optional: Create a visible mesh for debugging
-    // const fenceGeometry = new THREE.BoxGeometry(width, height, depth);
-    // const fenceMaterial = new THREE.MeshBasicMaterial({ 
-    //   color: 0xff0000,
-    //   transparent: true,
-    //   opacity: 0.2
-    // });
-    // const fenceMesh = new THREE.Mesh(fenceGeometry, fenceMaterial);
-    // fenceMesh.position.set(x, y + height/2, z);
-    // scene.add(fenceMesh);
+    const fenceGeometry = new THREE.BoxGeometry(width, height, depth);
+    const fenceMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0xff0000,
+      transparent: true,
+      opacity: 0.2
+    });
+    const fenceMesh = new THREE.Mesh(fenceGeometry, fenceMaterial);
+    fenceMesh.position.set(x, y + height/2, z);
+    scene.add(fenceMesh);
 
     resolve(fenceBody);
   });

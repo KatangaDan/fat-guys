@@ -1125,7 +1125,7 @@ export async function createStartingPlatform(
 
       // Create fences
       const fenceHeight = 8;
-      const fenceThickness = 0.5;
+      const fenceThickness = 1;
       const fenceMaterial = new THREE.MeshStandardMaterial({ map: texture });
 
       // Left fence

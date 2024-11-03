@@ -140,14 +140,14 @@ const CANNON_POSITIONS = [
   { x: -30, y: 15, z: 120 }, // Left path
   { x: 30, y: 15, z: 120 }, // Right path
 
-  // // Section 2 - After first checkpoint
+  // Section 2 - After first checkpoint
   // { x: -20, y: 15, z: 230 }, // Left side
   // { x: 20, y: 15, z: 300 },  // Right side
 
-  // // Section 3 - Final stretch
-  // { x: -25, y: 15, z: 420 }, // Left path
-  // { x: 0, y: 15, z: 420 },   // Center path
-  // { x: 25, y: 15, z: 420 }   // Right path
+  // Section 3 - Final stretch
+  // { x: -25, y: 15, z: 460 }, // Left path
+  // { x: 0, y: 15, z: 460 },   // Center path
+  // { x: 25, y: 15, z: 460 }   // Right path
 ];
 
 // Modify shooting interval
@@ -715,7 +715,7 @@ async function initScene() {
 
     //Create an axis
     const axesHelper = new THREE.AxesHelper(1000); // Size of the axes
-    scene.add(axesHelper);
+    //scene.add(axesHelper);
 
     //Start clock
     clock = new THREE.Clock();
@@ -2610,7 +2610,7 @@ async function animate() {
   animateRods(deltaTime);
   updateCannonBalls(deltaTime);
 
-  cannonDebugger.update();
+  //cannonDebugger.update();
   renderer.render(scene, camera);
   //controls.update();
 

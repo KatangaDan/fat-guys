@@ -1278,25 +1278,36 @@ async function createGroundPiece(x, y, z, width, length) {
 
 // ... existing code ...
 
-async function createInvisibleFence(world, scene, x, y, z, width, height, depth) {
+async function createInvisibleFence(
+  world,
+  scene,
+  x,
+  y,
+  z,
+  width,
+  height,
+  depth
+) {
   return new Promise((resolve) => {
     // Create invisible physics body
-    const fenceShape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, depth/2));
+    const fenceShape = new CANNON.Box(
+      new CANNON.Vec3(width / 2, height / 2, depth / 2)
+    );
     const fenceBody = new CANNON.Body({ mass: 0 }); // mass: 0 makes it static
     fenceBody.addShape(fenceShape);
-    fenceBody.position.set(x, y + height/2, z);
+    fenceBody.position.set(x, y + height / 2, z);
     world.addBody(fenceBody);
 
     // Optional: Create a visible mesh for debugging
-    const fenceGeometry = new THREE.BoxGeometry(width, height, depth);
-    const fenceMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0xff0000,
-      transparent: true,
-      opacity: 0.2
-    });
-    const fenceMesh = new THREE.Mesh(fenceGeometry, fenceMaterial);
-    fenceMesh.position.set(x, y + height/2, z);
-    scene.add(fenceMesh);
+    // const fenceGeometry = new THREE.BoxGeometry(width, height, depth);
+    // const fenceMaterial = new THREE.MeshBasicMaterial({
+    //   color: 0xff0000,
+    //   transparent: true,
+    //   opacity: 0.2
+    // });
+    // const fenceMesh = new THREE.Mesh(fenceGeometry, fenceMaterial);
+    // fenceMesh.position.set(x, y + height/2, z);
+    // scene.add(fenceMesh);
 
     resolve(fenceBody);
   });

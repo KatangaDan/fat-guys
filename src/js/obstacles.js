@@ -369,7 +369,7 @@ export async function createGate2(
 
       // Create the Cannon.js body for the gate
       const shape = new CANNON.Box(
-        new CANNON.Vec3(width / 2 + 1.8, height / 2 + 1.8, length / 2 + 1.8)
+        new CANNON.Vec3(width / 2 , height / 2, length / 2)
       );
       const body = new CANNON.Body({
         mass: 0, // Set mass to 0 if the gate should be static, otherwise set it to a higher value

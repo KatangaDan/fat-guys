@@ -192,7 +192,7 @@ async function init() {
 
       //await initFinishLine();
       // Add crown at the finish line
-      crown = await createCrown(world, scene, 0, 3, 460);
+      crown = await createCrown(world, scene, 0, 3, 480);
 
       // Initialize minimap
       minimapElements = createMinimapScene();
@@ -665,8 +665,36 @@ function checkCollision(model) {
         scene.remove(gate); // Remove gate after explosion
         gate.exploded = true; // Set exploded flag to true
         popedGates.push(gate);
-        gates.splice(index, 1); // Remove gate from array
+        //gates.splice(index, 1); // Remove gate from array
       }
+    }
+  });
+}
+
+//Check Incorrect Function
+function checkIncorrect(model) {
+  const playerBoundingBox = new THREE.Box3().setFromObject(model);
+  gates.forEach((igate) => {
+    const gateBoundingBox = new THREE.Box3().setFromObject(igate);
+    //console.log("Rod Bounding Box: ", gateBoundingBox, " Player Bounding Box:", playerBoundingBox);
+    //console.log("Here i am");
+    if (playerBoundingBox.intersectsBox(gateBoundingBox)) {
+      console.log("Incorrect");
+
+      playerBody.position.set(
+        0,
+        10,
+        270
+      );
+      
+      popedGates.forEach((Egate) => {
+         if (Egate.exploded) {
+         Egate.exploded = false;
+         gateExplosion(Egate.position);
+        scene.add(Egate);
+         }
+       });
+      
     }
   });
 }
@@ -1021,7 +1049,7 @@ async function initPlayer() {
       fatGuyURL.href,
       (gltf) => {
         model = gltf.scene;
-        model.position.set(0, 2, 5);
+        model.position.set(0, 2, 270);
         model.scale.set(0.4, 0.4, 0.4);
 
         // Enable shadows for all meshes in the model
@@ -1468,7 +1496,7 @@ async function createGroundPiece(x, y, z, width, length) {
 
 async function initGateObstacles() {
   return new Promise(async (resolve) => {
-    const pillarZPositions = [275, 300, 325, 350, 375, 400, 425];
+    const pillarZPositions = [300, 325, 350, 375, 400, 425, 450];
     const pillarXPositions = [28.5, 9.5, -9.5, -28.5]; // Replace with specific x-coordinates as needed
 
     for (let z of pillarZPositions) {
@@ -1485,7 +1513,6 @@ async function initGateObstacles() {
         const rightPillar = pillars[i + 1];
 
         if (i === gateIndex) {
-          gates.push(
             await createGateExplosion(
               scene,
               model,
@@ -1497,7 +1524,7 @@ async function initGateObstacles() {
               leftPillar,
               rightPillar
             )
-          );
+          
         } else {
           gates.push(
             await createGate2(
@@ -1540,7 +1567,7 @@ async function initGroundCylinders() {
 function AddVisualGateHelpers() {
   // Add visual helpers for the gates
   gates.forEach((gate) => {
-    const helper = new THREE.BoxHelper(gate, "blue");
+    const helper = new THREE.BoxHelper(gate, "red");
     gateHelpers.push(helper);
     //scene.add(helper);
   });
@@ -1826,9 +1853,11 @@ function animate() {
 
   updateParticles(deltaTime);
 
-  if (gate) {
-    checkCollision(model); // Check collision with the gate
-  }
+
+
+  /*if(gate){
+    checkIncorrect(model); 
+  }*/
 
   // make the model follow the physics body
   if (model && playerBody) {
@@ -1883,6 +1912,12 @@ function animate() {
       model.position.copy(playerBody.position).add(worldOffset);
     }
     /*Actual bounding boxes for the player and obstacles*/
+
+    if (gate) {
+      checkCollision(model);
+      checkIncorrect(model);
+      // Check collision with the gate
+    }
 
     //player bounding box
     const playerBoundingBox = new THREE.Box3().setFromObject(model);
